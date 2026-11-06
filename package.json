@@ -17,7 +17,7 @@
     "check:public-face": "node scripts/check-public-face.mjs",
     "gen:migrations": "node scripts/gen-migrations.mjs",
     "build": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json && electron-vite build",
-    "test": "node scripts/check-privacy.mjs && node scripts/check-public-face.mjs && node scripts/check-node.mjs && node scripts/check-deps.mjs && tsc -p tsconfig.json && tsc --noEmit -p tsconfig.web.json && node scripts/audit/chain-gaps.mjs && node --test \"dist/test/**/*.test.js\"",
+    "test": "node scripts/check-privacy.mjs && node scripts/check-public-face.mjs && node scripts/check-node.mjs && node scripts/check-deps.mjs && tsc -p tsconfig.json && tsc --noEmit -p tsconfig.web.json && node scripts/audit/chain-gaps.mjs && node --test --test-concurrency=1 \"dist/test/**/*.test.js\"",
     "pack": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder",
     "release:publish": "node scripts/release-publish.mjs"

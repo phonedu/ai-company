@@ -75,7 +75,7 @@ test('自动更新：check → available → downloading → downloaded；instal
   assert.equal(c.getStatus().phase, 'downloaded');
   assert.equal(c.getStatus().canInstall, true);
   assert.equal(c.install().ok, true);
-  assert.deepEqual(updater.quitCalls, [[false, true]]);
+  assert.deepEqual(updater.quitCalls, [[true, true]], '自动更新应静默安装（不弹安装器 UI）');
 
   gate.resolve?.();
   await pending;
@@ -128,7 +128,7 @@ test('自动更新：AICO_UPDATE_NO_RELAUNCH=1 时安装后不强制重启（冒
   process.env.AICO_UPDATE_NO_RELAUNCH = '1';
   try {
     assert.equal(c.install().ok, true);
-    assert.deepEqual(updater.quitCalls, [[false, false]], '测试开关下不强制拉起应用');
+    assert.deepEqual(updater.quitCalls, [[true, false]], '测试开关下静默安装且不强制拉起应用');
   } finally {
     if (previous == null) delete process.env.AICO_UPDATE_NO_RELAUNCH;
     else process.env.AICO_UPDATE_NO_RELAUNCH = previous;

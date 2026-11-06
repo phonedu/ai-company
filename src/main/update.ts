@@ -187,7 +187,7 @@ export function createUpdateController(deps: UpdateControllerDeps): UpdateContro
         // 测试/无人值守：AICO_UPDATE_NO_RELAUNCH=1 时安装后不强制拉起应用，
         // 便于冒烟脚本用隔离 userData 手动启动新版本（默认仍自动重启）。
         const forceRunAfter = process.env['AICO_UPDATE_NO_RELAUNCH'] !== '1';
-        deps.updater.quitAndInstall(false, forceRunAfter);
+        deps.updater.quitAndInstall(true, forceRunAfter);
         return { ok: true };
       } catch (error) {
         return { ok: false, error: errorText(error) };

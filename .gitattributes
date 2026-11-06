@@ -1,0 +1,12 @@
+# 跨平台一致：文本统一 LF（测试里有逐字比较 / 源码级正则断言）
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.sqlite binary

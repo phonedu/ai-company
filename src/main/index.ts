@@ -74,6 +74,11 @@ import { buildSplashDataUrl, buildStartupErrorDataUrl } from './startup-splash.j
 //   T0.5：DB 只在主进程打开（唯一写者）；IPC 只暴露 §7.3 的通道。
 // ─────────────────────────────────────────────────────────────────────────────
 
+// 2026-11-06 v0.1.1：隔离/便携场景的 userData 覆盖（必须在 app ready 前设置）。
+// 用途：自动更新重启、安装版冒烟、便携副本都可用同一套环境变量隔离数据目录。
+const userDataOverride = process.env['AICO_USER_DATA_DIR']?.trim();
+if (userDataOverride) app.setPath('userData', userDataOverride);
+
 // 附件预览专用协议：standard/secure 才能在 <img>/<iframe> 里加载；必须在 app ready 前注册。
 protocol.registerSchemesAsPrivileged([
   { scheme: 'aico-file', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },

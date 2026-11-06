@@ -17,6 +17,7 @@ const RULES = [
   { re: new RegExp(P('C:', '\\', 'Project', '\\', 'ai-company'), 'i'), why: '私有仓路径' },
   { re: new RegExp(P('inter', 'nal/(?:\d|next)'), 'i'), why: '内部台账路径' },
   { re: new RegExp(P('history', '/records'), 'i'), why: '内部证据路径' },
+  { re: /history\/archive\//i, why: '内部归档路径' },
   { re: new RegExp(P('Pixel', 'Editor'), 'i'), why: '真实项目名' },
   { re: new RegExp(P('验收', '2026'), 'i'), why: '真实项目名' },
   { re: /\bgh[pousr]_[A-Za-z0-9]{20,}/, why: 'GitHub token' },

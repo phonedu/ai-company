@@ -119,3 +119,18 @@ test('自动更新：autoDownload/autoInstallOnAppQuit 由控制器统一开启�
   assert.equal(updater.autoDownload, true);
   assert.equal(updater.autoInstallOnAppQuit, true);
 });
+
+test('自动更新：AICO_UPDATE_NO_RELAUNCH=1 时安装后不强制重启（冒烟隔离用）', () => {
+  const updater = new FakeUpdater();
+  const c = createUpdateController({ updater, currentVersion: '0.1.0', enabled: true });
+  updater.emit('update-downloaded', { version: '0.1.1' });
+  const previous = process.env.AICO_UPDATE_NO_RELAUNCH;
+  process.env.AICO_UPDATE_NO_RELAUNCH = '1';
+  try {
+    assert.equal(c.install().ok, true);
+    assert.deepEqual(updater.quitCalls, [[false, false]], '测试开关下不强制拉起应用');
+  } finally {
+    if (previous == null) delete process.env.AICO_UPDATE_NO_RELAUNCH;
+    else process.env.AICO_UPDATE_NO_RELAUNCH = previous;
+  }
+});

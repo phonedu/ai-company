@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security
+    url: https://github.com/phonedu/ai-company/security/advisories/new
+    about: 安全漏洞请走私密报告，不要开公开 Issue

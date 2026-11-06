@@ -1,0 +1,40 @@
+name: Bug report
+description: 报告可复现的问题
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先确认：不要贴模型 Key、真实项目路径或用户数据。
+        安全漏洞请走 Security → Advisories，不要开公开 Issue。
+  - type: textarea
+    id: what
+    attributes:
+      label: 发生了什么
+      description: 期望 vs 实际
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: 1. … 2. … 3. …
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 版本
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: 系统
+      placeholder: Windows 11 26200
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志/截图（已脱敏）
+      description: 请移除 Key、路径、真实数据

@@ -1,0 +1,113 @@
+/** `src/main/engine` 公共出口（引擎：状态机 + 动作幂等 + 定时器 + 事件循环）。 */
+export { Engine, type RecoveryReport } from './loop.js';
+export {
+  TASK_TRANSITIONS,
+  WORK_ITEM_TRANSITIONS,
+  planTaskTransition,
+  planWorkItemTransition,
+  resolveTaskTransition,
+  resolveWorkItemTransition,
+  resolveTaskTarget,
+  isTerminalTaskState,
+  UnknownTransitionError,
+  EmployeeBusyError,
+  UNDO_FINISH_WINDOW_MS,
+  TIMEOUT_AUTO_ACTIONS,
+  resolveDefaultActionKind,
+  TASK_TERMINAL_STATES,
+  TASK_RESUMABLE_STATES,
+  type DefaultActionKind,
+  type TaskTransition,
+  type TaskTransitionContext,
+  type WorkItemTransition,
+  type WorkItemTransitionContext,
+} from './statemachine.js';
+export {
+  routeChannel,
+  requestAsk,
+  answerAsk,
+  listMailbox,
+  MAILBOX_ERROR,
+  MailboxError,
+  type ChannelRoute,
+  type ChannelRouteOk,
+  type ChannelRouteErr,
+  type RequestAskInput,
+  type AnswerAskInput,
+  type AnswerRecord,
+  type AskRecord,
+} from './mailbox.js';
+export {
+  STATE_WRITE_RULES,
+  findStateWriterViolations,
+  findStateWriterViolationsIn,
+  type SourceFile,
+  type StateWriteRule,
+  type StateWriterViolation,
+} from './state-source.js';
+export {
+  registerActions,
+  executePendingActions,
+  makeRecordingExecutor,
+  toPersistedAction,
+  type ExecuteResult,
+  type RecordingExecutor,
+  type RecordingExecutorState,
+} from './actions.js';
+export {
+  scheduleTimer,
+  listTimers,
+  listUnfiredTimers,
+  listDueTimers,
+  markTimerFired,
+  clearUnfiredTimers,
+  rebuildTimers,
+  planTimersFromState,
+  scheduleTaskDeadlineTimers,
+  ASK_CARD_TIMEOUT_MS,
+  BLOCKED_WATCHDOG_MS,
+  SESSION_HEARTBEAT_MS,
+  DEADLINE_REMIND_MS,
+  heartbeatWorkItem,
+  clearWorkItemHeartbeat,
+  type TimerRow,
+  type ScheduleTimerInput,
+  type TimerKind,
+} from './timers.js';
+export { EventBus, type BusListener } from './bus.js';
+export {
+  verificationStrength,
+  verificationRequired,
+  DEFAULT_SAMPLE_EVERY,
+  type VerificationStrength,
+} from './verification.js';
+export {
+  pathsIntersect,
+  pathConflictWith,
+  type PathConflict,
+  type DispatchHoldReason,
+} from './path-ownership.js';
+export {
+  EffectScopeManager,
+  effectScopeKey,
+  scopeDuration,
+  attributeDurations,
+  effectScopeAttribution,
+  createTaskkillPidKiller,
+  DEFAULT_HEARTBEAT_TIMEOUT_MS,
+  type ScopeDuration,
+  type PidKiller,
+  type OpenScopeInput,
+  type ReclaimReason,
+  type ReclaimResult,
+  type EffectScopeManagerOptions,
+} from './effect-scope.js';
+export {
+  actionKeyOf,
+  type EngineAction,
+  type EngineEvent,
+  type EffectExecutor,
+  type PersistedAction,
+  type EngineConfig,
+  type ActionSubjectKind,
+} from './types.js';

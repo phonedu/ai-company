@@ -1,0 +1,117 @@
+/**
+ * Crepe 主题变量（S13-A / RW-29，2026-10-28 老板真机带回）。
+ *
+ * 根因：Crepe 的 `theme/common/*` 只写结构与用法，全部颜色/阴影走 `--crepe-color-*` 变量；
+ * 变量真源在其 `theme/frame/style.css`（浅）与 `theme/frame-dark/style.css`（深）。
+ * 我们此前只引 common 叶子 → 变量缺失 → 块菜单/工具栏 颜色与背景失效（浅色下白字、叠影）。
+ *
+ * 这里按应用主题（prefers-color-scheme，由 ui.theme→nativeTheme 驱动）成对声明变量；
+ * 数值照抄上游 frame / frame-dark（2026-10-28 核对 crepe 7.22.3），字号对齐应用 15px 正文。
+ * 升级 Crepe 后请对照上游两文件复核本文件。
+ */
+
+.milkdown {
+  --crepe-color-background: #ffffff;
+  --crepe-color-on-background: #000000;
+  --crepe-color-surface: #f7f7f7;
+  --crepe-color-surface-low: #ededed;
+  --crepe-color-on-surface: #1c1c1c;
+  --crepe-color-on-surface-variant: #4d4d4d;
+  --crepe-color-outline: #a8a8a8;
+  --crepe-color-primary: #333333;
+  --crepe-color-secondary: #cfcfcf;
+  --crepe-color-on-secondary: #000000;
+  --crepe-color-inverse: #f0f0f0;
+  --crepe-color-on-inverse: #1a1a1a;
+  --crepe-color-inline-code: #ba1a1a;
+  --crepe-color-error: #ba1a1a;
+  --crepe-color-hover: #e0e0e0;
+  --crepe-color-selected: #d5d5d5;
+  --crepe-color-inline-area: #cacaca;
+
+  /* 应用正文档 15px（docs/06 三档字阶），与 Crepe 结构 CSS 的 calc 基数一致 */
+  --crepe-base-font-size: 15px;
+  --crepe-font-title: 'Noto Sans SC', 'Noto Sans', Arial, Helvetica, sans-serif;
+  --crepe-font-default: 'Noto Sans SC', 'Noto Sans', Arial, Helvetica, sans-serif;
+  --crepe-font-code: 'Space Mono', 'Fira Code', Menlo, Monaco, 'Courier New', Courier, monospace;
+
+  --crepe-shadow-1: 0px 1px 3px 1px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.3);
+  --crepe-shadow-2: 0px 2px 6px 2px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.3);
+
+  /* RW-29 补（2026-11-05 老板真机）：选中块浅灰底上白字不可见——强制选中态文字用深色 */
+  --crepe-color-on-selected: #1c1c1c;
+}
+
+.milkdown .ProseMirror .ProseMirror-selectednode,
+.milkdown .ProseMirror li.ProseMirror-selectednode {
+  color: var(--crepe-color-on-selected, #1c1c1c);
+}
+
+.milkdown .ProseMirror .ProseMirror-selectednode h1,
+.milkdown .ProseMirror .ProseMirror-selectednode h2,
+.milkdown .ProseMirror .ProseMirror-selectednode h3,
+.milkdown .ProseMirror .ProseMirror-selectednode h4,
+.milkdown .ProseMirror .ProseMirror-selectednode h5,
+.milkdown .ProseMirror .ProseMirror-selectednode h6,
+.milkdown .ProseMirror .ProseMirror-selectednode p,
+.milkdown .ProseMirror .ProseMirror-selectednode span {
+  color: inherit;
+}
+
+/* 2026-11-05（老板真机 perf-40000 笔记截图）· **编辑器内文字选区**白字不可见：
+   Crepe 的 `reset.css` 只覆盖 `::selection { background: var(--crepe-color-selected) }`（浅灰），
+   **不设字色**；字色于是落回本应用全局 `::selection { color: var(--on-accent) }`（白，本来配蓝底）
+   ⇒ 浅灰底 + 白字（实测：选中「s1」标题几乎看不见）。
+   这里把编辑器内选区字色改为随主题的 on-selected（浅 #1c1c1c / 深 #e6e6e6）。
+   特异性 0,2,1 必须高于全局 `::selection`（0,0,1），否则被压回白色。 */
+.milkdown .ProseMirror *::selection {
+  background: var(--crepe-color-selected);
+  color: var(--crepe-color-on-selected, #1c1c1c);
+}
+.milkdown .ProseMirror *::-moz-selection {
+  background: var(--crepe-color-selected);
+  color: var(--crepe-color-on-selected, #1c1c1c);
+}
+
+/* 2026-11-05（老板 T6 点验）：选中文字弹出的浮动工具栏图标用上游 `--crepe-color-outline`（浅色 #a8a8a8），
+   落在 #f7f7f7 面板上对比度约 2.3:1，看着"灰得看不清"。改用 on-surface-variant（浅 #4d4d4d / 深 #a9a9a9）。 */
+.milkdown .milkdown-toolbar .toolbar-item svg {
+  color: var(--crepe-color-on-surface-variant);
+}
+
+/* 2026-11-05（老板 T6 点验）：块菜单里两个 `operation-item` 同 class——第一个是「＋」，第二个是拖把手。
+   上游给整条 handle 设了 `cursor: pointer`，于是拖把手上也显示「手」指针（看着像可点，实际是拖拽）。
+   按 `:last-child` 精确指到拖把手：悬停 grab、按住 grabbing。 */
+.milkdown .milkdown-block-handle .operation-item:last-child {
+  cursor: grab;
+}
+.milkdown .milkdown-block-handle .operation-item:last-child:active {
+  cursor: grabbing;
+}
+
+@media (prefers-color-scheme: dark) {
+  .milkdown {
+    --crepe-color-background: #1a1a1a;
+    --crepe-color-on-background: #e6e6e6;
+    --crepe-color-surface: #121212;
+    --crepe-color-surface-low: #1c1c1c;
+    --crepe-color-on-surface: #d1d1d1;
+    --crepe-color-on-surface-variant: #a9a9a9;
+    --crepe-color-outline: #757575;
+    --crepe-color-primary: #b5b5b5;
+    --crepe-color-secondary: #4d4d4d;
+    --crepe-color-on-secondary: #d6d6d6;
+    --crepe-color-inverse: #e5e5e5;
+    --crepe-color-on-inverse: #2a2a2a;
+    --crepe-color-inline-code: #ff6666;
+    --crepe-color-error: #ff6666;
+    --crepe-color-hover: #232323;
+    --crepe-color-selected: #2f2f2f;
+    --crepe-color-inline-area: #2b2b2b;
+
+    --crepe-shadow-1: 0px 1px 2px 0px rgba(255, 255, 255, 0.3), 0px 1px 3px 1px rgba(255, 255, 255, 0.15);
+    --crepe-shadow-2: 0px 1px 2px 0px rgba(255, 255, 255, 0.3), 0px 2px 6px 2px rgba(255, 255, 255, 0.15);
+
+    --crepe-color-on-selected: #e6e6e6;
+  }
+}

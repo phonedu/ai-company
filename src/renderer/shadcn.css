@@ -1,0 +1,63 @@
+/*
+ * shadcn/Tailwind 桥接层（不改现有视觉）
+ *
+ * 关键点：
+ * 1. 不引入 preflight —— 现有 styles.css 的基础样式不能被重置。
+ * 2. shadcn 的 token 全部走 --sh-* 前缀，避免与现有 --accent / --border / --radius-sm 冲突。
+ * 3. 颜色映射到现有的 E 系 token（它们已经跟随 prefers-color-scheme 切换）。
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css";
+
+@theme inline {
+  --color-background: var(--sh-background);
+  --color-foreground: var(--sh-foreground);
+  --color-card: var(--sh-card);
+  --color-card-foreground: var(--sh-card-foreground);
+  --color-popover: var(--sh-popover);
+  --color-popover-foreground: var(--sh-popover-foreground);
+  --color-primary: var(--sh-primary);
+  --color-primary-foreground: var(--sh-primary-foreground);
+  --color-secondary: var(--sh-secondary);
+  --color-secondary-foreground: var(--sh-secondary-foreground);
+  --color-muted: var(--sh-muted);
+  --color-muted-foreground: var(--sh-muted-foreground);
+  --color-accent: var(--sh-accent);
+  --color-accent-foreground: var(--sh-accent-foreground);
+  --color-destructive: var(--sh-destructive);
+  --color-border: var(--sh-border);
+  --color-input: var(--sh-input);
+  --color-ring: var(--sh-ring);
+  --color-text-dim: var(--text-dim);
+
+  --radius-sm: var(--sh-radius-sm);
+  --radius-md: var(--sh-radius-md);
+  --radius-lg: var(--sh-radius-lg);
+  --radius-xl: var(--sh-radius-xl);
+}
+
+:root {
+  --sh-background: var(--bg);
+  --sh-foreground: var(--text);
+  --sh-card: var(--panel);
+  --sh-card-foreground: var(--text);
+  --sh-popover: var(--panel);
+  --sh-popover-foreground: var(--text);
+  --sh-primary: var(--accent-strong);
+  --sh-primary-foreground: var(--on-accent);
+  --sh-secondary: var(--panel-2);
+  --sh-secondary-foreground: var(--text);
+  --sh-muted: var(--panel-2);
+  --sh-muted-foreground: var(--text-dim);
+  --sh-accent: var(--panel-2);
+  --sh-accent-foreground: var(--text);
+  --sh-destructive: var(--danger);
+  --sh-border: var(--border);
+  --sh-input: var(--border);
+  --sh-ring: var(--accent);
+
+  --sh-radius-sm: var(--radius-sm);
+  --sh-radius-md: var(--radius-md);
+  --sh-radius-lg: var(--radius-lg);
+  --sh-radius-xl: 16px;
+}

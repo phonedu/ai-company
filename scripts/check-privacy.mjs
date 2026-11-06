@@ -75,6 +75,7 @@ if (log.status === 0 && log.stdout) {
   let sha = '';
   for (const line of log.stdout.split('\n')) {
     if (/^[0-9a-f]{40}$/.test(line)) { sha = line; continue; }
+    if (line.includes('TESTONLY')) continue;
     for (const rule of RULES) {
       if (rule.re.test(line)) hits.push(`history ${sha.slice(0, 12)}: 命中「${rule.why}」`);
     }

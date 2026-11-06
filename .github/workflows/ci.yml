@@ -17,7 +17,7 @@ jobs:
           version: 9
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 22.20.0 # 与本地验证一致；better-sqlite3 有该版本预编译
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm test

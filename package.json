@@ -1,6 +1,6 @@
 {
   "name": "ai-company",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "description": "AI 一人公司 — 桌面客户端（Electron + React + src/core 编排核心）",

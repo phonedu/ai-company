@@ -27,3 +27,15 @@ test('B0-10：Dependabot 已登记（npm + github-actions，周更）', () => {
   assert.match(yml, /package-ecosystem:\s*github-actions/);
   assert.match(yml, /interval:\s*weekly/);
 });
+
+test('B0-10：技能 URL 安装前必须出确认块（不静默安装）', () => {
+  const pane = readFileSync('src/renderer/components/SettingsPane.tsx', 'utf8');
+  assert.match(pane, /data-testid="settings-skill-url-confirm"/, '确认块必须存在');
+  assert.match(pane, /data-testid="settings-skill-url-confirm-yes"/);
+  assert.match(pane, /data-testid="settings-skill-url-confirm-cancel"/);
+  assert.equal(
+    /onClick=\{\(\) => props\.onInstallSkillUrl\?\./.test(pane),
+    false,
+    '「从 URL 安装」按钮不得直接安装（必须先确认）',
+  );
+});

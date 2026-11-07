@@ -382,6 +382,8 @@ export function SettingsPane(props: SettingsPaneProps): ReactElement {
   /** 分区在当前直达组内 → 直接铺真实控件（无卡片摘要层）。 */
   const has = (id: string): boolean => activeGroup.sections.includes(id);
   const [skillUrlDraft, setSkillUrlDraft] = useState('');
+  // B0-10：URL 安装前先出**确认块**（网络来源内容会进技能索引；不静默安装）。
+  const [skillUrlConfirm, setSkillUrlConfirm] = useState(false);
   const [imVerifyCode, setImVerifyCode] = useState('');
   // GAP6：MCP 注册表单（env 只写不读；保存后 store 只回 key 名）。
   const [mcpName, setMcpName] = useState('');
@@ -1576,11 +1578,40 @@ export function SettingsPane(props: SettingsPaneProps): ReactElement {
                 data-testid="settings-skill-install-url"
                 disabled={!props.onInstallSkillUrl || props.skillsLoading || skillUrlDraft.trim().length === 0}
                 title={props.onInstallSkillUrl ? '从 URL 安装（直接 .md 或浅克隆 Git 仓库）' : '未接线'}
-                onClick={() => props.onInstallSkillUrl?.(skillUrlDraft.trim())}
+                onClick={() => setSkillUrlConfirm(true)}
               >
                 从 URL 安装
               </button>
             </div>
+            {skillUrlConfirm && skillUrlDraft.trim().length > 0 ? (
+              <div data-testid="settings-skill-url-confirm" className="settings-skill-confirm">
+                <p style={MUTED}>
+                  将安装：<code>{skillUrlDraft.trim()}</code>
+                  <br />
+                  从网络获取的技能会进入技能索引，员工可按需读取其内容。确认安装这个来源吗？
+                </p>
+                <div style={ROW}>
+                  <button
+                    type="button"
+                    data-testid="settings-skill-url-confirm-yes"
+                    disabled={!props.onInstallSkillUrl || props.skillsLoading}
+                    onClick={() => {
+                      setSkillUrlConfirm(false);
+                      props.onInstallSkillUrl?.(skillUrlDraft.trim());
+                    }}
+                  >
+                    确认安装
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="settings-skill-url-confirm-cancel"
+                    onClick={() => setSkillUrlConfirm(false)}
+                  >
+                    取消
+                  </button>
+                </div>
+              </div>
+            ) : null}
             {props.skillsNotice ? (
               <p style={MUTED} data-testid="settings-skill-notice" role="status">
                 {props.skillsNotice}

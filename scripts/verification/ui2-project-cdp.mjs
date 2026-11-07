@@ -399,7 +399,30 @@ try {
   await send('Emulation.clearDeviceMetricsOverride');
   await send('Emulation.setEmulatedMedia', { features: [] });
 
-  // ⑥ 真库只读回读：配方没写业务数据
+  // ⑩ 技能 URL 安装确认（B0-10）：输入 URL → 点安装 → 必须出现确认块（不静默安装）→ 取消即收起
+  await evalIn("(function(){var b=document.querySelector('[data-testid=leftrail-settings]'); if(b) b.click(); return !!b;})()");
+  await waitFor("!!document.querySelector('[data-testid=settings-group-integrations]')", '设置导航（通道与技能）');
+  await evalIn("(function(){var b=document.querySelector('[data-testid=settings-group-integrations]'); if(b) b.click(); return !!b;})()");
+  await waitFor("!!document.querySelector('[data-testid=settings-skill-url]')", '技能安装行');
+  await evalIn(`(() => {
+    const el = document.querySelector('[data-testid=settings-skill-url]');
+    if (!el) return false;
+    const setV = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+    setV.call(el, 'https://example.invalid/SKILL.md');
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+  })()`);
+  const urlBtn = await evalIn("(function(){var b=document.querySelector('[data-testid=settings-skill-install-url]'); if(b){b.click(); return true;} return false;})()");
+  if (!urlBtn) problems.push('技能安装按钮未找到');
+  const confirmShown = await waitFor("!!document.querySelector('[data-testid=settings-skill-url-confirm]')", '技能 URL 确认块', 20).then(() => true, () => false);
+  if (!confirmShown) problems.push('技能 URL 安装没有确认块（疑似静默安装）');
+  const confirmText = await evalIn("document.querySelector('[data-testid=settings-skill-url-confirm]')?.innerText ?? ''");
+  if (!String(confirmText).includes('example.invalid')) problems.push(`确认块未展示来源 URL：${confirmText}`);
+  await evalIn("(function(){var b=document.querySelector('[data-testid=settings-skill-url-confirm-cancel]'); if(b){b.click(); return true;} return false;})()");
+  const confirmGone = await waitFor("!document.querySelector('[data-testid=settings-skill-url-confirm]')", '取消后确认块收起', 20).then(() => true, () => false);
+  if (!confirmGone) problems.push('取消后确认块未收起');
+
+  // 真库只读回读：配方没写业务数据
   const check = new Database(dbFile, { readonly: true, fileMustExist: true });
   const states = check.prepare('SELECT id, state FROM tasks ORDER BY id').all();
   const reportState = check.prepare('SELECT state FROM reports WHERE task_id=2 ORDER BY id DESC LIMIT 1').get();

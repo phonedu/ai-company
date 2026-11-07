@@ -17,7 +17,7 @@ export async function createSubmitReviewTool() {
     label: 'Submit Review',
     description:
       '提交评审结论（critic 用 approve|revise；verifier 用 pass|fail）。notes 写明理由/证据。**verifier 证据不足必须 fail**。' +
-      ' verifier 若发现计划步骤未完成，必须在 planSteps 里逐条交代（宿主会校验：未交代的 pass 会被改为 fail）。',
+      ' verifier：只要计划步骤不是**全部 done**，pass 就必须填 planStepsNote 逐条交代（宿主机器校验：未交代的 pass 会被改判 fail 并返工）。',
     parameters: Type.Object({
       verdict: Type.Union(REVIEW_VERDICTS.map((v) => Type.Literal(v)), { description: '评审结论' }),
       notes: Type.Optional(Type.String({ description: '理由/证据（可选）' })),

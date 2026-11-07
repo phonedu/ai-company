@@ -597,6 +597,8 @@ export function buildReviewContext(db: unknown, input: ReviewContextInput): Empl
   const projectCtx = readProjectContext(projectRoot);
 
   let material = '';
+  // verifier：未完成步骤提示（F-02 引导——不填 planStepsNote 会被宿主改 fail 并返工）。
+  let unfinishedHint = '';
   if (input.role === 'critic') {
     // V3 修：critic 评审的对象是**计划**——材料必须以 plan_steps 为首（此前只有工作项 ⇒ 必然 revise）
     const steps = listPlanSteps(dbh, input.taskId);
@@ -632,6 +634,13 @@ export function buildReviewContext(db: unknown, input: ReviewContextInput): Empl
       const closed = steps.filter((s) => s.state === 'done' || s.state === 'skipped').length;
       const stepsText = steps.map((s) => `${s.idx}. [${s.state}] ${s.text}`).join('\n');
       material += `\n\n【计划步骤（${closed}/${steps.length} 已关）】\n${stepsText}`;
+      const unfinished = steps.filter((s) => s.state !== 'done' && s.state !== 'skipped');
+      if (unfinished.length > 0) {
+        unfinishedHint =
+          `\n\n【未完成步骤（${unfinished.length}/${steps.length}）】第 ${unfinished.map((s) => s.idx).join('、')} 步；` +
+          '如果你要判 pass，`submit_review.planStepsNote` **必填**，逐条覆盖这些步骤（第 N 步：状态 / 为什么没做 / 结论）；' +
+          '不填会被宿主改判 fail 并触发返工。';
+      }
     }
   }
 
@@ -649,7 +658,7 @@ export function buildReviewContext(db: unknown, input: ReviewContextInput): Empl
       ? [
           '【计划步骤口径（F-02，老板 2026-11-06 裁）】未完成步骤**不是硬门**——按验收标准与产物判定即可；' +
             '但必须在 `submit_review.planStepsNote` 里逐条交代未完成步骤（第 N 步：状态 / 为什么没做 / 结论）。' +
-            '未交代时宿主会把 pass 改为 fail（不设「全部 done 才可通过」的硬门）。',
+            '未交代时宿主会把 pass 改为 fail（不设「全部 done 才可通过」的硬门）。' + unfinishedHint,
         ]
       : []),
     `【输出要求】用 \`submit_review\` 提交结构化结论（${input.role === 'critic' ? 'approve|revise' : 'pass|fail'}）。`,

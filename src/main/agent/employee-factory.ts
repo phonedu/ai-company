@@ -20,6 +20,7 @@
 import { join } from 'node:path';
 
 import { createPiAgentRuntime, registerToolActivationGuard, type PiAgentRuntime } from './pi-runtime.js';
+import { TouchedPathRecorder } from './touched-path-recorder.js';
 import { createCompactionHandoffProvider } from './compaction-handoff.js';
 import { createRepoMapTool } from './repo-map-tool.js';
 import { isRepoMapEnabled } from './repo-map.js';
@@ -63,6 +64,8 @@ export interface CreateEmployeeRuntimeOptions {
   sessionToolGate?: boolean;
   /** G1：决策写入者（缺省 `persistSessionGateDecision`：deny→事件 / ask→事件+approvals）。 */
   onPermissionDecision?: (info: import('./session-tool-gate.js').GateDecisionInfo) => void;
+  /** B2-4/D-30：实测路径登记回调（引擎 `recordWorkItemTouchedPaths`；缺省不采集，如实降级）。 */
+  onTouchedPaths?: (workItemId: number, paths: string[]) => void;
 }
 
 export interface EmployeeRuntimeBundle {
@@ -107,6 +110,17 @@ export async function createEmployeeRuntime(options: CreateEmployeeRuntimeOption
           onDecision: options.onPermissionDecision ?? ((info) => persistSessionGateDecision(options.db as never, info)),
         });
 
+  // B2-4/D-30：实测路径采集器（与权限闸门同点位 `tool_call` 执行前；复用闸门登记的会话归属）。
+  const touchedPathRecorder = options.onTouchedPaths
+    ? new TouchedPathRecorder({
+        sessionFor: (sessionId) => {
+          const run = toolGate?.runOf(sessionId) ?? null;
+          return run ? { workItemId: run.workItemId ?? null, cwd: run.cwd, projectRoot: run.projectRoot ?? null } : null;
+        },
+        report: (workItemId, paths) => options.onTouchedPaths!(workItemId, paths),
+      })
+    : null;
+
   // RET-1 P3（A/B）：`AICO_REPO_MAP=on` 时注册确定性 repo_map（只读、零 LLM）。
   const repoMapTool = isRepoMapEnabled() ? await createRepoMapTool(options.cwd) : null;
 
@@ -146,6 +160,8 @@ export async function createEmployeeRuntime(options: CreateEmployeeRuntimeOption
         registerToolActivationGuard(api, employeeTools.map((tool) => (tool as { name: string }).name));
         // G1：会话内工具调用过 `permissionGate`（同一套解析）。
         toolGate?.register(api as never);
+        // B2-4：实测路径采集（工具执行前登记；采集失败不反噬会话）。
+        touchedPathRecorder?.register(api as never);
       },
     ],
   });

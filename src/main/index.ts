@@ -386,6 +386,8 @@ async function initDatabaseAndIpc(): Promise<void> {
       sessionDir: defaultSessionDir(app.getPath('userData')),
       toolOutputDir: join(app.getPath('userData'), 'tool-output'),
       buildContext: buildEmployeeContext,
+      // B2-4/D-30：实测路径登记 → 引擎（内存 ws.touched ∪ DB brief，崩溃恢复不丢）。
+      onTouchedPaths: (workItemId: number, paths: string[]) => engine?.recordWorkItemTouchedPaths(workItemId, paths),
       timeoutMs: 30_000,
       onStatus: (s) => {
         evtSink.push('evt:agent', s);

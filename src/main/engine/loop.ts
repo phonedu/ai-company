@@ -26,6 +26,7 @@ import {
   getTaskById,
   getProjectById,
   getWorkItem,
+  setWorkItemTouchedPaths,
   countRunningWorkItems,
   getWorkItemPathClaim,
   insertArtifact,
@@ -1037,28 +1038,20 @@ export class Engine {
     // 计划此时已批准（L0 直通 / L1·L2 plan_approved），必须写明「直接执行、不要等指令」。
     lines.push('执行要求：计划已批准（L0 为直通）；你是执行员工，直接按计划完成并把产出落盘/验证，不要复述计划、不要等指令；完成后必须调用 submit_work_item 提交。');
     if (typeof task.budget_tokens === 'number') lines.push(`预算：${task.budget_tokens} tokens`);
-    // ADV-1 P0-9：inplace（共享工作树）下必须给路径保护一个**真认领**——纯文本 brief 让
-    // `parseTouchedPaths` 返回 [] ⇒ 路径相交判定恒不相交 ⇒ 同项目两个任务并行改同一文件。
-    // v1 无路径预言（步骤是自然语言），以整棵树 `'.'` 认领：同项目 inplace 件串行，正确性优先；
-    // staging 有独占 worktree，保持纯文本 brief（不降低并行度）。
+    // B2-4/D-30：路径预言**退役为提示**——brief 不再写 `'.'` 整树认领（B0-7 的兜底，
+    // 正确但把 inplace 恒串行化）；认领改由执行期实测（touched-path-recorder 在工具调用
+    // 执行前登记，`recordWorkItemTouchedPaths`）。brief 只留一句「路径按实测」提示。
+    lines.push('预计改哪些文件：按你实际读写为准——路径保护按执行期实测判定（本行仅提示，不参与认领）。');
     const project = typeof task.project_id === 'number' ? getProjectById(this.db, task.project_id) : undefined;
     const briefText = lines.join('\n');
-    const brief =
-      project?.access_mode === 'inplace' ? JSON.stringify({ text: briefText, touchedPaths: ['.'] }) : briefText;
+    const brief = briefText;
     // B2-3/D-30②：结构化多件（plan_drafted payload 的 workItems）——2-N 件带依赖落库；
     // 校验失败/缺省 → 回落单件（现状）。依赖**只允许同任务内**（work_item_deps DAO 环检测）。
     const planItems = this.normalizePlanItems(action.payload);
     if (planItems != null) {
       const created: number[] = [];
       for (const item of planItems) {
-        const itemBrief =
-          project?.access_mode === 'inplace'
-            ? JSON.stringify({ text: `${item.brief ?? item.title}
-
-${briefText}`, touchedPaths: ['.'] })
-            : `${item.brief ?? item.title}
-
-${briefText}`;
+        const itemBrief = `${item.brief ?? item.title}\n\n${briefText}`;
         const row = insertWorkItem(this.db, {
           taskId,
           employeeId,
@@ -1932,7 +1925,9 @@ ${briefText}`;
             continue;
           }
           // M1-2：同一 root_dir 内路径相交 → 不并行派发（hold + 原因）
-          const candidate = getWorkItemPathClaim(this.db, action.workItemId);
+          // B2-4：候选认领＝实测 ∪ 返工血缘（seedClaimPaths）；无实测不凭空拦。
+          const seededClaim = getWorkItemPathClaim(this.db, action.workItemId);
+          const candidate = seededClaim ? { ...seededClaim, paths: this.seedClaimPaths(action.workItemId) } : null;
           const occupied = [...listRunningPathClaims(this.db), ...dispatchedThisBatch];
           const conflicts = candidate ? pathConflictWith(candidate, occupied) : [];
           if (conflicts.length > 0) {
@@ -1975,6 +1970,57 @@ ${briefText}`;
    * R3-2：顶栏「槽位 x/y」（**任务级活跃槽位**；占用/上限——与 UI §1「槽位占用（x/3）」一致）。
    * 真读数：正在 `executing` 的任务数（空库＝0/3 也如实；引擎缺失时 ipc 层回 `null` → UI 显 `—`）。
    */
+  /**
+   * B2-4/D-30：路径所有权**执行期实测**登记（采集器在工具调用执行前调用）。
+   * 内存 ws.touched（本件提交白名单用）∪ DB brief（running 认领/崩溃恢复用）；不抛（采集不反噬会话）。
+   */
+  recordWorkItemTouchedPaths(workItemId: number, paths: string[]): void {
+    const ws = this.workspaceByWorkItem.get(workItemId);
+    const normalized = paths
+      .map((p) => {
+        // 绝对路径 → 相对项目根（ws.rootDir）；相对路径原样（`'.'` 整树保留）。
+        if (ws != null && (p.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(p))) {
+          const norm = p.replace(/\\/g, '/');
+          const root = ws.rootDir.replace(/\\/g, '/').replace(/\/+$/, '');
+          return norm.toLowerCase().startsWith(root.toLowerCase() + '/') ? norm.slice(root.length + 1) : '.';
+        }
+        return p;
+      })
+      .filter((p) => p.length > 0);
+    if (normalized.length === 0) return;
+    if (ws) ws.touched = [...new Set([...ws.touched, ...normalized])];
+    try {
+      setWorkItemTouchedPaths(this.db, workItemId, normalized);
+    } catch (error) {
+      console.error('[engine] 实测路径落库失败（内存认领已更新）', error);
+    }
+  }
+
+  /** B2-4：候选件的派发冲突判定（实测认领 ∩ 在跑认领；引擎动作同口径，供测试/UI 复用）。 */
+  pathConflictsFor(workItemId: number): number[] {
+    const candidate = getWorkItemPathClaim(this.db, workItemId);
+    if (!candidate) return [];
+    const wi = getWorkItem(this.db, workItemId);
+    const occupied = listRunningPathClaims(this.db).filter((c) => c.workItemId !== workItemId);
+    const conflicts = pathConflictWith(candidate, occupied);
+    void wi;
+    return conflicts;
+  }
+
+  /**
+   * B2-4：派发认领构造——实测路径（brief JSON）∪ 返工血缘源件实测（retry_of；
+   * 重启/重试不丢已测事实）。无认领 → 空（派发不凭空拦）。
+   */
+  seedClaimPaths(workItemId: number): string[] {
+    const wi = getWorkItem(this.db, workItemId);
+    if (!wi) return [];
+    const own = parseTouchedPaths(wi.brief) ?? [];
+    if (wi.retry_of == null) return own;
+    const src = getWorkItem(this.db, wi.retry_of);
+    const srcPaths = src != null ? (parseTouchedPaths(src.brief) ?? []) : [];
+    return [...new Set([...srcPaths, ...own])];
+  }
+
   schedulerSlots(): { running: number; total: number } {
     const row = this.db.prepare("SELECT count(*) AS n FROM tasks WHERE state = 'executing'").get() as { n: number };
     const total = this.schedulerConfig.maxActiveTasks;
@@ -2149,7 +2195,8 @@ ${briefText}`;
         });
       }
     }
-    const touched = parseTouchedPaths(wi.brief);
+    // B2-4/D-30：认领＝实测（brief JSON）∪ 返工血缘源件实测（重启/重试不丢已测事实）。
+    const touched = this.seedClaimPaths(workItemId);
     // staging 是任务独占 worktree ⇒ 工作区里的改动都属于本件；inplace 是共享工作区，
     // 只有派发前干净时才允许按路径白名单自动提交（否则可能把老板在制改动卷进去）。
     const baselineClean =

@@ -104,6 +104,10 @@ export class SessionToolGate {
   hasRun(sessionId: string): boolean {
     return this.contexts.has(sessionId);
   }
+  /** B2-4：会话归属读口（实测路径采集与闸门同一 sessionId 事实源）；查无 → null。 */
+  runOf(sessionId: string): RunGateContext | null {
+    return this.contexts.get(sessionId) ?? null;
+  }
 
   /** 纯决策：给定事件 + 归属上下文 → 拦截结果（可单测，无需 Pi）。 */
   evaluate(event: ToolCallGateEvent, run: RunGateContext | null, sessionId: string | null = null): ToolCallGateResult {

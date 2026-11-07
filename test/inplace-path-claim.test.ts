@@ -22,6 +22,7 @@ import {
   type SqliteDb,
 } from '../src/main/db/index.js';
 import { Engine, makeRecordingExecutor, pathsIntersect } from '../src/main/engine/index.js';
+import { listRunningPathClaims } from '../src/main/db/index.js';
 import type { EngineEvent } from '../src/main/engine/types.js';
 
 function setup(accessMode: 'inplace' | 'staging', employees = 2): { db: SqliteDb; projectId: number; taskId: number } {
@@ -49,14 +50,23 @@ async function driveToExecuting(engine: Engine, taskId: number): Promise<void> {
   await engine.dispatch(taskEvent(taskId, 'plan_approved'));
 }
 
-test('B0-7：inplace 派生的首个工作项整体认领项目根（.）', async () => {
-  const { db, taskId } = setup('inplace');
+test('B2-4/D-30：inplace 预言退役为提示——brief 不再带整树认领；实测认领由引擎登记', async () => {
+  const { db, projectId, taskId } = setup('inplace');
   try {
     const engine = new Engine(db, makeRecordingExecutor(), { now: () => 1000 });
     await driveToExecuting(engine, taskId);
-    const items = listWorkItemsByTask(db, taskId);
-    assert.equal(items.length, 1, 'v1 一任务一件');
-    assert.deepEqual(parseTouchedPaths(items[0]!.brief), ['.'], 'inplace 件必须认领整棵树（否则路径保护恒失效）');
+    const wi = db.prepare("SELECT * FROM work_items WHERE task_id = ?").get(taskId) as { id: number; brief: string };
+    assert.ok(wi, 'inplace 首件已派生');
+    // B2-4：brief 纯文本（预言退役）＋提示在场；认领为空（不凭空拦）
+    assert.ok(!wi.brief.trimStart().startsWith('{'), 'brief 不再是 JSON 认领载体');
+    assert.match(wi.brief, /实测/, 'brief 保留「路径按实测」提示');
+    assert.deepEqual(parseTouchedPaths(wi.brief) ?? [], [], '无预言认领');
+    // 实测登记 → 认领生效（listRunningPathClaims 可见）
+    db.prepare("UPDATE work_items SET state='running' WHERE id=?").run(wi.id);
+    engine.recordWorkItemTouchedPaths(wi.id, ['src/a.ts']);
+    const claims = listRunningPathClaims(db).filter((c) => c.workItemId === wi.id);
+    assert.ok(claims[0]?.paths.includes('src/a.ts'), '实测认领在 running 集合可见');
+    void projectId;
   } finally {
     db.close();
   }

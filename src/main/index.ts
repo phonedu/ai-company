@@ -1,4 +1,5 @@
 import { installProviderKeyCodec } from './security/key-codec.js';
+import { backupBeforeMigration } from './db/startup-backup.js';
 import { app, BrowserWindow, Menu, Tray, Notification, ipcMain, nativeImage, dialog, shell, nativeTheme, safeStorage, protocol } from 'electron';
 import type { MenuItemConstructorOptions, NativeImage } from 'electron';
 import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
@@ -281,7 +282,25 @@ async function initDatabaseAndIpc(): Promise<void> {
     if (benchEnabled && existsSync(dbFile)) unlinkSync(dbFile);
     const db = openDatabase(dbFile);
     crashDb = db;
-    const result = runMigrations(db);
+    // B0-12：迁移前**自动备份**（有未应用迁移才做）；备份或迁移失败 → 拒绝继续开窗（不带坏库跑）。
+    let result;
+    try {
+      const backup = backupBeforeMigration(db, { dataDir: app.getPath('userData') });
+      if (backup.path) console.log(`[db] 迁移前备份 ${backup.path}（${backup.bytes ?? 0} 字节）`);
+      result = runMigrations(db);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[db] 迁移前备份/迁移失败——拒绝继续（不带着坏库开窗）:', error);
+      crashOptions.notify(
+        '数据库升级失败（已停止启动）',
+        `${message}
+
+数据目录：${app.getPath('userData')}
+若已有 backups/ 自动备份，可联系维护者按备份恢复。`,
+      );
+      app.exit(1);
+      return;
+    }
     console.log(`[db] opened ${dbFile} | migrations ${JSON.stringify(result)}`);
     // M2-D：可控时点 WAL checkpoint（装配期，非热路径）——防 -wal 无限增长；busy 不打断启动（下次时点再试）。
     const cp = checkpointWal(db);

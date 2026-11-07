@@ -89,6 +89,7 @@ import type { EffectExecutor, EngineConfig, EngineEvent, PersistedAction } from 
 import { collapsePath, permissionGate, type GateResult } from '../permission/gate.js';
 import { resolveDefaultActionKind, type DefaultActionKind } from './statemachine.js';
 import { hasPendingActions } from '../db/action_log.js';
+import { changesetSummary, summaryFromWorkItemResult, workItemCommitMessage } from './commit-message.js';
 
 /** 任务是否挂了机器验收命令（`acceptance[].check`）——有则**必须派 verifier**（DOC-4 硬门）。 */
 function hasMachineAcceptance(raw: unknown): boolean {
@@ -2122,7 +2123,15 @@ export class Engine {
   private finishWorkspace(workItemId: number): void {
     const ctx = this.workspaceByWorkItem.get(workItemId);
     if (!ctx) return;
-    const commitMessage = `${ctx.shortId}: work item ${workItemId}`;
+    // B0-12：提交信息带语义摘要（员工 submit_work_item.summary）；没有就明说，不用模板占位。
+    const finishWi = getWorkItem(this.db, workItemId);
+    const finishTask = finishWi ? getTaskById(this.db, finishWi.task_id) : undefined;
+    const commitMessage = workItemCommitMessage({
+      shortId: ctx.shortId,
+      title: finishTask?.title ?? finishWi?.title ?? null,
+      summary: summaryFromWorkItemResult(finishWi?.result),
+      workItemId,
+    });
     if (this.git && ctx.accessMode === 'staging') {
       // M1-4 的硬约束保留：有显式 `touched_paths`/产物白名单时只提交白名单。
       // 真实 planner 产出的工作项是纯文本 brief（白名单为空）——此时 staging 是任务独占 worktree，
@@ -2295,7 +2304,8 @@ export class Engine {
         filesChanged: files.length,
         insertions,
         deletions,
-        summary: '',
+        // B0-12：员工提交摘要（≤200 字）；无摘要写明文件数，不再写空串。
+        summary: changesetSummary({ summary: summaryFromWorkItemResult(wi.result), filesChanged: files.length }),
         commitMsg: null,
         state: 'open',
         now: this.now(),

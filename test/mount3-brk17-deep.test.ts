@@ -100,7 +100,7 @@ test('confirm 执行器：登记清单＋问题上屏；回「1」（新建任�
   try {
     f.db.prepare("INSERT INTO projects(id, name, root_dir, created_at) VALUES(1,'甲','D:/a',1)").run();
     f.db.prepare("INSERT INTO settings(key, value) VALUES('projects.default_id', '1')").run();
-    const deps: IpcDeps = { ...f.deps, classify: lowConfidenceWork };
+    const deps: IpcDeps = { ...f.deps, classify: lowConfidenceWork, triageMode: 'classifier' };
 
     const first = await handleChatSend(deps, { text: '嗯，你看看整一下那边' }, AT);
     assert.equal(first.resolution.kind, 'confirm', '低置信度 → confirm 裁定');
@@ -136,7 +136,7 @@ test('confirm 执行器：任务选项回序号 → 归位该任务（pending_an
         "INSERT INTO im_conversations(channel, conversation_ref, kind, project_id, focus_task_id, focus_updated_at, last_active_at) VALUES('desktop','desktop:boss','private',NULL,?,?,?)",
       )
       .run(task.id, AT - 1000, AT - 1000);
-    const deps: IpcDeps = { ...f.deps, classify: lowConfidenceWork };
+    const deps: IpcDeps = { ...f.deps, classify: lowConfidenceWork, triageMode: 'classifier' };
 
     const first = await handleChatSend(deps, { text: '顺便看一下这个' }, AT);
     assert.equal(first.resolution.kind, 'confirm');

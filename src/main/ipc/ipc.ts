@@ -100,6 +100,12 @@ export interface IpcDeps {
   onProviderKeyChanged?: (() => void) | null;
   /** 语义分类器；T0.4 接真实 Pi 语义前用占位（一律 'chat'，绝不误建任务）。 */
   classify?: Classify;
+  /**
+   * B2-2（D-30①）：分诊模式开关——`assistant`（缺省）＝自由文本交幕僚长唯一分诊
+   * （零 LLM 分诊、不自动建任务）；`classifier`＝v0.2.1 旧链路（可回退）。
+   * index.ts 从 `AICO_TRIAGE` 读取（readTriageMode）。
+   */
+  triageMode?: 'assistant' | 'classifier';
   /** R2-4：目录选择器（`project:attach` 用；由 main 注入 electron `dialog`——**handler 不直接碰 electron**）。 */
   pickDirectory?: () => Promise<string | null>;
   /** 2026-11-03：故障注入开关（仅非打包态由 main 注入；测试用，生产恒 false）。 */
@@ -146,6 +152,23 @@ export const defaultClassify: Classify = async (): Promise<SemanticSignal> => ({
   intent: 'chat',
   confidence: 0.5,
 });
+
+/**
+ * B2-2：assistant 分诊模式的语义信号——**恒 chat、零 LLM 调用**。
+ * resolver 的确定性路径（命令/#引用/回复链/序号）不走本函数、不受影响；自由文本裁定
+ * 全部收敛为 chat，由幕僚长会话（create_task/steer 工具）唯一分诊（D-30①）。
+ */
+export const assistantTriageClassify: Classify = async (): Promise<SemanticSignal> => ({
+  intent: 'chat',
+  confidence: 0.51,
+});
+
+/** B2-2：`AICO_TRIAGE` 环境变量解析（缺省/非法 → 'assistant'；大小写宽松）。 */
+export function readTriageMode(raw: string | undefined): 'assistant' | 'classifier' {
+  const v = (raw ?? '').trim().toLowerCase();
+  if (v === 'classifier') return 'classifier';
+  return 'assistant';
+}
 
 /** 附件只保留元信息；**显式丢弃任何 path/url 字段**（D1）。 */
 function normalizeAttachments(raw: unknown): AttachmentMeta[] {
@@ -503,6 +526,8 @@ export interface ChatSendResult {
   reply?: string | null;
   /** UG-03：命令被拒绝时的人话原因（回执已落频道；渲染层据此就地显示，不当成功）。 */
   rejected?: string | null;
+  /** D0：本条消息自动建出的任务（自由文本 new_task 裁定；B2-2 起 assistant 模式恒 null）。 */
+  createdTaskId?: number | null;
 }
 
 /** BRK9（挂载 2）：`#T-1001 要说的话` / `#T1042 要说的话` 解析（FLOWS §6 命令表；简写归一为 `T-<n>`）；不匹配 → null。 */
@@ -1351,7 +1376,11 @@ export async function handleInboundChat(
   options: InboundChatOptions = {},
 ): Promise<InboundChatResult> {
   const text = inbound.text;
-  const classify = deps.classify ?? defaultClassify;
+  // B2-2（D-30①）：分诊模式开关——assistant（缺省）用零 LLM 的恒 chat 信号（自由文本全交
+  // 幕僚长分诊，不再调用语义分诊器）；classifier 保持 v0.2.1 旧链路（可回退面）。
+  const triageMode = deps.triageMode ?? readTriageMode(process.env['AICO_TRIAGE']);
+  const classify =
+    triageMode === 'classifier' ? (deps.classify ?? defaultClassify) : assistantTriageClassify;
 
   // 高置信命令直通（桌面/IM 同一入口）：命中即执行并返回回执，不做语义裁定。
   if (text.trim().length > 0) {
@@ -1388,6 +1417,15 @@ export async function handleInboundChat(
   } catch (error) {
     console.error('[ipc] chat:send: resolveInbound 失败，回退 chat', error);
     resolution = { kind: 'chat' };
+  }
+
+  // B2-2（D-30①）：assistant 模式下，自由文本的 new_task 裁定（semantic/address）
+  // **不执行建任务**——唯一指挥脑是幕僚长（create_task 工具自行分诊）。确定性路径
+  // （命令/#引用/回复链/序号确认/「建任务：」直通）不经此转换、双模式一致。
+  if (triageMode === 'assistant' && resolution.kind === 'new_task' && (resolution.via === 'semantic' || resolution.via === 'address')) {
+    console.log('[ipc] triage=assistant：自由文本交幕僚长分诊（不再自动建任务/不再调用语义分诊器）');
+    // 别名寻址解析出的项目随消息带给幕僚长（老板显式点名了项目；幕僚长 create_task 可直接用）。
+    resolution = { kind: 'chat', projectId: resolution.projectId ?? null };
   }
 
   // 标准 7 条命令（`列表/日报/暂停/继续/归档/结束/续办`）由 resolver 归位后执行。
@@ -1523,6 +1561,9 @@ export async function handleInboundChat(
   // 缺 key 时 `assistant` 为 null（启动时已明确报错，不 mock）。
   let reply: string | null = null;
   const assistantTaskId = resolutionTaskId(resolution);
+  // B2-2：assistant 模式下别名寻址（#记账 …）解析出的项目作为本轮助手范围（老板显式点名）。
+  const assistantProjectId =
+    options.projectId ?? (resolution.kind === 'chat' ? (resolution.projectId ?? null) : null);
   // P0/F-N02（S13-E 对抗审查）：幕僚长不可用/失败不得只进控制台——写一条频道回执，
   // 让老板知道「没回复是因为缺 Key/模型」，而不是对着转圈干等。
   const reportAssistantFailure = (detail: string): void => {
@@ -1542,7 +1583,7 @@ export async function handleInboundChat(
   if (deps.assistant && text.length > 0) {
     if (options.awaitAssistant) {
       try {
-        const run = await deps.assistant.runTurn({ text, taskId: assistantTaskId, projectId: options.projectId ?? null });
+        const run = await deps.assistant.runTurn({ text, taskId: assistantTaskId, projectId: assistantProjectId });
         reply = typeof run.reply === 'string' ? run.reply : null;
       } catch (error: unknown) {
         const detail = error instanceof Error ? error.message : String(error);
@@ -1551,7 +1592,7 @@ export async function handleInboundChat(
       }
     } else {
       void deps.assistant
-        .runTurn({ text, taskId: assistantTaskId, projectId: options.projectId ?? null })
+        .runTurn({ text, taskId: assistantTaskId, projectId: assistantProjectId })
         .catch((error: unknown) => {
           const detail = error instanceof Error ? error.message : String(error);
           console.error('[ipc] 幕僚长 runTurn 失败:', detail);

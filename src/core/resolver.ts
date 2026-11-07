@@ -139,7 +139,7 @@ export type Resolution =
       titleGuess: string | null;
       via: 'address' | 'semantic' | 'default';
     }
-  | { kind: 'chat' }
+  | { kind: 'chat'; /** B2-2：assistant 模式下别名寻址解析出的项目随消息带给幕僚长（缺省无） */ projectId?: number | null }
   | {
       kind: 'confirm';
       question: string;

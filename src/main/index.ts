@@ -48,6 +48,7 @@ import { createUnavailableReassigner } from './agent/reassign.js';
 import { setDefaultModel, setFallbackChain, setRoleMap } from './agent/model-policy.js';
 import { loadModelCatalog } from './agent/model-catalog.js';
 import { createSemanticClassifier } from './agent/semantic-classifier.js';
+import { readTriageMode } from './ipc/ipc.js';
 import { autoUpdater } from 'electron-updater';
 import { createUpdateController, type UpdateController, type UpdaterLike, type UpdateStatus } from './update.js';
 import { EvtSink } from './evt-sink.js';
@@ -572,6 +573,9 @@ async function initDatabaseAndIpc(): Promise<void> {
       repo,
       // RW-50（2026-11-05）：真语义分类器——幕僚长听懂自然话的地基（此前从未注入，
       // defaultClassify 一律 chat → 频道自由文本派任务整链失效；失败回落 chat 绝不误建）。
+      // B2-2（D-30①）：默认 triage=assistant——自由文本交幕僚长唯一分诊，分诊器只在
+      // `AICO_TRIAGE=classifier` 回退模式才被调用（代码保留至 B2 验收后另批删除）。
+      triageMode: readTriageMode(process.env['AICO_TRIAGE']),
       classify: createSemanticClassifier({
         db,
         secretsDir: () => join(app.getPath('home'), '.aico', 'secrets'),

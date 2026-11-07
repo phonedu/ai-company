@@ -214,7 +214,7 @@ test('D0 对话→建任务：`new_task` 裁定**被执行**（建任务 ＋ 消
   });
 
   // ① 无引擎：建任务（D1 需要引擎才分诊）——如实停在 inbox，不假装已分诊
-  const result = await handleChatSend({ ...deps, classify }, { text: '把这周的竞品动态整理成一页简报' }, AT);
+  const result = await handleChatSend({ ...deps, classify, triageMode: 'classifier' }, { text: '把这周的竞品动态整理成一页简报' }, AT);
   assert.equal(result.resolution.kind, 'new_task');
   const tasks = handleTaskList({ ...deps }, {});
   assert.equal(tasks.length, 1, 'D0：裁定被执行 ⇒ 任务真的建了（修前：无声无息）');
@@ -234,7 +234,7 @@ test('D0 对话→建任务：`new_task` 裁定**被执行**（建任务 ＋ 消
   db2.prepare("INSERT INTO employees(id,name,role,created_at) VALUES(0,'幕僚长','assistant',1)").run();
   writeSetting(db2, 'projects.default_id', seedProject(db2));
   const engine2 = new Engine(db2, makeRecordingExecutor(), { autoSchedule: false, now: () => AT });
-  const result2 = await handleChatSend({ repo: repo2, engine: { dispatch: (e: unknown) => engine2.dispatch(e as never) }, classify } as unknown as IpcDeps, { text: '再整一页竞品简报' }, AT + 1);
+  const result2 = await handleChatSend({ repo: repo2, engine: { dispatch: (e: unknown) => engine2.dispatch(e as never) }, classify, triageMode: 'classifier' } as unknown as IpcDeps, { text: '再整一页竞品简报' }, AT + 1);
   assert.equal(result2.ok, true);
   const tasks2 = handleTaskList({ repo: repo2 }, {});
   assert.equal(tasks2.length, 1);

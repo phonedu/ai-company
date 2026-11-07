@@ -37,6 +37,7 @@ function setup(): {
       inboxChanges.push(Date.now());
     },
     classify: async () => ({ intent: 'new_task', confidence: 0.95, titleGuess: '竞品简报' }),
+    triageMode: 'classifier', // B2-2：本测试锁定旧分诊器链路（可回退面）
     assistant: {
       runTurn: async (input) => {
         assistantCalls.push(input);

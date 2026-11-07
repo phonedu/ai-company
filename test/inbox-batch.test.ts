@@ -54,9 +54,9 @@ test('日报读数行：只写真实字段；成本 null＝—，全缺省＝不
   assert.equal(digestLine(undefined), null);
 });
 
-test('行内三件在场：短号可点（→详情）／等锚／超时注／动作组（去验收·标记已阅·在频道看）', () => {
+test('行内三件在场：短号可点（→项目页展开）／等锚／超时注／动作组（去验收·标记已阅·在频道看）', () => {
   const view = readFileSync('src/renderer/components/InboxView.tsx', 'utf8');
-  assert.ok(view.includes('openTaskDetail'), '短号/去验收必须能开任务详情');
+  assert.ok(view.includes('openTaskFromLink'), '短号/去验收必须能开任务（项目页并展开对应行）');
   assert.ok(view.includes('data-testid="inbox-short"'), '缺可点短号');
   assert.ok(view.includes('data-testid="inbox-wait"'), '缺「等了 X」锚');
   assert.ok(view.includes('data-testid="inbox-timeout"'), '缺超时注');

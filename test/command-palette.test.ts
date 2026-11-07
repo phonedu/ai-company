@@ -4,7 +4,7 @@
  *      每组上限；总数＝0 ⇒ 面板显「没有匹配」；
  *   ② 面板（纯展示）：关闭不渲染；空查询提示行；`↑↓/Enter/Esc` 键位在场；组题＝任务/消息；
  *      脚注＝「产物搜索随索引件」（数据面如实）；
- *   ③ 源码守门：壳挂 Ctrl K＋搜索盒可点；选中＝任务→详情、消息→频道。
+ *   ③ 源码守门：壳挂 Ctrl K＋搜索盒可点；选中＝任务→项目页展开（UI-2 S1 深链）、消息→频道。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -105,11 +105,11 @@ test('M2 尾 G-D：跨项目结果按任务/消息/产物分组可搜可显；�
   assert.equal(paletteResults('跨项目', TASKS, MESSAGES, null).global.length, 0, '未接全局搜索 → 不摆假分组');
 });
 
-test('源码守门：Ctrl K 挂壳（防默认行为）；搜索盒可点；选中＝任务→详情 / 消息→频道', () => {
+test('源码守门：Ctrl K 挂壳（防默认行为）；搜索盒可点；选中＝任务→项目页展开 / 消息→频道', () => {
   const shell = readFileSync('src/renderer/AppShell.tsx', 'utf8');
   assert.ok(shell.includes("event.ctrlKey || event.metaKey"), 'Ctrl K 挂载');
   assert.ok(shell.includes('event.preventDefault()'), '防浏览器默认行为');
-  assert.ok(shell.includes('openTaskDetail(item.id)'), '任务命中 → 详情');
+  assert.ok(shell.includes('openTaskFromLink(item.id)'), '任务命中 → 项目页并展开对应行（S1 深链）');
   assert.ok(shell.includes('showChannel()'), '消息命中 → 频道');
   assert.ok(shell.includes('paletteResults('), '过滤走纯函数');
   assert.ok(shell.includes('searchGlobal'), 'M2 尾：全局搜索已接线（G-D）');

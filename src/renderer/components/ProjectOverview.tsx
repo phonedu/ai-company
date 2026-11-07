@@ -4,7 +4,7 @@
  * 其余（路径/接入模式/产物库/IM 绑定/快捷入口）**只留一行说明**，**不摆空壳卡片**（空态不伪装）。
  * 数据源 = `store.tasks.list`（`task:list`）＋ `store.projectActions.list`（`project:list`，真实归档状态）。
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import { useSnapshot } from 'valtio';
 
@@ -155,7 +155,11 @@ export function ProjectOverview(): ReactElement {
   // UI-2 S1：页签容器（任务/设置；产物/运行/记忆随 S3 接入）＋任务搜索＋行下展开（store 承载，深链可写）。
   const [tab, setTab] = useState<'tasks' | 'settings'>('tasks');
   const [taskQuery, setTaskQuery] = useState('');
-  const expandedTaskId = useSnapshot(projectPage).expandedTaskId;
+  const projectPageSnap = useSnapshot(projectPage);
+  const expandedTaskId = projectPageSnap.expandedTaskId;
+  const pendingTaskId = projectPageSnap.pendingTaskId;
+  // 收起后回焦：记住上一次展开行（Esc / 再点同行都走收起）。
+  const lastExpandedTaskRef = useRef<number | null>(null);
   const list = tasksSnap.list as unknown as TaskDTO[];
   // 项目概览也以 project:list 为准（空项目可达；2026-10-17 真机修复）。
   const selectedProject = actionsSnap.list.find((p) => p.id === sessionSnap.selectedProjectId) ?? null;
@@ -227,6 +231,54 @@ export function ProjectOverview(): ReactElement {
     setCreateOpen(false);
     setCreateNotice('');
   }, [sessionSnap.selectedProjectId]);
+
+  // UI-2 S1 深链：频道/待办/命令面板点任务 → 项目页后展开对应行（一次消费）。
+  useEffect(() => {
+    if (pendingTaskId == null) return;
+    const projectId = sessionSnap.selectedProjectId;
+    const belongs =
+      projectId != null &&
+      (tasksSnap.list as unknown as TaskDTO[]).some((task) => task.id === pendingTaskId && task.projectId === projectId);
+    if (!belongs) {
+      // 目标不属于当前项目（项目又被切走）→ 丢弃，避免误展开别的项目的行。
+      projectPage.pendingTaskId = null;
+      return;
+    }
+    setTab('tasks');
+    setTaskQuery('');
+    projectPage.pendingTaskId = null;
+    void expandTaskRow(pendingTaskId);
+    // 展开状态同步置位→行立即渲染：滚动/聚焦不等详情 IPC（详情随后回填行内）。
+    let tries = 0;
+    const focusRow = (): void => {
+      const row = document.querySelector<HTMLElement>(`[data-testid="project-task"][data-task-id="${pendingTaskId}"]`);
+      if (!row && tries++ < 8) {
+        requestAnimationFrame(focusRow);
+        return;
+      }
+      // 已结束组是折叠的 <details>：目标行在里面时先展开，否则聚焦/滚动都落空。
+      const bucket = row?.closest('details');
+      if (bucket) bucket.open = true;
+      row?.scrollIntoView({ block: 'center' });
+      row?.querySelector<HTMLElement>('[data-testid="project-task-row"]')?.focus();
+    };
+    requestAnimationFrame(focusRow);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 只在深链目标/项目变化时消费
+  }, [pendingTaskId, sessionSnap.selectedProjectId]);
+
+  // 收起后回焦：Esc / 再点同行收起后，焦点回到原行（不丢键盘位置）。
+  useEffect(() => {
+    if (expandedTaskId != null) {
+      lastExpandedTaskRef.current = expandedTaskId;
+      return;
+    }
+    const prev = lastExpandedTaskRef.current;
+    if (prev == null) return;
+    lastExpandedTaskRef.current = null;
+    document
+      .querySelector<HTMLElement>(`[data-testid="project-task"][data-task-id="${prev}"] [data-testid="project-task-row"]`)
+      ?.focus();
+  }, [expandedTaskId]);
 
   /** 验收后复查 A：保存/清空项目别名（空串＝清空；失败留在输入区，不静默）。 */
   async function submitAlias(): Promise<void> {
@@ -679,6 +731,7 @@ export function ProjectOverview(): ReactElement {
                           type="button"
                           className="project-task-row__main"
                           data-testid="project-task-row"
+                          data-task-id={task.id}
                           onClick={() => {
                             if (expanded) collapseTaskRow();
                             else void expandTaskRow(task.id);

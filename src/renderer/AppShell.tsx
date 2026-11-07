@@ -19,7 +19,7 @@ import { TaskDetailView } from './components/TaskDetailView';
 import { RightRail } from './components/RightRail';
 import { ToastHost } from './components/ToastHost';
 import { paletteResults } from './components/paletteModel';
-import { archiveView, inbox, loadAppUpdateStatus, messages, openTaskDetail, readArtifact, renewTaskFromArchive, session, showChannel, showInbox, showHall, tasks, agent, cost, slots, onboarding, loadCostSummary, loadSlots, loadHall, loadOnboarding, loadTasks, restoreSession, subscribeEvents, searchGlobal, subscribeAppUpdateStatus, toasts, dismissToast } from './store';
+import { archiveView, inbox, loadAppUpdateStatus, messages, openTaskDetail, openTaskFromLink, readArtifact, renewTaskFromArchive, session, showChannel, showInbox, showHall, tasks, agent, cost, slots, onboarding, loadCostSummary, loadSlots, loadHall, loadOnboarding, loadTasks, restoreSession, subscribeEvents, searchGlobal, subscribeAppUpdateStatus, toasts, dismissToast } from './store';
 import type { ToastDTO } from './components/toastModel.js';
 import { attemptMountReport, MOUNT_REPORT_RETRY_MS } from './mountReport';
 import type { GlobalSearchDTO, HumanMessageDTO, TaskDTO } from './types';
@@ -347,11 +347,11 @@ export function AppShell(): ReactElement {
               void openTaskDetail(taskId).then(() => readArtifact(artifactId, 'read'));
               return;
             }
-            if (item.taskId != null) void openTaskDetail(item.taskId);
+            if (item.taskId != null) void openTaskFromLink(item.taskId);
             else showChannel();
             return;
           }
-          if (item.kind === 'task') void openTaskDetail(item.id);
+          if (item.kind === 'task') void openTaskFromLink(item.id);
           else showChannel();
         }}
       />

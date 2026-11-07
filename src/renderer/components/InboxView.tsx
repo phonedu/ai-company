@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactElement } from 'react';
 import { useSnapshot } from 'valtio';
 
-import { acknowledgeCard, acknowledgeCards, answerCard, answerMailboxAsk, cards, focusChannelCard, loadChannel, loadMailbox, mailbox, markInboxRead, openTaskDetail, showChannel } from '../store';
+import { acknowledgeCard, acknowledgeCards, answerCard, answerMailboxAsk, cards, focusChannelCard, loadChannel, loadMailbox, mailbox, markInboxRead, openTaskFromLink, showChannel } from '../store';
 import type { ReportDTO } from '../types';
 import { remainText, verdictText, verdictTone } from './cardCopy';
 import { isMultiSelect, permissionDetailLines } from './cardAnswer';
@@ -275,7 +275,7 @@ export function InboxView(): ReactElement {
                       data-testid="inbox-short"
                       title="打开任务详情"
                       onClick={() => {
-                        void openTaskDetail(card.taskId as number);
+                        void openTaskFromLink(card.taskId as number);
                       }}
                     >
                       {card.shortId ?? `#${card.taskId}`}
@@ -451,7 +451,7 @@ export function InboxView(): ReactElement {
                         className="inbox-row__btn"
                         data-testid="inbox-goto-task-detail"
                         onClick={() => {
-                          void openTaskDetail(card.taskId as number);
+                          void openTaskFromLink(card.taskId as number);
                         }}
                       >
                         任务详情
@@ -463,7 +463,7 @@ export function InboxView(): ReactElement {
                         className="inbox-row__btn inbox-row__btn--primary"
                         data-testid="inbox-goto-task"
                         onClick={() => {
-                          void openTaskDetail(card.taskId as number);
+                          void openTaskFromLink(card.taskId as number);
                         }}
                       >
                         去验收

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import { useSnapshot } from 'valtio';
 
-import { acknowledgeCard, answerCard, cardIntent, openTaskDetail, readArtifact, schemas } from '../store.js';
+import { acknowledgeCard, answerCard, cardIntent, openTaskDetail, openTaskFromLink, readArtifact, schemas } from '../store.js';
 import type { ReportDTO } from '../types.js';
 import { CardPlan } from './CardPlan.js';
 import { CardTaskSections } from './CardTaskSections.js';
@@ -309,7 +309,7 @@ export function Card({ card, initialCollapsed = false }: { card: ReportDTO; init
               className="card__btn card__btn--ghost"
               data-testid="card-goto-task-ask-inline"
               onClick={() => {
-                void openTaskDetail(card.taskId as number);
+                void openTaskFromLink(card.taskId as number);
               }}
             >
               去任务详情
@@ -388,7 +388,7 @@ export function Card({ card, initialCollapsed = false }: { card: ReportDTO; init
             className="card__btn card__btn--primary"
             data-testid="card-goto-task"
             onClick={() => {
-              void openTaskDetail(card.taskId as number);
+              void openTaskFromLink(card.taskId as number);
             }}
           >
             去验收
@@ -412,7 +412,7 @@ export function Card({ card, initialCollapsed = false }: { card: ReportDTO; init
             className="card__btn card__btn--primary"
             data-testid="card-goto-task-ask"
             onClick={() => {
-              void openTaskDetail(card.taskId as number);
+              void openTaskFromLink(card.taskId as number);
             }}
           >
             去处理
@@ -436,7 +436,7 @@ export function Card({ card, initialCollapsed = false }: { card: ReportDTO; init
             className="card__btn card__btn--primary"
             data-testid="card-goto-task-alert"
             onClick={() => {
-              void openTaskDetail(card.taskId as number);
+              void openTaskFromLink(card.taskId as number);
             }}
           >
             去查看

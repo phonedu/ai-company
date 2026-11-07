@@ -1326,6 +1326,33 @@ export async function expandTaskInline(taskId: number): Promise<void> {
   await loadTaskDetailData(taskId);
 }
 
+/**
+ * UI-2 S1 深链：频道卡 / 待办行 / 命令面板点任务 → **项目页并展开对应行**（不跳整页）。
+ * 整页详情（`view='task'`）只保留为逃生口：行内详情 ↗ / diff / 原始交流 / 归档页。
+ * 任务→项目以 `tasks:list` 真值为准；列表未加载时补拉一次，仍查不到 ⇒ 回落整页详情（不静默）。
+ */
+export async function openTaskFromLink(taskId: number): Promise<void> {
+  const findTask = (): TaskDTO | null =>
+    (tasks.list as unknown as TaskDTO[]).find((task) => task.id === taskId) ?? null;
+  let task = findTask();
+  if (!task) {
+    await loadTasks({ includeArchived: true });
+    task = findTask();
+  }
+  if (!task) {
+    await openTaskDetail(taskId);
+    return;
+  }
+  session.view = 'projects';
+  session.selectedProjectId = task.projectId;
+  persistSession();
+  projectPage.pendingTaskId = taskId;
+  // 与 showProject 同口径（RW-14）：项目选中即范围，助手工具（note_write 等）跟随。
+  void getApi()?.settings.set({ key: 'channel.scope_project_id', value: task.projectId }).catch(() => {
+    /* 落库失败不阻断 UI；note_write 回退全局口径 */
+  });
+}
+
 /** 收起行内展开：清选中与详情缓存，**不导航**（视图本就没切走）。 */
 export function collapseTaskInline(): void {
   session.selectedTaskId = null;
@@ -3283,7 +3310,11 @@ export function subscribeAppUpdateStatus(): Unsubscribe | null {
 }
 
 // ── UI-2 项目页：行下展开状态（深链可写；同一时间只展开一行）─────────────
-export const projectPage = proxy({ expandedTaskId: null as number | null });
+export const projectPage = proxy({
+  expandedTaskId: null as number | null,
+  /** 深链待展开（频道/待办/命令面板点任务）；项目页挂载后一次性消费。 */
+  pendingTaskId: null as number | null,
+});
 
 /** 展开某任务行（先收起旧的；加载详情但不切视图）。 */
 export async function expandTaskRow(taskId: number): Promise<void> {

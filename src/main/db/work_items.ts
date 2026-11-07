@@ -19,6 +19,8 @@ export interface WorkItemRow {
   created_at: number;
   started_at: number | null;
   finished_at: number | null;
+  /** B2-3/D-30②：返工血缘（spawnReworkItem 指向源件；同员工返工继承源件会话键）。 */
+  retry_of: number | null;
 }
 
 export interface InsertWorkItemInput {
@@ -29,12 +31,14 @@ export interface InsertWorkItemInput {
   attempt?: number;
   now: number;
   actor?: string;
+  /** B2-3：返工血缘（spawnReworkItem）；DAO 不校验任务归属（引擎侧保证同任务）。 */
+  retryOf?: number;
   /** 规划期落定：本次工作项会触碰的路径（相对 `projects.root_dir`）→ 存进 `brief` JSON（M1-2）。 */
   touchedPaths?: string[];
 }
 
 const COLUMNS =
-  'id, task_id, employee_id, verifier_employee_id, title, brief, state, attempt, result, created_at, started_at, finished_at';
+  'id, task_id, employee_id, verifier_employee_id, title, brief, state, attempt, result, retry_of, created_at, started_at, finished_at';
 
 export function toWorkItemSnapshot(row: WorkItemRow): WorkItemSnapshot {
   return {
@@ -55,9 +59,9 @@ export function insertWorkItem(db: SqliteDb, input: InsertWorkItemInput): WorkIt
   try {
     const info = db
       .prepare(
-        "INSERT INTO work_items(task_id, employee_id, title, brief, state, attempt, created_at) VALUES(?, ?, ?, ?, 'queued', ?, ?)",
+        "INSERT INTO work_items(task_id, employee_id, title, brief, state, attempt, retry_of, created_at) VALUES(?, ?, ?, ?, 'queued', ?, ?, ?)",
       )
-      .run(input.taskId, input.employeeId, input.title, briefText, input.attempt ?? 0, input.now);
+      .run(input.taskId, input.employeeId, input.title, briefText, input.attempt ?? 0, input.retryOf ?? null, input.now);
     id = Number(info.lastInsertRowid);
     // FLOWS §3.1.2 首行：派发/产出 work item 时写 work_item_created（同一事务）
     insertTaskEvent(db, {

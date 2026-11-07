@@ -10,6 +10,8 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { DEFAULT_SCHEDULER_CONFIG, planScheduling, type SchedulerConfig, type SchedulerInput } from '../../core/scheduler.js';
+import { normalizePlanWorkItems, type NormalizedPlanWorkItem } from '../../core/plan.js';
+import { insertWorkItemDep } from '../db/work_item_deps.js';
 import type { TaskState, WaitingReason } from '../../core/types.js';
 import { DEFAULT_RATE_LIMITS, describeRateLimit, rateAction, type RateLimits, type RateTier } from './rate-gate.js';
 import { setEconomyMode } from '../agent/model-policy.js';
@@ -820,6 +822,9 @@ export class Engine {
       title: `返工：${src.title}`,
       brief: notes ?? '验证未通过：按验证者批注返工（无批注文本）。',
       touchedPaths: parseTouchedPaths(src.brief) ?? undefined,
+      // B2-3/D-30②：血缘指向源件——同员工返工在派发时继承「员工×任务×源件」会话键
+      // （前轮现场可见）；换员工改派不继承（执行器侧判 employee 一致才用）。
+      retryOf: src.id,
       now: this.now(),
       actor: 'system',
     });
@@ -1040,6 +1045,38 @@ export class Engine {
     const briefText = lines.join('\n');
     const brief =
       project?.access_mode === 'inplace' ? JSON.stringify({ text: briefText, touchedPaths: ['.'] }) : briefText;
+    // B2-3/D-30②：结构化多件（plan_drafted payload 的 workItems）——2-N 件带依赖落库；
+    // 校验失败/缺省 → 回落单件（现状）。依赖**只允许同任务内**（work_item_deps DAO 环检测）。
+    const planItems = this.normalizePlanItems(action.payload);
+    if (planItems != null) {
+      const created: number[] = [];
+      for (const item of planItems) {
+        const itemBrief =
+          project?.access_mode === 'inplace'
+            ? JSON.stringify({ text: `${item.brief ?? item.title}
+
+${briefText}`, touchedPaths: ['.'] })
+            : `${item.brief ?? item.title}
+
+${briefText}`;
+        const row = insertWorkItem(this.db, {
+          taskId,
+          employeeId,
+          title: item.title,
+          brief: itemBrief,
+          now: this.now(),
+          actor: 'system',
+        });
+        created.push(row.id);
+      }
+      for (const [idx, item] of planItems.entries()) {
+        for (const d of item.dependsOn) {
+          insertWorkItemDep(this.db, { workItemId: created[idx]!, dependsOn: created[d - 1]!, now: this.now() });
+        }
+      }
+      console.log(`[engine] plan_work_items：任务 ${taskId} 拆 ${created.length} 件（D-30② 多件 DAG，依赖 ${planItems.reduce((n, i) => n + i.dependsOn.length, 0)} 条）`);
+      return;
+    }
     insertWorkItem(this.db, {
       taskId,
       employeeId,
@@ -1048,6 +1085,21 @@ export class Engine {
       now: this.now(),
       actor: 'system',
     });
+  }
+
+  /**
+   * B2-3：plan_drafted payload 的结构化 workItems 校验（规划会话已过一遍，这里再兜一道）。
+   * 合法 → 归一化件列表；缺省/非法 → null（回落单件；非法时响亮留痕——不静默丢）。
+   */
+  private normalizePlanItems(payload: Record<string, unknown> | undefined): NormalizedPlanWorkItem[] | null {
+    const raw = payload?.['workItems'];
+    if (raw == null) return null;
+    const validated = normalizePlanWorkItems(raw);
+    if (!validated.ok) {
+      console.warn(`[engine] plan_work_items：结构化多件非法（${validated.message}）→ 回落单件`);
+      return null;
+    }
+    return validated.items;
   }
 
   /**
@@ -1695,8 +1747,10 @@ export class Engine {
     if (outcome.to === 'failed' && task && task.state === 'executing') {
       // B0-3（ADV-1 G3）：**运行时错误**（event=error：会话超时/连接失败等）自动重试，落盘会话可续跑；
       // 业务失败（agent_settled 未提交）照旧判死——不掩盖员工没干活。重试用尽才任务 failed 出卡。
-      const runtimeError = event.event === 'error';
-      const canRetry = runtimeError && wi.attempt < this.autoRetryLimit;
+      // B2-3/D-30②：失败粒度=单件——业务失败（agent_settled 未提交）与运行时错误同口径
+      // 单件 attempt+1 重派；重试耗尽才任务 failed（B0-3 的「业务失败照旧判死」被 D-30 推翻；
+      // 重试全程 attempt/事件留痕，不掩盖员工没干活）。
+      const canRetry = wi.attempt < this.autoRetryLimit;
       if (canRetry) {
         derived.push({
           scope: 'work_item',
@@ -1731,12 +1785,23 @@ export class Engine {
       list.push(r.depends_on);
       deps.set(r.task_id, list);
     }
+    // B2-3/D-30②：工作项依赖边（调度门控用；空表 → 空 Map，无门控）。
+    const workItemDeps = new Map<number, number[]>();
+    for (const r of this.db.prepare('SELECT work_item_id, depends_on FROM work_item_deps').all() as Array<{
+      work_item_id: number;
+      depends_on: number;
+    }>) {
+      const list = workItemDeps.get(r.work_item_id) ?? [];
+      list.push(r.depends_on);
+      workItemDeps.set(r.work_item_id, list);
+    }
     return {
       now: this.now(),
       config: this.schedulerConfig,
       tasks: listTaskSnapshots(this.db),
       workItems: rows.map(toWorkItemSnapshot),
       deps,
+      workItemDeps,
       runningByEmployee: runningByEmployee(this.db),
     };
   }
@@ -1755,7 +1820,15 @@ export class Engine {
       for (const h of actions) {
         if (h.type !== 'hold') continue;
         const detail =
-          h.reason === 'no_slot' ? '无可用槽位' : h.reason === 'budget' ? '超预算（budget_tokens）' : h.reason === 'employee_busy' ? '员工正忙' : undefined;
+          h.reason === 'no_slot'
+          ? '无可用槽位'
+          : h.reason === 'budget'
+            ? '超预算（budget_tokens）'
+            : h.reason === 'employee_busy'
+              ? '员工正忙'
+              : h.reason === 'dependency'
+                ? '前置工作项未完成（B2-3 依赖门控）'
+                : undefined;
         this.taskHolds.set(h.taskId, {
           reason: h.reason,
           ...(detail ? { detail } : {}),

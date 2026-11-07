@@ -40,6 +40,7 @@ import type { SqliteDb } from '../db/open.js';
 import { listPlanSteps, type PlanStepState } from '../db/plan_steps.js';
 import { readSetting, writeSetting } from '../db/settings.js';
 import { PLAN_STEPS_MAX } from './submit-plan-tool.js';
+import { normalizePlanWorkItems } from '../../core/plan.js';
 
 export interface EmployeeExecutorDeps {
   /** SQLite 句柄（只读 + mailbox 写入）。 */
@@ -1042,6 +1043,9 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
     await persistUsage(usageDelta(result.usage, planSession), taskId, null, plannerId); // OPT-AI-8/B0-8：规划会话同口径（差值）
     const call = result.toolCalls.find((t) => t.name === 'submit_plan' && t.isError !== true);
     const rawSteps = call ? (call.input as { steps?: unknown }).steps : undefined;
+    // B2-3/D-30②：结构化多件随 plan_drafted 带给引擎（校验在引擎 spawn 侧再做一次——双保险）。
+    const rawWorkItems = call ? (call.input as { workItems?: unknown }).workItems : undefined;
+    const workItems = rawWorkItems != null ? normalizePlanWorkItems(rawWorkItems) : null;
     const steps = Array.isArray(rawSteps)
       ? rawSteps
           .filter((s): s is string => typeof s === 'string')
@@ -1059,7 +1063,16 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
       id: taskId,
       event: 'plan_drafted',
       actor: `employee:${plannerId}`,
-      payload: { steps, plannerEmployeeId: plannerId },
+      payload: {
+        steps,
+        plannerEmployeeId: plannerId,
+        // B2-3：合法结构化多件才透传；非法→不透传（引擎回落单件），响亮留痕不静默。
+        ...(workItems != null && workItems.ok
+          ? { workItems: workItems.items }
+          : workItems != null && !workItems.ok
+            ? { workItemsInvalid: workItems.message }
+            : {}),
+      },
     });
   }
 
@@ -1229,12 +1242,21 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
           }
         }
       };
+      // B2-3/D-30②：返工件会话继承——血缘源件存在且同员工 → 沿用「员工×任务×源件」会话键
+      // （前轮现场可见，57 P1-7/P2-2）；换员工改派不继承（隔离优先，新会话）。
+      const srcForSession =
+        wi.retry_of != null ? getWorkItem(db as never, wi.retry_of) : undefined;
+      const inheritedSessionKey =
+        srcForSession != null && srcForSession.employee_id === employeeId
+          ? employeeSessionKey({ employeeId, taskId: target.taskId, workItemId: srcForSession.id })
+          : undefined;
       const runOne = async (prompt: string): Promise<{ aborted: true } | { aborted: false; result: AgentRunResult }> => {
         const r = await runSessionWithFallback(
           {
             employeeId,
             taskId: target.taskId,
             workItemId: target.workItemId,
+            ...(inheritedSessionKey != null ? { sessionKey: inheritedSessionKey } : {}),
             systemPrompt: ctx.systemPrompt,
             userPrompt: prompt,
             cwd: ctx.meta.cwd,

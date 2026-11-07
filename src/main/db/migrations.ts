@@ -30,6 +30,7 @@ import { SQL_019_PROJECT_DEFAULT_BUDGET } from './migrations/019_project_default
 import { SQL_020_CONTEXT_METRICS } from './migrations/020_context_metrics.js';
 import { SQL_021_CONTEXT_METRICS_MODEL_HASH } from './migrations/021_context_metrics_model_hash.js';
 import { SQL_022_PROJECT_TARGET_BRANCH } from './migrations/022_project_target_branch.js';
+import { SQL_023_WORK_ITEM_DEPS } from './migrations/023_work_item_deps.js';
 
 export interface Migration {
   /** 版本号（基线 = 1；严格递增、不复用）。 */
@@ -111,6 +112,12 @@ const BASELINE: ReadonlyArray<Omit<Migration, 'checksum'>> = [
     name: 'project_target_branch',
     file: '022_project_target_branch.sql',
     sql: SQL_022_PROJECT_TARGET_BRANCH,
+  },
+  {
+    version: 23,
+    name: 'work_item_deps',
+    file: '023_work_item_deps.sql',
+    sql: SQL_023_WORK_ITEM_DEPS,
   },
 ];
 

@@ -622,7 +622,8 @@ function decisionResumeAction(ctx: TaskTransitionContext): EngineAction[] {
  * 引擎侧建行（`loop.spawnPlanWorkItems`；幂等键 `plan_work_items:task:<id>:0`）。
  */
 function planWorkItemsAction(ctx: TaskTransitionContext): EngineAction[] {
-  return [act('plan_work_items', 'task', ctx.taskId, 0, ctx.taskId, {})];
+  // B2-3/D-30②：结构化多件随事件 payload 透传给 spawnPlanWorkItems（非法件由引擎侧再校验回落单件）。
+  return [act('plan_work_items', 'task', ctx.taskId, 0, ctx.taskId, { workItems: ctx.payload['workItems'] ?? null, workItemsInvalid: ctx.payload['workItemsInvalid'] ?? null })];
 }
 function sessionActionC(ctx: TaskTransitionContext): EngineAction[] {
   return [sessionAction(ctx, 'critic')];

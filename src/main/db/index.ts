@@ -35,6 +35,12 @@ export {
   removeTaskDependency,
   listTaskDependencies,
 } from './task_deps.js';
+export {
+  insertWorkItemDep,
+  workItemDepsOf,
+  workItemDepsByTask,
+  deleteWorkItemDepsByTask,
+} from './work_item_deps.js';
 export { recordCost, listCosts, usdInWindow, type RecordCostInput } from './costs.js';
 export {
   insertContextMetric,

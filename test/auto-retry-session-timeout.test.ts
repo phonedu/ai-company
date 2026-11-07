@@ -151,14 +151,20 @@ test('B0-3：autoRetry=0 关闭自动重试（保持旧行为）', async () => {
   }
 });
 
-test('B0-3：业务失败（agent_settled 未提交）不自动重试（避免掩盖员工没干活）', async () => {
+test('B2-3/D-30②：业务失败（agent_settled 未提交）同口径单件重派；重试耗尽才任务 failed', async () => {
   const { db, taskId, wiId } = setup();
   try {
     const engine = new Engine(db, makeRecordingExecutor(), { now: () => 1000, autoRetry: 1 });
     await driveToExecuting(engine, taskId);
+    // 第一次业务失败 → 单件 attempt+1 重派（任务保持 executing；attempt/事件留痕，不掩盖）
+    await engine.dispatch({ scope: 'work_item', id: wiId, event: 'agent_settled', actor: 'employee:1' });
+    const wi1 = db.prepare('SELECT state, attempt FROM work_items WHERE id=?').get(wiId) as { state: string; attempt: number };
+    assert.equal(wi1.attempt, 1, '业务失败 → attempt+1（D-30② 失败粒度=单件）');
+    assert.equal(wi1.state, 'running', '重派后该件 running（任务未被整体判死）');
+    // 重试耗尽 → 任务 failed 出异常卡
     await engine.dispatch({ scope: 'work_item', id: wiId, event: 'agent_settled', actor: 'employee:1' });
     const task = db.prepare('SELECT state FROM tasks WHERE id=?').get(taskId) as { state: string };
-    assert.equal(task.state, 'failed', '业务失败照旧判死（自动重试只针对运行时错误）');
+    assert.equal(task.state, 'failed', '重试耗尽才任务 failed（D-30②）');
   } finally {
     db.close();
   }

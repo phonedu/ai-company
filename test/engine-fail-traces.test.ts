@@ -68,9 +68,10 @@ test('OPT-M8-2①: 工作项失败 → `work_item_failed` payload 带 reason（=
     await engine.dispatch(ev(taskId, 'plan_drafted')); // L0 → ready → 自动 executing + dispatch
     assert.equal(getWorkItem(db, wi.id)?.state, 'running');
 
-    // 会话结束但未提交结果 → 工作项 failed
+    // 会话结束但未提交结果 → B2-3/D-30② 单件重派（attempt+1，running）；work_item_failed 事件留痕
     await engine.dispatch({ scope: 'work_item', id: wi.id, event: 'agent_settled', actor: 'employee:1' });
-    assert.equal(getWorkItem(db, wi.id)?.state, 'failed');
+    assert.equal(getWorkItem(db, wi.id)?.state, 'running', '业务失败 → 单件重派（D-30②）');
+    assert.equal(getWorkItem(db, wi.id)?.attempt, 1);
     const failed = listTaskEvents(db, taskId).filter((e) => e.kind === 'work_item_failed');
     assert.equal(failed.length, 1);
     assert.equal((JSON.parse(failed[0]!.payload) as { reason: string }).reason, 'agent_settled');

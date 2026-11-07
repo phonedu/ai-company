@@ -39,6 +39,8 @@ export interface SchedulerInput {
   workItems: WorkItemSnapshot[];
   /** taskId -> 它依赖的 task id 列表（task_deps） */
   deps: Map<number, number[]>;
+  /** B2-3/D-30②：workItemId -> 前置 work item id 列表（work_item_deps；同任务内）。缺省空 → 无门控（旧调用兼容）。 */
+  workItemDeps?: Map<number, number[]>;
   /** employeeId -> 正在执行的 work item id（员工并发 = 1） */
   runningByEmployee: Map<number, number>;
 }
@@ -166,6 +168,8 @@ export function planScheduling(input: SchedulerInput): SchedulerAction[] {
     .filter((t) => t.state === 'executing' || startedThisTick.some((s) => s.id === t.id))
     .sort(priorityOrder);
 
+  const wiById = new Map(input.workItems.map((w) => [w.id, w]));
+  const wiDeps = input.workItemDeps ?? new Map<number, number[]>();
   for (const t of dispatching) {
     if (overBudget(t)) {
       actions.push({ type: 'hold', taskId: t.id, reason: 'budget' });
@@ -175,6 +179,17 @@ export function planScheduling(input: SchedulerInput): SchedulerAction[] {
     let heldEmployeeBusy = false;
     let heldOccupiedBy: number | undefined;
     for (const wi of items) {
+      // B2-3/D-30②：工作项依赖门控——前置件未全部 done → hold（不占员工、任务不被 block）；
+      // 前置件幻影按满足处理（fail-open，与任务级 dependenciesSatisfied 同哲学）。
+      const wiDepsList = wiDeps.get(wi.id) ?? [];
+      const depsSatisfied = wiDepsList.every((d) => {
+        const dep = wiById.get(d);
+        return dep == null || dep.state === 'done';
+      });
+      if (!depsSatisfied) {
+        actions.push({ type: 'hold', taskId: t.id, reason: 'dependency' });
+        continue;
+      }
       if (busyEmployees.has(wi.employeeId)) {
         heldEmployeeBusy = true;
         heldOccupiedBy ??= input.runningByEmployee.get(wi.employeeId);

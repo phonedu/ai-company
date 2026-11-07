@@ -11,7 +11,7 @@
  * `permission_requested` / `permission_decision` 事件、审批复用 `approvals`）在引擎侧。
  */
 
-import { precheckCommand } from './command-precheck.js';
+import { precheckCommand, unwrapCommand } from './command-precheck.js';
 import { isReadOnlyBashCommand } from './readonly-bash.js';
 
 export type PermissionDecision = 'allow' | 'ask' | 'deny';
@@ -70,6 +70,12 @@ export interface GateContext {
   cwd?: string;
   policy?: PermissionPolicy;
   now?: number;
+  /**
+   * B2-7（58 §2.5 G6）：**员工任务会话**标记（`run.employeeId > 0`，由 session-tool-gate 注入）。
+   * 员工会话内 bash 的 git 写子命令一律 deny（提交收口归宿主）；频道助手/引擎动作不设此标记，
+   * 不受影响（W1/B0-9 口径不变）。
+   */
+  employeeSession?: boolean;
 }
 
 export interface GateResult {
@@ -136,6 +142,101 @@ export function detectEgressCommand(command: string): string | null {
   if (text.trim().length === 0) return null;
   for (const { re, label } of EGRESS_COMMAND_PATTERNS) {
     if (re.test(text)) return label;
+  }
+  return null;
+}
+
+// ── B2-7（58 §2.5 G6）：员工会话 git 写子命令识别 ─────────────────────────
+//
+// 口径：员工任务会话内 **git 写子命令一律 deny**（提交收口归宿主，D-30）；只读 git
+// （status/log/diff/show/branch 裸/读旗标/remote -v/config --get/stash list…）不走 deny、
+// 回落既有门禁。识别是**分段**的（`&&`/`||`/`;`/`|`/换行切段后逐段判断「段首是否 git」），
+// 防止 `--grep=merge` 这类**旗标含写词**的读命令被误伤（L55：拦截面也要防 over-blocking）。
+
+/** 无条件写子命令（出现即写）。 */
+const GIT_WRITE_ALWAYS: ReadonlySet<string> = new Set([
+  'commit', 'push', 'pull', 'merge', 'rebase', 'reset', 'revert', 'cherry-pick',
+  'clean', 'apply', 'am', 'fetch', 'checkout', 'switch', 'restore', 'rm', 'mv',
+]);
+
+/** 条件子命令：按第一个参数区分读写（branch/remote/tag/stash/config/worktree）。 */
+function gitConditionalWrite(sub: string, rest: string[]): string | null {
+  const first = rest[0] ?? '';
+  const lowerRest = rest.map((t) => t.toLowerCase());
+  switch (sub) {
+    case 'branch':
+      // 裸 / 纯读旗标（-a -v -r -l -vv --all --show-current --contains 后跟名字）→ 读
+      if (rest.length === 0) return null;
+      if (lowerRest.every((t) => ['-a', '-v', '-vv', '-r', '-l', '--all', '--show-current'].includes(t) || /^--contains(=|$)/.test(t))) return null;
+      return 'git branch';
+    case 'remote':
+      if (rest.length === 0) return null;
+      if (['add', 'remove', 'rename', 'set-url', 'set-head', 'prune', 'update'].includes(first.toLowerCase())) return 'git remote';
+      if (lowerRest.every((t) => ['-v', '--verbose'].includes(t))) return null;
+      return 'git remote';
+    case 'tag':
+      if (rest.length === 0) return null;
+      if (['-l', '--list', '-n'].includes(first.toLowerCase())) return null; // 列表形态（可带模式值）
+      if (rest.every((t) => t.startsWith('-'))) {
+        // 纯旗标：写旗标（-d/-D/-m/-M/-a/-s/-u/-f/-c）拒绝；其余按读处理
+        return lowerRest.some((t) => /^-(d|D|m|M|a|s|u|f|c)/.test(t)) ? 'git tag' : null;
+      }
+      return 'git tag'; // 带位置参数（建 tag）
+    case 'stash':
+      if (['list', 'show'].includes(first.toLowerCase())) return null;
+      return 'git stash'; // 裸 stash = save（写）
+    case 'config':
+      if (rest.length === 0) return null;
+      if (['--get', '--get-all', '--get-regexp', '--list', '-l', '--get-urlmatch'].includes(first.toLowerCase())) return null;
+      return 'git config';
+    case 'worktree':
+      if (['list'].includes(first.toLowerCase()) || rest.length === 0) return null;
+      return 'git worktree';
+    default:
+      return null;
+  }
+}
+
+/** 单段命令：以 git 开头且首子命令为写族 → 返回「git <子命令>」标签；否则 null。 */
+function gitWriteSubcommandOf(segment: string): string | null {
+  // 允许少量 VAR=value 环境变量前缀（保守上限 4 个）
+  let tokens = segment.trim().split(/\s+/).filter((t) => t.length > 0);
+  for (let i = 0; i < 4 && tokens.length > 0 && /^[A-Za-z_][A-Za-z0-9_]*=/.test(tokens[0]); i += 1) {
+    tokens = tokens.slice(1);
+  }
+  if (tokens.length === 0) return null;
+  const bin = tokens[0].toLowerCase().replace(/\.exe$/, '');
+  if (bin !== 'git') return null;
+  // 消费全局旗标（-C <path> / -c <n>=<v> / --git-dir、--work-tree 两种形态 / 无值旗标）
+  let i = 1;
+  while (i < tokens.length) {
+    const t = tokens[i];
+    if (t === '-C' || t === '-c') { i += 2; continue; }
+    if (t.startsWith('--git-dir=') || t.startsWith('--work-tree=')) { i += 1; continue; }
+    if (t === '--git-dir' || t === '--work-tree') { i += 2; continue; }
+    if (t === '--no-pager' || t === '--paginate' || t === '--literal-pathspecs') { i += 1; continue; }
+    break;
+  }
+  const sub = tokens[i];
+  if (sub == null) return null;
+  const s = sub.toLowerCase().replace(/["']/g, '');
+  const rest = tokens.slice(i + 1).map((t) => t.replace(/^["']|["']$/g, ''));
+  if (GIT_WRITE_ALWAYS.has(s)) return `git ${s}`;
+  return gitConditionalWrite(s, rest);
+}
+
+/**
+ * 命令文本是否含 **git 写子命令**（员工会话 deny 用；纯函数，可测）。
+ * 先解 shell 包裹（`bash -c "git commit…"`），再按运算符分段逐段判断。
+ */
+export function detectGitWriteCommand(command: string): string | null {
+  const raw = command ?? '';
+  if (raw.trim().length === 0) return null;
+  const text = unwrapCommand(raw);
+  if (text.trim().length === 0) return null;
+  for (const segment of text.split(/&&|\|\||[;|\n\r]/)) {
+    const hit = gitWriteSubcommandOf(segment);
+    if (hit) return hit;
   }
   return null;
 }
@@ -295,6 +396,18 @@ export function permissionGate(call: ToolCall, ctx: GateContext): GateResult {
         return { decision: 'allow', reason: `已授予 ${precheck.rule} 放行`, rule: `grant:${precheck.rule}` };
       }
       return precheck;
+    }
+    // B2-7：员工会话 git 写子命令一律 deny（提交收口归宿主）——在 egress **之前**：
+    // deny 强于 ask，员工 `git push` 不应降级为可批准的 ask（D-30 一刀切，不做员工级开关）。
+    if (ctx.employeeSession === true) {
+      const gitWrite = detectGitWriteCommand(rawCommand);
+      if (gitWrite) {
+        return {
+          decision: 'deny',
+          reason: `员工会话不自行执行 git 写操作（${gitWrite}）：版本提交由宿主在验收通过后统一完成；可用只读 git（status/log/diff/show/branch）查看现场。`,
+          rule: 'git_write_deny',
+        };
+      }
     }
     // B0-9：网络外发命令族→ask（在 denylist/consentRules 之前，任何放行档都不自动放行）。
     const egress = detectEgressCommand(rawCommand);

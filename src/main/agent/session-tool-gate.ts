@@ -130,6 +130,8 @@ export class SessionToolGate {
       ...(run.projectRoot != null ? { projectRoot: run.projectRoot } : {}),
       ...(run.capabilityTier != null ? { capabilityTier: run.capabilityTier } : {}),
       ...(run.autonomy != null ? { autonomy: run.autonomy } : {}),
+      // B2-7：员工任务会话（employeeId>0）标记——bash 内 git 写子命令一律 deny（宿主收口）。
+      employeeSession: run.employeeId > 0,
     };
     // G1 余项（最小范围 = 会话 × 规则）：只享「本会话」或「任务级（回落）」的 grant。
     // D-19 P1：频道 grant（assistantOnly）不得扩散到同项目员工任务会话。

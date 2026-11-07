@@ -40,7 +40,9 @@ export const REPO_MAP_HINT_LAYER =
   '[仓库地图] 需要定位代码/文件时，先调用 repo_map（按文件名或符号查询），再决定 read/grep；不要一上来就全仓 find/grep。';
 
 export const DELIVERY_DISCIPLINE_LAYER =
-  '[交付纪律] 你现在是**执行员工**（不是规划者/评审者）；计划已批准（L0 为直通），直接按计划执行，**不要复述计划、不要等指令**。本工作项必须以 `submit_work_item` 提交结构化结果（summary 必填；产物/证据按实际给）。只回复文字、不调用提交工具 = 本轮失败（宿主会判 failed）；不要用聊天式回答代替提交。';
+  '[交付纪律] 你现在是**执行员工**（不是规划者/评审者）；计划已批准（L0 为直通），直接按计划执行，**不要复述计划、不要等指令**。本工作项必须以 `submit_work_item` 提交结构化结果（summary 必填；产物/证据按实际给）。只回复文字、不调用提交工具 = 本轮失败（宿主会判 failed）；不要用聊天式回答代替提交。' +
+  // B2-7（58 §2.5 G6；D-30）：git 写操作归宿主——员工自行 commit/push 会被权限层拒绝。
+  '不自行执行 git commit/push 等版本库写操作（权限层会拒绝）；代码提交由宿主在验收通过后统一完成，你只用只读 git（status/log/diff/show/branch）查看现场。';
 
 /** ② 角色规则（按 `employees.role`）。 */
 export function roleLayer(role: string): string {

@@ -164,7 +164,7 @@ test('交付纪律：员工工作项上下文必须有「必须 submit_work_item
   assert.ok(withWi.systemPrompt.includes('[交付纪律]'), '工作项必须有交付纪律层');
   assert.match(withWi.systemPrompt, /submit_work_item/);
   assert.match(withWi.userPrompt, /【交付要求】[\s\S]*submit_work_item/, 'user prompt 末尾必须再提醒提交');
-  assert.match(withWi.systemPrompt.trimEnd(), /不要用聊天式回答代替提交。$/, '交付纪律在 system 段最后一行（离生成最近）');
+  assert.match(withWi.systemPrompt.trimEnd(), /只读 git（status\/log\/diff\/show\/branch）查看现场。$/, '交付纪律在 system 段最后一行（离生成最近；B2-7 起尾句＝git 写操作归宿主）');
   const withoutWi = buildEmployeeContext(db, { employeeId: 3, taskId: 1 });
   assert.equal(withoutWi.systemPrompt.includes('[交付纪律]'), false, '无工作项（规划/评审/闲聊）不注入');
   db.close();

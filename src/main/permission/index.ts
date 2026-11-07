@@ -2,6 +2,7 @@
 export {
   permissionGate,
   detectEgressCommand,
+  detectGitWriteCommand,
   toolCategory,
   downgradeAutonomy,
   type PermissionDecision,

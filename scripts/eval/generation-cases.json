@@ -6,56 +6,120 @@
       "id": "conv-price-pushback",
       "category": "conversation",
       "prompt": "客户说我们的报价太贵，要求直接降 30%。请写一段中文回复：不承诺降价、说明价值、给两个替代方案（范围缩减/分期），语气专业不生硬，控制在 200 字内。",
-      "rubric": ["明确不直接降价", "给出两个具体替代方案", "语气专业且不卑不亢", "不超过约 200 字"],
+      "rubric": [
+        "明确不直接降价",
+        "给出两个具体替代方案",
+        "语气专业且不卑不亢",
+        "不超过约 200 字"
+      ],
       "maxTokens": 500
     },
     {
       "id": "conv-delay-report",
       "category": "conversation",
       "prompt": "项目要延期两周。请写给上级的中文邮件：说明事实与影响、给出补救方案与新的时间点、不推诿责任。200 字左右。",
-      "rubric": ["陈述事实与新时间点", "说明影响", "给出补救方案", "不推诿且不空泛"],
+      "rubric": [
+        "陈述事实与新时间点",
+        "说明影响",
+        "给出补救方案",
+        "不推诿且不空泛"
+      ],
       "maxTokens": 500
     },
     {
       "id": "brainstorm-cafe",
       "category": "brainstorm",
       "prompt": "社区咖啡店工作日下午客流很低。给 8 个可执行点子，并从中选 2 个最可行的说明理由（成本低、当周可试）。",
-      "rubric": ["给出 8 个不同点子", "选出 2 个并给理由", "点子具体可执行", "考虑成本/一周内可试"],
+      "rubric": [
+        "给出 8 个不同点子",
+        "选出 2 个并给理由",
+        "点子具体可执行",
+        "考虑成本/一周内可试"
+      ],
       "maxTokens": 700
     },
     {
       "id": "brainstorm-app",
       "category": "brainstorm",
       "prompt": "面向自由职业者的记账 App 已有很多竞品。列 10 个差异化功能，按「价值/成本」排序，并解释前 3 个为什么能形成差异。",
-      "rubric": ["给出 10 个功能", "有排序依据（价值/成本）", "前 3 个有差异化理由", "不重复泛泛功能"],
+      "rubric": [
+        "给出 10 个功能",
+        "有排序依据（价值/成本）",
+        "前 3 个有差异化理由",
+        "不重复泛泛功能"
+      ],
       "maxTokens": 700
     },
     {
       "id": "plan-website",
       "category": "planning",
       "prompt": "两周内上线一个 5 页公司官网（无后端，静态站）。给出里程碑（按天/周）、依赖关系、风险与应对。要可执行，不要泛泛而谈。",
-      "rubric": ["里程碑含时间点", "标出依赖关系", "列出风险与应对", "两周内可完成且范围现实"],
+      "rubric": [
+        "里程碑含时间点",
+        "标出依赖关系",
+        "列出风险与应对",
+        "两周内可完成且范围现实"
+      ],
       "maxTokens": 700
     },
     {
       "id": "plan-retro",
       "category": "planning",
       "prompt": "为 20 人团队设计一次 90 分钟季度复盘会：给议程、每段时长、主持要点与产出物。",
-      "rubric": ["议程含时长分配", "总时长≈90 分钟", "有主持/引导要点", "明确产出物"],
+      "rubric": [
+        "议程含时长分配",
+        "总时长≈90 分钟",
+        "有主持/引导要点",
+        "明确产出物"
+      ],
       "maxTokens": 600
     },
     {
       "id": "dev-uniq",
       "category": "devfix",
       "prompt": "下面函数想把数组去重并保留首次出现顺序，但有 bug：\n```js\nfunction uniq(arr){ const out=[]; for(let i=0;i<arr.length;i++){ if(out.indexOf(arr[i])>0) continue; out.push(arr[i]); } return out; }\n```\n指出 bug（为什么错），给出修复后的完整函数，并给一个能暴露该 bug 的测试用例。",
-      "rubric": ["正确指出 indexOf 判定 >0 的问题", "修复后函数正确（>=0 或 includes）", "测试用例能暴露原 bug", "代码完整可直接运行"],
+      "rubric": [
+        "正确指出 indexOf 判定 >0 的问题",
+        "修复后函数正确（>=0 或 includes）",
+        "测试用例能暴露原 bug",
+        "代码完整可直接运行"
+      ],
       "maxTokens": 700
     },
     {
       "id": "dev-pagination",
       "category": "devfix",
       "prompt": "SQL：`SELECT * FROM orders ORDER BY created_at DESC LIMIT 20 OFFSET (page-1)*20`（page 从 1 开始）。用户反馈最后一页出现重复行、翻页时偶发漏行。解释原因（含排序不稳定/并发插入），给出更稳的分页 SQL 方案。",
-      "rubric": ["指出 ORDER BY 非唯一导致不稳定", "提到并发插入/删除影响 offset", "给出 keyset/游标方案", "SQL 具体可执行"],
+      "rubric": [
+        "指出 ORDER BY 非唯一导致不稳定",
+        "提到并发插入/删除影响 offset",
+        "给出 keyset/游标方案",
+        "SQL 具体可执行"
+      ],
+      "maxTokens": 700
+    },
+    {
+      "id": "conv-refuse-scope",
+      "category": "conversation",
+      "prompt": "客户要求你承诺「上线后绝对不会出任何 bug」。请写一段中文回复：不虚假承诺、说明质量保障方式（测试/灰度/回滚）、给出可承诺的具体指标，200 字内。",
+      "rubric": [
+        "不承诺零 bug",
+        "给出质量保障机制（测试/灰度/回滚至少两项）",
+        "给出可量化承诺",
+        "语气专业、200 字内"
+      ],
+      "maxTokens": 600
+    },
+    {
+      "id": "plan-conflict",
+      "category": "planning",
+      "prompt": "你负责 3 个项目，本周四同时要交付；团队只有 4 人。给出本周排期：优先级判断依据、具体到人的任务分配、哪些要延期及如何沟通。",
+      "rubric": [
+        "给出优先级判断依据",
+        "任务分配具体到人或角色",
+        "明确哪些延期",
+        "有沟通/风险说明"
+      ],
       "maxTokens": 700
     }
   ]

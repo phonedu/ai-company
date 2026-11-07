@@ -2,8 +2,10 @@
 //
 // 断言三层：
 //   ① 真 DOM：项目页任务行 → 点行出现行内详情（同一时间只一张）→ Esc 收起且焦点回原行；
-//   ② 深链：「待我处理」行短号 → 项目页（不跳整页详情）＋目标行已展开；
-//   ③ 真库：只读回读，确认配方没写业务数据（任务行数/状态保持种子值）。
+//   ② 深链三条入口：「待我处理」短号 / 频道卡「去验收」/ 命令面板任务命中
+//      → 项目页（不跳整页详情）＋目标行已展开；
+//   ③ 窄窗 720（SplitLayout 抽屉态、零横向溢出）＋深色主题（prefers-color-scheme）；
+//   ④ 真库：只读回读，确认配方没写业务数据（任务行数/状态保持种子值）。
 //
 // 隔离：临时 userData 目录（AICO_USER_DATA_DIR）＋独立 CDP 端口；不读写真实数据目录。
 // 不跑模型：种子任务停在 ready/done，配方只做 UI 交互。
@@ -86,6 +88,15 @@ try {
     `INSERT INTO reports(task_id, kind, payload, state, dedupe_key, created_at)
      VALUES(2,'report',?,'pending',?,?)`,
   ).run(JSON.stringify(payload), `ui2-recipe:${AT}`, AT + 2);
+  // B0-5 的 UI 呈现：引擎毒事件写的 alert 卡（引擎测试证明会写；这里验渲染路径）。
+  db.prepare(
+    `INSERT INTO reports(task_id, kind, payload, state, dedupe_key, created_at)
+     VALUES(1,'alert',?,'pending',?,?)`,
+  ).run(
+    JSON.stringify({ title: '引擎有事件处理失败（已隔离，其他事件照常）', text: 'task#999 的「pause」失败：非法迁移' }),
+    `ui2-recipe-alert:${AT}`,
+    AT + 3,
+  );
   db.close();
 
   pid = start();
@@ -138,7 +149,10 @@ try {
     });
   const evalIn = async (expression) => {
     const r = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
-    if (r?.result?.exceptionDetails) throw new Error(`CDP 注入失败：${r.result.exceptionDetails.text ?? 'Uncaught'}`);
+    if (r?.result?.exceptionDetails) {
+      const detail = r.result.exceptionDetails;
+      throw new Error(`CDP 注入失败：${detail.exception?.description ?? detail.text ?? 'Uncaught'}`);
+    }
     return r?.result?.result?.value;
   };
   const waitFor = async (expression, label, tries = 60) => {
@@ -216,9 +230,22 @@ try {
   const inbox = await evalIn(`(() => ({
     rows: document.querySelectorAll('[data-testid=inbox-row]').length,
     short: document.querySelector('[data-testid=inbox-short]')?.textContent ?? null,
+    tabs: Array.from(document.querySelectorAll('[data-testid^=inbox-tab-]')).map((el) => el.dataset.testid),
   }))()`);
   console.log('[ui2-project] inbox=' + JSON.stringify(inbox));
   if (inbox?.short !== 'T-1002') problems.push(`待办短号=${inbox?.short}（期望 T-1002）`);
+  // B0-5 UI 呈现：引擎毒事件的 alert 卡在「异常」页签（默认页签是决策，不混排）。
+  const alertTab = await evalIn("(function(){var b=document.querySelector('[data-testid=inbox-tab-alert]'); if(b){b.click(); return true;} return false;})()");
+  if (!alertTab) problems.push('待我处理缺「异常」页签（B0-5 alert 卡无处呈现）');
+  const alertShown = await waitFor(
+    "Array.from(document.querySelectorAll('[data-testid=inbox-row]')).some((el) => (el.textContent || '').includes('引擎有事件处理失败'))",
+    '引擎异常卡渲染',
+    20,
+  ).then(() => true, () => false);
+  if (!alertShown) problems.push('引擎异常卡未在「异常」页签渲染（B0-5 UI 呈现）');
+  // 回到「验收」页签（该卡是 report 类；ask 页签为空，不是默认页签）。
+  await evalIn("(function(){var b=document.querySelector('[data-testid=inbox-tab-report]'); if(b) b.click(); return !!b;})()");
+  await sleep(200);
   await evalIn("(function(){var b=document.querySelector('[data-testid=inbox-short]'); if(b){b.click(); return true;} return false;})()");
   await waitFor(
     "document.querySelector('[data-testid=center]')?.dataset.view === 'projects' && document.querySelector('[data-testid=project-task][data-task-id=\"2\"][data-expanded=\"1\"]') !== null",
@@ -238,6 +265,97 @@ try {
   if (JSON.stringify(deep?.expanded) !== JSON.stringify(['2'])) problems.push(`深链展开行=${JSON.stringify(deep?.expanded)}`);
   if (deep?.inline !== 1) problems.push(`深链行内详情数=${deep?.inline}`);
   if (deep?.focusTaskId !== '2') problems.push(`深链焦点=${deep?.focusTaskId}（期望目标行 2）`);
+
+  // ⑥ 频道卡深链：老板频道报告卡「去验收」→ 项目页＋目标行展开
+  await evalIn("(function(){var b=document.querySelector('[data-testid=leftrail-channel]'); if(b) b.click(); return !!b;})()");
+  await waitFor("!!document.querySelector('[data-testid=card-goto-task]')", '频道报告卡出现');
+  await evalIn("(function(){var b=document.querySelector('[data-testid=card-goto-task]'); if(b){b.click(); return true;} return false;})()");
+  await waitFor(
+    `document.querySelector('[data-testid=center]')?.dataset.view === 'projects' && document.querySelector('[data-testid=project-task][data-task-id="2"][data-expanded="1"]') !== null`,
+    '频道卡深链落到项目页并展开',
+  );
+  const fromCard = await evalIn(`(() => ({
+    view: document.querySelector('[data-testid=center]')?.dataset.view ?? null,
+    expanded: Array.from(document.querySelectorAll('[data-testid=project-task][data-expanded="1"]')).map((el) => el.dataset.taskId),
+  }))()`);
+  console.log('[ui2-project] fromCard=' + JSON.stringify(fromCard));
+  if (fromCard?.view !== 'projects') problems.push(`频道卡深链视图=${fromCard?.view}（期望 projects）`);
+  if (JSON.stringify(fromCard?.expanded) !== JSON.stringify(['2'])) problems.push(`频道卡深链展开=${JSON.stringify(fromCard?.expanded)}`);
+
+  // ⑦ 命令面板深链：Ctrl+K → 输入短号 → 点任务命中 → 项目页＋目标行展开
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'k', code: 'KeyK', windowsVirtualKeyCode: 75, modifiers: 2 });
+  await waitFor("!!document.querySelector('[data-testid=palette-input]')", '命令面板打开');
+  await evalIn(`(() => {
+    const el = document.querySelector('[data-testid=palette-input]');
+    if (!el) return false;
+    const setV = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+    setV.call(el, 'T-1001');
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  })()`);
+  await waitFor(
+    "Array.from(document.querySelectorAll('[data-testid=palette-row]')).some((el) => (el.textContent || '').includes('T-1001'))",
+    '命令面板任务命中',
+  );
+  await evalIn(`(() => {
+    const row = Array.from(document.querySelectorAll('[data-testid=palette-row]')).find((el) => (el.textContent || '').includes('T-1001'));
+    if (!row) return false;
+    row.click();
+    return true;
+  })()`);
+  await waitFor(
+    `document.querySelector('[data-testid=center]')?.dataset.view === 'projects' && document.querySelector('[data-testid=project-task][data-task-id="1"][data-expanded="1"]') !== null`,
+    '命令面板深链落到项目页并展开',
+  );
+  const fromPalette = await evalIn(`(() => ({
+    view: document.querySelector('[data-testid=center]')?.dataset.view ?? null,
+    expanded: Array.from(document.querySelectorAll('[data-testid=project-task][data-expanded="1"]')).map((el) => el.dataset.taskId),
+  }))()`);
+  console.log('[ui2-project] fromPalette=' + JSON.stringify(fromPalette));
+  if (fromPalette?.view !== 'projects') problems.push(`命令面板深链视图=${fromPalette?.view}（期望 projects）`);
+  if (JSON.stringify(fromPalette?.expanded) !== JSON.stringify(['1'])) problems.push(`命令面板深链展开=${JSON.stringify(fromPalette?.expanded)}`);
+
+  // ⑧ 窄窗 720：SplitLayout 抽屉态＋零横向溢出
+  await send('Emulation.setDeviceMetricsOverride', { width: 720, height: 900, deviceScaleFactor: 1, mobile: false });
+  await sleep(400);
+  const narrow = await evalIn(`(() => {
+    const doc = document.documentElement;
+    return {
+      stacked: !!document.querySelector('[data-testid=split-projects][data-stacked=true]'),
+      fab: !!document.querySelector('[data-testid=split-projects-toggle]'),
+      overflowX: doc.scrollWidth - doc.clientWidth,
+      width: window.innerWidth,
+    };
+  })()`);
+  console.log('[ui2-project] narrow=' + JSON.stringify(narrow));
+  if (narrow?.width > 760) problems.push(`窄窗模拟未生效：innerWidth=${narrow?.width}`);
+  if (!narrow?.stacked) problems.push('720 窄窗未切到 SplitLayout 抽屉态（data-stacked）');
+  if (!narrow?.fab) problems.push('720 窄窗缺列表抽屉开关');
+  if (narrow?.overflowX > 1) problems.push(`720 窄窗横向溢出 ${narrow?.overflowX}px`);
+
+  // ⑨ 深色主题：prefers-color-scheme=dark → 背景变深、仍无溢出
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'dark' }] });
+  await sleep(400);
+  const dark = await evalIn(`(() => {
+    const bg = getComputedStyle(document.body).backgroundColor;
+    const nums = bg.split(',').map((part) => Number(part.replace(/[^0-9.]/g, ''))).slice(0, 3);
+    const lum = nums.length === 3 && nums.every((n) => Number.isFinite(n)) ? (nums[0] + nums[1] + nums[2]) / 3 : -1;
+    const doc = document.documentElement;
+    return { bg, lum, overflowX: doc.scrollWidth - doc.clientWidth };
+  })()`);
+  console.log('[ui2-project] dark=' + JSON.stringify(dark));
+  if (!(dark?.lum >= 0 && dark.lum < 90)) problems.push(`深色主题背景未变深：${JSON.stringify(dark)}`);
+  if (dark?.overflowX > 1) problems.push(`深色 720 横向溢出 ${dark?.overflowX}px`);
+  await send('Page.enable');
+  const darkShot = await send('Page.captureScreenshot', { format: 'png' });
+  if (typeof darkShot?.result?.data === 'string' && darkShot.result.data.length > 0) {
+    const darkOut = join(EVIDENCE, 'shot-ui2-project-dark-720.png');
+    writeFileSync(darkOut, Buffer.from(darkShot.result.data, 'base64'));
+    console.log(`[ui2-project] dark screenshot=${darkOut}`);
+  }
+  await send('Emulation.clearDeviceMetricsOverride');
+  await send('Emulation.setEmulatedMedia', { features: [] });
 
   // ⑥ 真库只读回读：配方没写业务数据
   const check = new Database(dbFile, { readonly: true, fileMustExist: true });

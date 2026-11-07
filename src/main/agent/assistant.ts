@@ -20,6 +20,9 @@ import { assistantGatePolicy, assistantWriteModePrompt, resolveAssistantWriteMod
 import { persistToolCallEvent, projectProgressReported } from './tool-events.js';
 import type { AgentEvent, AgentToolCallRecord, AgentUsage, AgentRuntime } from './types.js';
 import type { SessionToolGate } from './session-tool-gate.js';
+// B2-1（57 P1-2）：幕僚长分层上下文——项目约定层/技能索引层与员工同一实现（单一真源）。
+import { capLayer, LAYER_TOKEN_CAPS } from './context-telemetry.js';
+import { contextOutline, readProjectContextDetailed, skillsLayer } from './context.js';
 
 export interface AssistantRuntimeOptions {
   db: SqliteDb;
@@ -50,6 +53,39 @@ export interface AssistantTurnResult {
   replyMessageId: number;
   toolCalls: AgentToolCallRecord[];
   usage?: AgentUsage;
+}
+
+/** 技能引用 JSON 解析（与员工 `parseRefList` 同口径：数组/JSON 数组字符串 → id/名列表）。 */
+function parseRefListOf(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.filter((v): v is string | number => typeof v === 'string' || typeof v === 'number').map(String);
+  if (typeof raw !== 'string') return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? parsed.filter((v): v is string | number => typeof v === 'string' || typeof v === 'number').map(String)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * B2-1（57 P1-2）· 幕僚长分层上下文：项目约定层＋技能索引层（事实层＝记忆 brief，runTurn 已有）。
+ *
+ * 与员工同一实现（`readProjectContextDetailed` / `skillsLayer`，单一真源）；项目约定按员工同款
+ * 2000 token 上限截断（带章节目录，RET-F-01 口径）；技能索引＝幕僚长（0 号）勾选 ∪ 项目默认。
+ * **无内容返回空串，不注入空段**（CTX 口径）。
+ */
+export function buildAssistantLayers(db: SqliteDb, input: { projectId: number | null }): { projectLayer: string; skillLayer: string } {
+  const project = input.projectId != null ? getProjectById(db, input.projectId) : undefined;
+  const cap = LAYER_TOKEN_CAPS.projectContext ?? 2000;
+  const read = project?.root_dir != null && project.root_dir.trim().length > 0 ? readProjectContextDetailed(project.root_dir) : null;
+  const projectLayer =
+    read != null && read.text.length > 0 ? capLayer('projectContext', read.text, cap, { outline: contextOutline(read.text) }).text : '';
+  const assistantRow = db.prepare('SELECT skills FROM employees WHERE id = 0').get() as { skills?: unknown } | undefined;
+  const skillRefs = [...parseRefListOf(assistantRow?.skills), ...parseRefListOf(project?.default_skills)];
+  const skillLayer = skillsLayer(db, skillRefs).text;
+  return { projectLayer, skillLayer };
 }
 
 export class AssistantRuntime {
@@ -175,7 +211,9 @@ export class AssistantRuntime {
           '老板要你动其他项目时，请他在频道上方「当前范围」切换后再说，不要越界尝试。'
         : '本轮未绑定项目（只读档）：可以聊天、可以用 task_status 查任务状态；命令与文件读写都不可用。'
           + '若老板要你执行命令、列目录或读写文件，不要反复尝试被拦的命令——直接回复：「请先在左栏『项目树』选择一个项目，选中后我才能在项目里干活。」';
-    const systemPrompt = [this.options.systemPrompt, scopePrompt, memoryText]
+    // B2-1（57 P1-2）：分层拼装——项目约定层/技能索引层（无内容不注入空段）；静态→动态排序护缓存前缀。
+    const layers = buildAssistantLayers(db, { projectId });
+    const systemPrompt = [this.options.systemPrompt, scopePrompt, layers.projectLayer, layers.skillLayer, memoryText]
       .filter((s): s is string => typeof s === 'string' && s.length > 0)
       .join('\n\n');
 

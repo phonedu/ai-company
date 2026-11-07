@@ -17,6 +17,7 @@ import { createTaskStatusTool } from './task-status-tool.js';
 import { createNoteWriteTool, createNoteSearchTool } from './note-tools.js';
 import { createMemorySearchTool } from './memory-search-tool.js';
 import { createBossCardTools } from './boss-card-tools.js';
+import { createAssistantCommandTools, type AssistantEnginePort } from './assistant-command-tools.js';
 import type { EngineEvent } from '../engine/types.js';
 import {
   SessionToolGate,
@@ -42,9 +43,11 @@ export const ASSISTANT_SYSTEM_PROMPT_M0 = [
   '## 工具',
   '- 有清晰计划步骤时，用 `report_progress`（`{stepIdx, state}`）上报每一步进度，让老板看到进度条。',
   '- 老板问任何任务的状态/进展时，先用 `task_status`（`{task: "T-xxxx"}`）查真库快照，再据实回答；查不到就说查不到，不凭记忆猜。',
+  '- B2-1 建任务：老板说「建个任务/让员工做 X」时，用 `create_task`（`goal` 必填；acceptance/riskLevel/budgetTokens 可选）——它与「＋建任务」走完全相同的门（预算预检/模型白名单/归属确认）。归属拿不准就先问一句，不自作主张；建完把短号告诉老板。',
+  '- B2-1 推动调度：任务停在等待时，先用 `list_holds` 查等待原因并向老板如实解释，再用 `dispatch`（`{task, action: "schedule"|"retry"}`）触发调度或对失败件发起重试；「为什么不动」不许凭记忆答。',
+  '- B2-1 插话纠偏：老板要在跑任务改方向时，用 `steer`（`{task, message}`）把话递给在跑员工（下一个工具调用前生效）；任务不在跑会明说并记入任务上下文——不要假装送达。',
   '- RW-51：老板可能用**自然话**让你处理待办（如「把那张决策卡按推荐方案处理了」「待办都有什么」）——先用 `boss_inbox` 看卡面，再用 `boss_card_resolve` 执行；选项 key 必须来自卡面，老板的话模糊就先复述你的理解再确认，不自作主张。',
   '- 老板问「之前记过/说过什么、某项目的约定」时，先用 `memory_search`（`{query}`，1–4 个词）跨范围搜记忆库（全局＋全部项目），再据实回答；查不到就明说，不凭记忆猜。',
-  '- 其余协作工具（submit_work_item / ask_colleague / escalate_to_boss）在后续里程碑接入。',
 ].join('\n');
 
 export interface CreatePiAssistantOptions {
@@ -59,12 +62,20 @@ export interface CreatePiAssistantOptions {
   persistDir?: string;
   /** P2：工具大输出归档根（缺省不归档）。 */
   toolOutputDir?: string;
-  /** RW-51：引擎（卡片作答推状态机用；缺省＝只落台账不推，与 task:approve 无引擎同口径）。 */
-  engine?: { dispatch(event: EngineEvent): Promise<void> } | null;
+  /** RW-51：引擎（卡片作答推状态机用；缺省＝只落台账不推，与 task:approve 无引擎同口径）。
+   *  B2-1 起 index 传引擎实例——`tick`/`listDispatchHolds`/`schedulerSlots` 供 dispatch/list_holds 工具用（缺方法如实降级）。 */
+  engine?: AssistantEnginePort | null;
   /** RW-51：待办读数变化（托盘/待办刷新）。 */
   onInboxChanged?: (() => void) | null;
   /** RW-51：权限批准联动（批准→grant；index 注入与 deps 同源）。 */
   onGrant?: ((approvalId: number, chosen: string) => void) | null;
+  /**
+   * B2-1：建任务回调（index 注入＝`handleTaskCreate(deps, input)`——工具层不做第二套门）。
+   * 缺省未接线 → create_task 工具如实说「未接线」，不臆造任务。
+   */
+  createTask?: (input: Record<string, unknown>) => Promise<{ id: number; shortId?: string | null; title?: string | null; state?: string }>;
+  /** B2-1：老板插话 → 在跑员工会话（index 注入＝`LazyEmployeeRuntime.steer`，与 `#短号` 同通路）。 */
+  steerEmployee?: ((sessionKey: string, text: string) => boolean) | null;
   clock?: () => number;
   onTextDelta?: (delta: string) => void;
 }
@@ -99,6 +110,15 @@ export async function createPiAssistantRuntime(options: CreatePiAssistantOptions
   const noteSearch = await createNoteSearchTool(options.db, noteScopeProjectId);
   // 老板 2026-11-05 裁「1 和 2 都做」②：幕僚长只读跨范围记忆检索（全局＋全部活跃项目）。
   const memorySearch = await createMemorySearchTool(options.db);
+  // B2-1（D-30）：幕僚长指挥四工具——create_task/dispatch/steer/list_holds。
+  // 回调（createTask/steerEmployee）与引擎读数由 index.ts 注入；工具层不做第二套门。
+  const commandTools = await createAssistantCommandTools({
+    db: options.db,
+    engine: options.engine ?? null,
+    steerEmployee: options.steerEmployee ?? null,
+    createTask: options.createTask ?? null,
+    scopeProjectId: noteScopeProjectId,
+  });
 
   // D-19 P0：频道助手与员工会话走同一 `permissionGate`；项目根/只读上下文由每轮 `AssistantRuntime` 登记。
   const toolGate = new SessionToolGate({
@@ -125,7 +145,21 @@ export async function createPiAssistantRuntime(options: CreatePiAssistantOptions
   // 守卫修的是：持久化会话 resume 时 Pi 用转录 toolsAdded 快照整体替换活动工具集，
   // 快照之后注册的新工具（boss_inbox / boss_card_resolve）永不声明给模型（详见
   // `registerToolActivationGuard` 头注与 `test/pi-tool-activation.test.ts`）。
-  const assistantTools = [reportProgress, requestReview, taskStatus, cardTools.inboxTool, cardTools.resolveTool, noteWrite, noteSearch, memorySearch];
+  const assistantTools = [
+    reportProgress,
+    requestReview,
+    taskStatus,
+    cardTools.inboxTool,
+    cardTools.resolveTool,
+    noteWrite,
+    noteSearch,
+    memorySearch,
+    // B2-1：指挥四工具（与 RW-52 激活守卫同一名单——守卫自动覆盖新工具）。
+    commandTools.createTaskTool,
+    commandTools.dispatchTool,
+    commandTools.steerTool,
+    commandTools.listHoldsTool,
+  ];
   const runtime = await createPiAgentRuntime({
     provider: options.provider,
     model: options.model,

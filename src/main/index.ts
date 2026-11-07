@@ -724,6 +724,10 @@ async function initDatabaseAndIpc(): Promise<void> {
         onTextDelta: (delta: string) => evtSink.push('evt:message', { delta }),
         // RW-51：卡片工具的引擎事件/待办刷新/grant 联动（与 deps 同源）。
         engine,
+        // B2-1：幕僚长指挥四工具的宿主侧回调——create_task 走 handleTaskCreate 全部门（预算预检/
+        // 模型白名单/D1 分诊），steer 复用 LazyEmployeeRuntime.steer（与 `#短号` 插话同一实现）。
+        createTask: (input: Record<string, unknown>) => handleTaskCreate(deps, input),
+        steerEmployee: (sessionKey: string, text: string) => empLazy.steer(sessionKey, text),
         onInboxChanged: () => {
           evtSink.push('evt:inbox', { status: 'changed' });
         },

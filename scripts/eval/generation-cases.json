@@ -121,6 +121,78 @@
         "有沟通/风险说明"
       ],
       "maxTokens": 700
+    },
+    {
+      "id": "trap-jsx-cdn",
+      "category": "devfix",
+      "prompt": "我们项目是 React 18 + Vite，但同事说直接在 index.html 用 <script type=\"module\"> 引入 CDN 版 react 和 JSX 就能跑，不用构建。这个说法对吗？如果不对，指出至少两个会失败的点，并给出正确的接入方式。",
+      "rubric": [
+        "明确指出说法不对",
+        "指出至少两个具体失败点（JSX 需转译/裸模块解析/开发服务器等）",
+        "给出正确的 Vite 接入方式",
+        "不编造不存在的配置项"
+      ],
+      "maxTokens": 700
+    },
+    {
+      "id": "long-spec-extract",
+      "category": "conversation",
+      "prompt": "下面是一段客户需求原文，请提炼成 5 条验收标准（每条可验证），并指出其中 1 条自相矛盾的要求：\n「我们要一个内部工具，支持上传 Excel 并自动生成图表；必须完全离线；图表要能实时同步到云端给同事看；所有操作要留审计日志；首版两周上线；不要登录功能但要区分每个人的权限。」",
+      "rubric": [
+        "给出 5 条可验证验收标准",
+        "识别「完全离线」与「实时同步云端」矛盾",
+        "不遗漏权限与登录的矛盾",
+        "表述具体、无空泛词"
+      ],
+      "maxTokens": 700
+    },
+    {
+      "id": "code-multi-constraint",
+      "category": "devfix",
+      "prompt": "用 TypeScript 写 `function chunk<T>(arr: T[], size: number): T[][]`，满足：① size<=0 抛错；② 不改原数组；③ 最后一块可不足；④ 空数组返回 []；⑤ 附带 4 个覆盖上述约束的测试用例（vitest 风格）。",
+      "rubric": [
+        "实现满足 5 条约束",
+        "size<=0 有显式抛错",
+        "不修改原数组",
+        "测试覆盖 4 条以上约束"
+      ],
+      "maxTokens": 900
+    },
+    {
+      "id": "long-context-summary",
+      "category": "brainstorm",
+      "prompt": "背景（长文）：我们是一个 8 人 SaaS 团队，ARR 约 120 万美元，续费率 82%，获客成本过去一年上涨 40%，主要渠道是内容营销与代理商；产品有 3 个套餐，企业客户占收入 55% 但支持成本高；团队今年不打算融资。请基于这些约束给出 6 个提升净留存的动作，标注预期影响与所需人力，并指出哪个动作最不该先做及原因。",
+      "rubric": [
+        "动作与给定约束一致（不融资/8 人）",
+        "标注影响与人力",
+        "指出最不该先做的动作",
+        "理由具体（不泛泛）"
+      ],
+      "maxTokens": 900
+    },
+    {
+      "id": "trap-sql-null",
+      "category": "devfix",
+      "prompt": "同事写了 `SELECT * FROM users WHERE status != 'active'`，说能查出所有非 active 用户（包括 status 为 NULL 的）。对吗？解释三值逻辑，并给出能包含 NULL 的写法。",
+      "rubric": [
+        "指出说法不对（NULL 不满足 !=）",
+        "解释 SQL 三值逻辑",
+        "给出 IS NULL/COALESCE 方案",
+        "SQL 具体可执行"
+      ],
+      "maxTokens": 700
+    },
+    {
+      "id": "conv-bad-news",
+      "category": "conversation",
+      "prompt": "你要向客户说明：由于我们这边评估失误，原报价漏了一个关键模块，需要追加 20% 费用。客户已经签合同。请写一段 250 字内的中文沟通：承认责任、给两个可选方案（追加费用/缩减范围）、不威胁不推诿。",
+      "rubric": [
+        "明确承认己方责任",
+        "给两个可选方案",
+        "不威胁不推诿",
+        "250 字内且语气专业"
+      ],
+      "maxTokens": 600
     }
   ]
 }

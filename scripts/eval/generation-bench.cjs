@@ -64,7 +64,10 @@ function parseJudge(raw, n) {
     const obj = JSON.parse(m[0]);
     const scores = Array.isArray(obj.scores) ? obj.scores.map((x) => (x === 1 || x === true ? 1 : 0)) : null;
     if (!scores || scores.length !== n) return null;
-    return { scores, reasons: Array.isArray(obj.reasons) ? obj.reasons.map(String) : [] };
+    const reasons = Array.isArray(obj.reasons) ? obj.reasons.map(String) : [];
+    // 证据闸：给 1 但没引用原文 → 降为 0（严格评审协议）。
+    const strict = scores.map((sc, i) => (sc === 1 && !/[「"]/.test(reasons[i] ?? '') ? 0 : sc));
+    return { scores: strict, reasons };
   } catch {
     return null;
   }
@@ -79,15 +82,22 @@ async function main() {
     decrypt: (payload) => safeStorage.decryptString(Buffer.from(payload, 'base64')),
   });
   const cred = pk.resolveProviderKey('deepseek');
-  if (!cred) throw new Error('DeepSeek Key 未配置（先在设置里填写）');
-  process.env.DEEPSEEK_API_KEY = cred.key;
   const xCred = pk.resolveProviderKey('xiaomi');
-  // 跨模型评审（DeepSeek 生成 / MiMo 评审）以降低自我偏袒；MiMo 不可用则回落同模型评审并如实标注。
-  const judge = xCred
-    ? { base: 'https://api.xiaomimimo.com/v1', model: 'mimo-v2.6-flash', key: xCred.key, label: 'mimo-v2.6-flash' }
-    : { base: BASE, model: MODEL, key: cred.key, label: `${MODEL}（同模型，MiMo 未配置）` };
-  console.log(`[gen] judge=${judge.label}`);
-
+  if (!cred) throw new Error('DeepSeek Key 未配置（先在设置里填写）');
+  const provider = (process.env.GEN_PROVIDER ?? 'deepseek').trim().toLowerCase();
+  const genTarget =
+    provider === 'xiaomi' && xCred
+      ? { base: 'https://api.xiaomimimo.com/v1', model: 'mimo-v2.6-flash', key: xCred.key, label: 'mimo-v2.6-flash' }
+      : { base: BASE, model: MODEL, key: cred.key, label: MODEL };
+  if (provider === 'xiaomi' && !xCred) throw new Error('GEN_PROVIDER=xiaomi 但 Xiaomi Key 未配置');
+  // 跨模型评审（生成方 ≠ 评审方）以降低自我偏袒；缺另一家则回落同模型并如实标注。
+  const judge =
+    genTarget.label === MODEL && xCred
+      ? { base: 'https://api.xiaomimimo.com/v1', model: 'mimo-v2.6-flash', key: xCred.key, label: 'mimo-v2.6-flash' }
+      : genTarget.label !== MODEL
+        ? { base: BASE, model: MODEL, key: cred.key, label: MODEL }
+        : { base: BASE, model: MODEL, key: cred.key, label: `${MODEL}（同模型）` };
+  console.log(`[gen] provider=${genTarget.label} judge=${judge.label}`);
   const set = JSON.parse(readFileSync(join(REPO, 'scripts/eval/generation-cases.json'), 'utf8'));
   const rows = [];
   let inTok = 0;
@@ -103,14 +113,24 @@ async function main() {
         { role: 'user', content: c.prompt },
       ],
       Math.max(c.maxTokens, 4000),
+      genTarget,
     );
     inTok += gen.usage.prompt_tokens ?? 0;
     outTok += gen.usage.completion_tokens ?? 0;
     const judgePrompt =
-      `请按下面每条评分标准给「待评输出」打 0 或 1（1=满足）。只输出 JSON：{"scores":[0/1,...],"reasons":["..."]}\n` +
+      `你是严格的质量评审。对「待评输出」逐条判断是否满足评分标准：满足=1，不满足=0（宁可低分，不吝啬扣分）。\n` +
+      `评分必须引用输出原文作为证据（用「」括起原句）；引不出原文的条目一律记 0。\n` +
+      `只输出 JSON：{"scores":[0/1,...],"reasons":["每条一句话并带「原文引用」"]}\n` +
       `评分标准：\n${c.rubric.map((r, i) => `${i + 1}. ${r}`).join('\n')}\n\n待评输出：\n${gen.content}`;
-    // judge 也走同一推理模型：给足 token（推理+JSON），否则 content 可能为空。
-    const verdict = await call([{ role: 'user', content: judgePrompt }], 900);
+    // 评审用 cross-judge（生成方≠评审方）；失败回落同模型。给足 token（推理+JSON）。
+    let verdict;
+    try {
+      verdict = await call([{ role: 'user', content: judgePrompt }], 2000, judge);
+    } catch (error) {
+      if (judge.label === MODEL) throw error;
+      console.log(`[gen] ${c.id} judge 回落（${String(error && error.message ? error.message : error).slice(0, 80)}）`);
+      verdict = await call([{ role: 'user', content: judgePrompt }], 2000, { base: BASE, model: MODEL, key: cred.key, label: MODEL });
+    }
     inTok += verdict.usage.prompt_tokens ?? 0;
     outTok += verdict.usage.completion_tokens ?? 0;
     const judged = parseJudge(verdict.content, c.rubric.length);
@@ -145,10 +165,14 @@ async function main() {
   }
   const usd = inTok * PRICE.input + outTok * PRICE.output;
   mkdirSync(OUT_DIR, { recursive: true });
-  const out = join(OUT_DIR, `generation-${stamp()}.json`);
+  const out = join(OUT_DIR, `generation-${genTarget.label.replace(/[^a-z0-9.-]/gi, '_')}-${stamp()}.json`);
   writeFileSync(
     out,
-    JSON.stringify({ model: MODEL, at: new Date().toISOString(), tokens: { in: inTok, out: outTok }, usd, byCat, rows }, null, 2) + '\n',
+    JSON.stringify(
+      { model: genTarget.label, judge: judge.label, at: new Date().toISOString(), tokens: { in: inTok, out: outTok }, usd, byCat, rows },
+      null,
+      2,
+    ) + '\n',
   );
   console.log('\n[gen] 分类汇总（rubric 得分）：');
   for (const [cat, b] of Object.entries(byCat)) {

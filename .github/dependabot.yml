@@ -1,0 +1,18 @@
+# B0-10（58 §3.3 快速加固）：供应链与依赖更新自动化。
+# 只做「发现与提 PR」：audit 门要等 undici/katex/minimatch 升级落地后再加（CI 红即停，不做假门）。
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies

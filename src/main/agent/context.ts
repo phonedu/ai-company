@@ -1,3 +1,4 @@
+import { DATA_NOT_INSTRUCTION, wrapExternalData } from './data-boundary.js';
 /**
  * OPT-AI-1 · 员工上下文组装（`BuildEmployeeContext` 的实现）。
  *
@@ -432,7 +433,12 @@ export function buildEmployeeContext(db: unknown, input: EmployeeContextInput): 
     // RET-1 P3：A/B 开关（AICO_REPO_MAP=on）时提示先用 repo_map。
     ...(isRepoMapEnabled() ? [REPO_MAP_HINT_LAYER] : []),
     ...(forcedText != null
-      ? [`[强制技能：${forcedSkill}]\n${forcedText.slice(0, 20_000)}${forcedClipped ? '\n…（已截断）' : ''}`]
+      ? [
+          wrapExternalData(
+            `[强制技能：${forcedSkill}]`,
+            `${forcedText.slice(0, 20_000)}${forcedClipped ? '\n…（已截断）' : ''}`,
+          ),
+        ]
       : []),
     ...(forcedSkill != null && forcedText == null
       ? [`[强制技能不可用] ${forcedSkill}（未登记/已停用/文件读不到）——本任务未加载该技能`]
@@ -456,16 +462,18 @@ export function buildEmployeeContext(db: unknown, input: EmployeeContextInput): 
 
   const userPrompt = [
     `【老板原话】${bossCapped.text.trim().length > 0 ? bossCapped.text.trim() : '（无）'}`,
-    `【项目上下文】${projectCtxCapped.text.length > 0 ? projectCtxCapped.text : '（未提供）'}`,
+    `【项目上下文】
+${DATA_NOT_INSTRUCTION}
+${projectCtxCapped.text.length > 0 ? projectCtxCapped.text : '（未提供）'}`,
     ...(recitation ? [recitation] : []),
     // R2-2（G7 回灌）：未读的同事答复——会话开始前执行器查、结束后标读（崩溃则下轮重读，不静默丢失）。
     ...(answers.length > 0
-      ? [`【同事答复】\n${answers.map((a) => `- 来自 员工#${a.from}：${a.answer}`).join('\n')}`]
+      ? [`【同事答复】\n${DATA_NOT_INSTRUCTION}\n${answers.map((a) => `- 来自 员工#${a.from}：${a.answer}`).join('\n')}`]
       : []),
     // BRK12：点名问本员工的未结提问；askDedupeKey 供 answer_colleague 精确作答。
     ...(asks.length > 0
       ? [
-          `【同事提问】\n${asks
+          `【同事提问】\n${DATA_NOT_INSTRUCTION}\n${asks
             .map(
               (a) =>
                 `- 员工#${a.from}${a.blocking ? '（阻塞等答复）' : ''}：${a.question}｜askDedupeKey=\`${a.askDedupeKey}\``,

@@ -11,6 +11,8 @@
  * ESM/CJS 约束：Pi 包 ESM-only，主进程是 CJS ⇒ 异步工厂内动态 import（同其它工具）。
  */
 import { readFileSync } from 'node:fs';
+
+import { wrapExternalData } from './data-boundary.js';
 import type { SkillRef } from './types.js';
 
 const SKILL_MAX_CHARS = 20_000;
@@ -66,7 +68,10 @@ export async function createLoadSkillTool() {
           content: [
             {
               type: 'text' as const,
-              text: `【技能：${ref.name}】\n${content.slice(0, SKILL_MAX_CHARS)}${clipped ? '\n…（已截断）' : ''}`,
+              text: wrapExternalData(
+                `【技能：${ref.name}】`,
+                `${content.slice(0, SKILL_MAX_CHARS)}${clipped ? '\n…（已截断）' : ''}`,
+              ),
             },
           ],
           details: { name: ref.name, loaded: true, chars: content.length, truncated: clipped },

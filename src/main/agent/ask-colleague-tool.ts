@@ -29,8 +29,8 @@ export async function createAskColleagueTool() {
             type: 'text',
             text:
               params.blocking === true
-                ? `已投递给员工 #${params.to}（阻塞式：本工作项会暂停，答复到达后自动继续）；被问员工可在下次会话用 answer_colleague 作答。`
-                : `已投递给员工 #${params.to}（结构化 mailbox，非阻塞）；被问员工可在下次会话用 answer_colleague 作答。`,
+                ? `已登记提问 → 员工 #${params.to}（阻塞式：本工作项会暂停，答复到达后自动继续）；被问员工可在下次会话用 answer_colleague 作答。宿主投递失败/重复提交会在工具回执与审计里显式标注。`
+                : `已登记提问 → 员工 #${params.to}（结构化 mailbox，非阻塞）；被问员工可在下次会话用 answer_colleague 作答。宿主投递失败/重复提交会在工具回执与审计里显式标注。`,
           },
         ],
         details: params,

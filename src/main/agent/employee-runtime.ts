@@ -75,6 +75,20 @@ export const ROLE_SESSION_TIMEOUT_MS = 10 * 60_000;
 /** 员工执行会话更长（真实任务可能跑很久）；超时中止并让 action 失败可见。 */
 export const EMPLOYEE_SESSION_TIMEOUT_MS = 30 * 60_000;
 
+/**
+ * B0-3（ADV-1 G3）：员工会话帽——可配（`AICO_EMPLOYEE_SESSION_TIMEOUT_MS`，0=关闭），
+ * 且运行时**有活动就续期**（见 `run()`）：只有静默无进展才判超时。
+ * 角色会话（critic/verifier）保持独立安全阀（10 分钟），不吃员工 env。
+ */
+export function employeeSessionTimeoutMs(sessionKey: string, env: NodeJS.ProcessEnv = process.env): number {
+  if (sessionKey.startsWith('role:')) return ROLE_SESSION_TIMEOUT_MS;
+  const raw = (env.AICO_EMPLOYEE_SESSION_TIMEOUT_MS ?? '').trim();
+  if (raw.length === 0) return EMPLOYEE_SESSION_TIMEOUT_MS;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 0) return EMPLOYEE_SESSION_TIMEOUT_MS;
+  return parsed;
+}
+
 export interface EmployeeSessionRuntimeOptions {
   toolGate?: SessionToolGate;
   /** 覆盖超时；`0` = 关闭（仅测试/特殊装配）。 */
@@ -111,13 +125,38 @@ export class EmployeeSessionRuntime {
       cwd: input.cwd,
       sessionKey,
     });
-    const timeoutMs =
-      this.options.sessionTimeoutMs === 0
-        ? 0
-        : (this.options.sessionTimeoutMs ??
-          (sessionKey.startsWith('role:') ? ROLE_SESSION_TIMEOUT_MS : EMPLOYEE_SESSION_TIMEOUT_MS));
+    const timeoutMs = this.options.sessionTimeoutMs ?? employeeSessionTimeoutMs(sessionKey);
     let timeoutTimer: ReturnType<typeof setTimeout> | null = null;
+    let fireTimeout: (() => void) | null = null;
     try {
+      if (timeoutMs <= 0) {
+        return await this.runtime.run(
+          {
+            sessionKey,
+            prompt: input.userPrompt,
+            systemPrompt: input.systemPrompt,
+            cwd: input.cwd,
+            model: input.model,
+            thinkingLevel: input.thinkingLevel,
+            skills: input.skills,
+            mcps: input.mcps,
+          },
+          onEvent,
+        );
+      }
+      const timeout = new Promise<AgentRunResult>((_resolve, reject) => {
+        fireTimeout = () => {
+          this.runtime.abortSession?.(sessionKey);
+          reject(new Error(`[agent] 会话超时（${timeoutMs}ms，${sessionKey}）——静默无进展，已中止`));
+        };
+      });
+      // B0-3：**活动即续期**——每次 agent 事件重挂计时器；长工具调用/长思考不再被挂钟一刀切，
+      // 真正卡死（无任何事件）才会触发。
+      const arm = (): void => {
+        if (timeoutTimer) clearTimeout(timeoutTimer);
+        timeoutTimer = setTimeout(() => fireTimeout?.(), timeoutMs);
+      };
+      arm();
       const running = this.runtime.run(
         {
           sessionKey,
@@ -129,15 +168,11 @@ export class EmployeeSessionRuntime {
           skills: input.skills,
           mcps: input.mcps,
         },
-        onEvent,
+        (event) => {
+          arm();
+          onEvent(event);
+        },
       );
-      if (timeoutMs <= 0) return await running;
-      const timeout = new Promise<AgentRunResult>((_resolve, reject) => {
-        timeoutTimer = setTimeout(() => {
-          this.runtime.abortSession?.(sessionKey);
-          reject(new Error(`[agent] 会话超时（${timeoutMs}ms，${sessionKey}）——已中止，按失败收场`));
-        }, timeoutMs);
-      });
       return await Promise.race([running, timeout]);
     } finally {
       if (timeoutTimer) clearTimeout(timeoutTimer);

@@ -34,6 +34,7 @@ import {
   sortForInjection,
 } from './policy.js';
 import type { MemoryPort } from './port.js';
+import { retrievalTerms } from '../db/terms.js';
 
 interface MemoryRow {
   id: number;
@@ -100,13 +101,20 @@ function scopeClause(scope: MemoryScope): { sql: string; args: unknown[] } {
   return { sql: 'scope_type = ? AND scope_id = ?', args: [scopeType, scopeId] };
 }
 
+/**
+ * 记忆查询词（ADV-1 P0-4）：**复用检索层的同一分词**（中文 2 字滑窗）。
+ * 旧实现按空白切词 ⇒ 中文整句成一个词，LIKE 永远命中不了 ⇒ 记忆检索段对中文任务形同虚设。
+ *
+ * 精度闸（2026-11-07）：**短查询（一个词，≤4 字）按整词精确匹配**——否则「一百万」会被
+ * 「百万」滑窗拉出「两百万目标」、「万元为」会被「元为」拉出新旧值混淆；只有**句子/多词**
+ * 查询才开 2 字滑窗（「修渲染问题」要能命中「面板渲染阻塞」）。取 6 个给滑窗留余量。
+ */
 function queryTerms(text: string): string[] {
-  return text
-    .toLowerCase()
-    .split(/\s+/)
-    .map((s) => s.trim())
-    .filter((s) => s.length >= 1)
-    .slice(0, 4);
+  const compact = text.replace(/\s+/g, '');
+  // 1 字查询保留（「万」这类单字 LIKE 兜底：命中面在调用方 scope 内，精度由人决定）。
+  if (compact.length === 1) return [compact];
+  const sentenceLike = /\s/.test(text.trim()) || compact.length > 4;
+  return retrievalTerms(text, 6, { windows: sentenceLike });
 }
 
 /** 记忆模块 v1 的 SQLite 实现。 */
@@ -142,7 +150,12 @@ export class SqliteMemoryStore implements MemoryPort {
     assertNoSecret([value, key, sourceExcerpt, input.source.ref]);
 
     const run = this.db.transaction((): MemoryItem => {
-      const same = key != null ? this.findActiveByKey(scopeType, scopeId, input.kind, key) : null;
+      // ADV-1 P0-5：三条生产写路径 key 都是 null，冲突/去重机制够不着。无 key 时做同值近似去重
+      // （同 scope+kind、value 归一空白/大小写后相等 ⇒ 视为同一条事实）；不同值仍各自成行（矛盾留给 B3-5 裁决）。
+      const same =
+        key != null
+          ? this.findActiveByKey(scopeType, scopeId, input.kind, key)
+          : this.findActiveBySameValue(scopeType, scopeId, input.kind, value);
       if (same) {
         const existing = rowToItem(same);
         if (sameValue(existing.value, value)) {
@@ -345,27 +358,35 @@ export class SqliteMemoryStore implements MemoryPort {
       } catch {
         // FTS 表/查询异常 → 本实例降级 LIKE；不静默返回空。
         this.ftsAvailableCache = false;
-        const like = `%${terms[0]}%`;
+        const pre = terms.slice(0, 3);
+        const clause = pre.map(() => '(value LIKE ? OR key LIKE ? OR source_excerpt LIKE ?)').join(' OR ');
+        const likeArgs: string[] = [];
+        for (const term of pre) likeArgs.push(`%${term}%`, `%${term}%`, `%${term}%`);
         rows = this.db
           .prepare(
-            `SELECT ${SELECT_COLS} FROM memory_items WHERE ${where.join(' AND ')} AND (value LIKE ? OR key LIKE ? OR source_excerpt LIKE ?) ORDER BY pinned DESC, updated_at DESC LIMIT ?`,
+            `SELECT ${SELECT_COLS} FROM memory_items WHERE ${where.join(' AND ')} AND (${clause}) ORDER BY pinned DESC, updated_at DESC LIMIT ?`,
           )
-          .all(...args, like, like, like, limit) as MemoryRow[];
+          .all(...args, ...likeArgs, limit) as MemoryRow[];
       }
     } else {
-      const like = `%${terms[0]}%`;
+      // 预筛：前 3 个词 × 3 列 OR（放宽召回；命中后按「命中词数」计分，命中 1 个也召回）。
+      const pre = terms.slice(0, 3);
+      const clause = pre.map(() => '(value LIKE ? OR key LIKE ? OR source_excerpt LIKE ?)').join(' OR ');
+      const likeArgs: string[] = [];
+      for (const term of pre) likeArgs.push(`%${term}%`, `%${term}%`, `%${term}%`);
       rows = this.db
         .prepare(
-          `SELECT ${SELECT_COLS} FROM memory_items WHERE ${where.join(' AND ')} AND (value LIKE ? OR key LIKE ? OR source_excerpt LIKE ?) ORDER BY pinned DESC, updated_at DESC LIMIT ?`,
+          `SELECT ${SELECT_COLS} FROM memory_items WHERE ${where.join(' AND ')} AND (${clause}) ORDER BY pinned DESC, updated_at DESC LIMIT ?`,
         )
-        .all(...args, like, like, like, limit) as MemoryRow[];
+        .all(...args, ...likeArgs, limit) as MemoryRow[];
     }
     const hits: MemoryHit[] = [];
     for (const row of rows) {
       const item = rowToItem(row);
       const hay = `${item.key ?? ''}\n${item.value}\n${item.source.excerpt ?? ''}`.toLowerCase();
-      if (!terms.every((t) => hay.includes(t))) continue;
       const matches = terms.filter((t) => hay.includes(t)).length;
+      // 命中 1 个中文 2-gram 即召回（旧实现要求全部词在场 ⇒ 滑窗词互相吃掉召回）。
+      if (matches === 0) continue;
       hits.push({
         item,
         score: matches * 10 + (item.pinned ? 5 : 0) + (item.confidence === 'confirmed' ? 2 : 0),
@@ -495,6 +516,23 @@ export class SqliteMemoryStore implements MemoryPort {
     });
     this.event(promoted.id, 'promote', { type: 'boss', ref: `memory:${source.id}` }, null, { from: source.scope, to }, Date.now());
     return promoted;
+  }
+
+  /** 无 key 写入的近似去重：同 scope+kind 的 active 行里找归一后同值的一条（上限 500 行，够用且线性）。 */
+  private findActiveBySameValue(
+    scopeType: 'global' | 'project',
+    scopeId: number,
+    kind: MemoryItem['kind'],
+    value: string,
+  ): MemoryRow | null {
+    const rows = this.db
+      .prepare(
+        `SELECT ${SELECT_COLS} FROM memory_items
+         WHERE scope_type = ? AND scope_id = ? AND kind = ? AND status = 'active'
+         ORDER BY updated_at DESC LIMIT 500`,
+      )
+      .all(scopeType, scopeId, kind) as MemoryRow[];
+    return rows.find((row) => sameValue(row.value, value)) ?? null;
   }
 
   private findActiveByKey(

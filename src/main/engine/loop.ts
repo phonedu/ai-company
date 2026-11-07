@@ -15,12 +15,14 @@ import { DEFAULT_RATE_LIMITS, describeRateLimit, rateAction, type RateLimits, ty
 import { setEconomyMode } from '../agent/model-policy.js';
 import { sendRecruitCard } from '../agent/assistant-cards.js';
 import { notify } from '../notify/index.js';
+import { redactPayload } from '../notify/redact.js';
 import {
   findOtherRunningWorkItem,
   answerApproval,
   assignWorkItemVerifier,
   createTask,
   getTaskById,
+  getProjectById,
   getWorkItem,
   countRunningWorkItems,
   getWorkItemPathClaim,
@@ -139,6 +141,8 @@ export class Engine {
   /** N2：本轮档位是否发生切换（用于「首次拦截才留痕」，避免刷屏）。 */
   private rateTierChanged = false;
   private readonly autoSchedule: boolean;
+  /** B0-3：运行时错误自动重试次数上限（0=关）。 */
+  private readonly autoRetryLimit: number;
   private readonly tickMs: number;
   private readonly clock: () => number;
   private running = false;
@@ -192,6 +196,14 @@ export class Engine {
     this.rateLimits = { ...DEFAULT_RATE_LIMITS, ...(config.rateLimit ?? {}) };
     this.concurrency = { maxPerTask: config.concurrency?.maxPerTask ?? 3, maxCompany: config.concurrency?.maxCompany ?? 6 };
     this.autoSchedule = config.autoSchedule ?? true;
+    this.autoRetryLimit = (() => {
+      if (typeof config.autoRetry === 'number' && Number.isFinite(config.autoRetry)) {
+        return Math.max(0, Math.min(Math.trunc(config.autoRetry), 5));
+      }
+      const raw = (process.env.AICO_TASK_AUTO_RETRY ?? '').trim();
+      const parsed = raw.length > 0 ? Number(raw) : Number.NaN;
+      return Number.isFinite(parsed) ? Math.max(0, Math.min(Math.trunc(parsed), 5)) : 1;
+    })();
     this.tickMs = config.tickMs ?? 1000;
     this.clock = config.now ?? (() => Date.now());
     this.git = config.git;
@@ -285,10 +297,10 @@ export class Engine {
     this.bus.emit(event);
   }
 
-  /** 便捷：入队并同步排空（手工驱动 T0.6 / 脚本化验收）。 */
+  /** 便捷：入队并同步排空（手工驱动 T0.6 / 脚本化验收）。**严格**：非法事件向调用方抛。 */
   async dispatch(event: EngineEvent): Promise<void> {
     this.enqueue(event);
-    await this.drain();
+    await this.drain(false);
   }
 
   /** 手动调度 tick（无事件，仅跑调度 fixpoint）—— 用于状态驱动的推进（如 D4 依赖激活）。 */
@@ -576,12 +588,29 @@ export class Engine {
 
   // ───────────────────────── 事件循环 ─────────────────────────
 
-  /** 同步排空事件队列（每个批次一个事务），并执行产生的副作用。 */
-  async drain(): Promise<void> {
+  /**
+   * 同步排空事件队列（每个批次一个事务），并执行产生的副作用。
+   * `isolate`（缺省 true）＝毒事件隔离（B0-5）：整批失败后逐事件重试，毒事件回滚自己并落痕上卡。
+   * `dispatch()` 传 false —— **直接调用语义保持严格**（UI/IPC 依赖非法迁移的 rejection 出回执）；
+   * 隔离只针对队列里非直接调用的事件（定时器/引擎派生/恢复重放）。
+   */
+  async drain(isolate = true): Promise<void> {
     let guard = 0;
     while (this.queue.length > 0) {
       const batch = this.queue.splice(0, this.queue.length);
-      const keys = this.processBatch(batch);
+      let keys: string[];
+      if (isolate) {
+        try {
+          keys = this.processBatch(batch);
+        } catch (error) {
+          // ADV-1 P0-2：旧实现整批 ROLLBACK ⇒ 同批其余事件随批丢失（drain 已 splice）。
+          // 新口径：整批失败后逐事件重试——毒事件隔离（回滚＋留痕＋上卡），其余照常提交。
+          console.error('[engine] 整批应用失败 → 逐事件隔离重试（毒事件不再连坐同批）', error);
+          keys = this.applyBatchIsolated(batch);
+        }
+      } else {
+        keys = this.processBatch(batch);
+      }
       if (keys.length > 0) {
         await executePendingActions(this.db, this.actionExecutor, this.now(), this.gate, undefined, (e) => this.enqueue(e));
       }
@@ -607,8 +636,16 @@ export class Engine {
     }
   }
 
-  /** 处理一批事件：一个事务内 apply + fixpoint；返回本批新登记的动作键。 */
+  /**
+   * 处理一批事件：一个事务内 apply + fixpoint；返回本批新登记的动作键。
+   * **严格**（失败整体回滚并抛）——隔离策略在 `drain(isolate)` 里按事件来源决定（B0-5）。
+   */
   processBatch(batch: EngineEvent[]): string[] {
+    return this.applyBatchAtomically(batch);
+  }
+
+  /** 一批事件在**同一事务**内 apply（正常路径；失败整体回滚由调用方决定如何隔离）。 */
+  private applyBatchAtomically(batch: EngineEvent[]): string[] {
     const keys: string[] = [];
     const worklist = [...batch];
     // 派生事件（如 L0/未抽验 L1 的自动 `verification_completed`）在事务提交后才对外发布：
@@ -652,6 +689,63 @@ export class Engine {
       }
     }
     return keys;
+  }
+
+  /** 逐事件独立事务：毒事件只回滚自己，记录 `engine_error`＋异常卡后继续（B0-5）。 */
+  private applyBatchIsolated(batch: EngineEvent[]): string[] {
+    const keys: string[] = [];
+    for (const event of batch) {
+      try {
+        keys.push(...this.applyBatchAtomically([event]));
+      } catch (error) {
+        this.recordEngineError(event, error);
+      }
+    }
+    return keys;
+  }
+
+  /**
+   * 毒事件留痕：任务存在时写 `engine_error` 事件流；同时投一张 **alert 异常卡**（老板可见，
+   * 不只控制台）。记账失败不再向上抛（否则又会连坐已成功的事件）。
+   * 幂等：同任务＋同事件＋同原因只提示一次（毒事件每拍重试不刷屏）。
+   */
+  private recordEngineError(event: EngineEvent, error: unknown): void {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[engine] 事件应用失败（已隔离）：${event.scope}#${event.id} ${event.event} — ${message.slice(0, 300)}`);
+    const taskId = event.scope === 'task' ? event.id : Number(event.payload?.taskId);
+    const task = Number.isInteger(taskId) && taskId > 0 ? getTaskById(this.db, taskId) : undefined;
+    try {
+      this.db.exec('BEGIN');
+      try {
+        if (task) {
+          insertTaskEvent(this.db as never, {
+            taskId: task.id,
+            ts: this.now(),
+            kind: 'engine_error',
+            actor: 'system',
+            payload: { event: event.event, scope: event.scope, id: event.id, error: message, payload: redactPayload(event.payload ?? {}) },
+          });
+        }
+        notify(this.db, {
+          taskId: task?.id ?? null,
+          kind: 'alert',
+          // 同任务同事件同原因 → 一张卡；原因变化才再提示。
+          dedupeKey: `engine_error:${event.scope}:${event.id}:${event.event}:${message.slice(0, 120)}`,
+          payload: {
+            title: '引擎有事件处理失败（已隔离，其他事件照常）',
+            text: `${event.scope}#${event.id} 的「${event.event}」失败：${message.slice(0, 300)}`,
+          },
+          urgent: true,
+        });
+      } catch (inner) {
+        this.db.exec('ROLLBACK');
+        throw inner;
+      } finally {
+        if (this.db.inTransaction) this.db.exec('COMMIT');
+      }
+    } catch (inner) {
+      console.error('[engine] 毒事件留痕失败（不影响其他事件）', inner);
+    }
   }
 
   // ───────────────────────── B8/B10 spawn（事务外建对象；幂等已由 action_log 键保证） ─────────────────────────
@@ -924,11 +1018,19 @@ export class Engine {
     // 计划此时已批准（L0 直通 / L1·L2 plan_approved），必须写明「直接执行、不要等指令」。
     lines.push('执行要求：计划已批准（L0 为直通）；你是执行员工，直接按计划完成并把产出落盘/验证，不要复述计划、不要等指令；完成后必须调用 submit_work_item 提交。');
     if (typeof task.budget_tokens === 'number') lines.push(`预算：${task.budget_tokens} tokens`);
+    // ADV-1 P0-9：inplace（共享工作树）下必须给路径保护一个**真认领**——纯文本 brief 让
+    // `parseTouchedPaths` 返回 [] ⇒ 路径相交判定恒不相交 ⇒ 同项目两个任务并行改同一文件。
+    // v1 无路径预言（步骤是自然语言），以整棵树 `'.'` 认领：同项目 inplace 件串行，正确性优先；
+    // staging 有独占 worktree，保持纯文本 brief（不降低并行度）。
+    const project = typeof task.project_id === 'number' ? getProjectById(this.db, task.project_id) : undefined;
+    const briefText = lines.join('\n');
+    const brief =
+      project?.access_mode === 'inplace' ? JSON.stringify({ text: briefText, touchedPaths: ['.'] }) : briefText;
     insertWorkItem(this.db, {
       taskId,
       employeeId,
       title: task.title ?? `任务 ${taskId}`,
-      brief: lines.join('\n'),
+      brief,
       now: this.now(),
       actor: 'system',
     });
@@ -1577,13 +1679,27 @@ export class Engine {
     // 或经 `needs_decision` 问你」——v1 取前者（派生任务级 `fail` ⇒ 任务机 `executing --fail--> failed`
     // 出**异常卡**〔`notify_alert`〕）；多件部分失败/自动重试路径留后续件（v1＝1 任务 1 件）。
     if (outcome.to === 'failed' && task && task.state === 'executing') {
-      derived.push({
-        scope: 'task',
-        id: wi.task_id,
-        event: 'fail',
-        actor: 'system',
-        payload: { reason: 'work_item_failed', workItemId: wi.id, detail: event.payload?.reason ?? null },
-      });
+      // B0-3（ADV-1 G3）：**运行时错误**（event=error：会话超时/连接失败等）自动重试，落盘会话可续跑；
+      // 业务失败（agent_settled 未提交）照旧判死——不掩盖员工没干活。重试用尽才任务 failed 出卡。
+      const runtimeError = event.event === 'error';
+      const canRetry = runtimeError && wi.attempt < this.autoRetryLimit;
+      if (canRetry) {
+        derived.push({
+          scope: 'work_item',
+          id: wi.id,
+          event: 'retry',
+          actor: 'system',
+          payload: { via: 'auto_retry', attempt: wi.attempt + 1, reason: event.payload?.reason ?? null },
+        });
+      } else {
+        derived.push({
+          scope: 'task',
+          id: wi.task_id,
+          event: 'fail',
+          actor: 'system',
+          payload: { reason: 'work_item_failed', workItemId: wi.id, detail: event.payload?.reason ?? null },
+        });
+      }
     }
     return derived;
   }

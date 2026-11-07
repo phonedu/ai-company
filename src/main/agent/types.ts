@@ -76,6 +76,11 @@ export interface AgentUsage {
   cacheWriteTokens?: number;
   /** OPT-AI-8：底座 `getSessionStats().cost`（USD 总额，已含缓存计价）。 */
   costUsd?: number;
+  /**
+   * B0-8：本次用量是**会话累计**（Pi `getSessionStats()` 语义）还是**单轮**（fake/单轮运行）。
+   * 累计值必须由记账户做差值（同会话多轮/nudge/重试），否则重复入账。
+   */
+  cumulativeSessionStats?: boolean;
 }
 
 export interface AgentRunResult {

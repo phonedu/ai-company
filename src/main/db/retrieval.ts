@@ -1,4 +1,5 @@
 import { join } from 'node:path';
+import { retrievalTerms } from './terms.js';
 import { searchNotes } from '../agent/notes.js';
 /**
  * OPT-AI-11 · 轻量检索（FTS5/LIKE 口径；**先 LIKE，向量库后评估**）。
@@ -16,25 +17,7 @@ export interface RetrievalHit {
   at: number;
 }
 
-/** 从任务标题/目标抽检索词（去重、最多 4 个；过短中文/英文不成词则跳过）。 */
-export function retrievalTerms(text: string, max = 4): string[] {
-  const cleaned = text.replace(/[^\p{L}\p{N}\s]+/gu, ' ').trim();
-  if (cleaned.length === 0) return [];
-  const terms: string[] = [];
-  const push = (t: string): void => {
-    const s = t.trim();
-    if (s.length < 2 || terms.includes(s) || terms.length >= max) return;
-    terms.push(s);
-  };
-  for (const word of cleaned.split(/\s+/)) {
-    if (word.length >= 2) push(word);
-    // 中文词没有空格：取 2 字滑窗（最多 3 个），让「修渲染」这类短语可命中。
-    if (/\p{Script=Han}/u.test(word) && word.length > 2) {
-      for (let i = 0; i + 2 <= word.length && terms.length < max; i += 1) push(word.slice(i, i + 2));
-    }
-  }
-  return terms;
-}
+export { retrievalTerms } from './terms.js';
 
 function snippet(text: string, term: string, max = 160): string {
   const one = text.replace(/\s+/g, ' ').trim();

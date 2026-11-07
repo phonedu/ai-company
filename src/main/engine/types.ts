@@ -60,6 +60,11 @@ export interface EngineConfig {
   concurrency?: { maxPerTask?: number; maxCompany?: number };
   /** 是否运行调度 fixpoint（DEV §5）。默认 true；手工逐步驱动（T0.6 证据）可置 false。 */
   autoSchedule?: boolean;
+  /**
+   * B0-3：工作项因**运行时错误**（会话超时/连接失败等 `event=error`）失败时，自动重试次数上限。
+   * 默认读 `AICO_TASK_AUTO_RETRY`（缺省 1；0=关，最大 5）。业务失败（未提交）不在此列。
+   */
+  autoRetry?: number;
   /** 异步循环 tick 间隔（ms），用于定时器看门狗。默认 1000。 */
   tickMs?: number;
   /** 时钟（测试可注入 fake clock）。 */

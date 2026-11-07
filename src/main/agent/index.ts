@@ -15,7 +15,7 @@ export type {
   EmployeeContext,
   BuildEmployeeContext,
 } from './types.js';
-export { employeeSessionKey, EmployeeSessionRuntime, type EmployeeRunInput } from './employee-runtime.js';
+export { employeeSessionKey, employeeSessionTimeoutMs, EmployeeSessionRuntime, type EmployeeRunInput } from './employee-runtime.js';
 export { createEmployeeExecutor, parseDispatchAction, parsePlanningAction, parseReviewAction, sanitizeThinking, AGENT_THINKING_MAX, type EmployeeExecutorDeps } from './employee-executor.js';
 export { buildPlanningContext, buildReviewContext, plannerRoleLayer, reviewRoleLayer, type PlanningContextInput, type ReviewContextInput } from './context.js';
 export { plannerSessionKey, reviewSessionKey, deriveSessionId } from './employee-runtime.js';

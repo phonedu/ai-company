@@ -738,6 +738,8 @@ export async function createPiAgentRuntime(options: PiAgentRuntimeOptions): Prom
                 cacheReadTokens: stats.tokens.cacheRead ?? 0,
                 cacheWriteTokens: stats.tokens.cacheWrite ?? 0,
                 ...(typeof stats.cost === 'number' ? { costUsd: stats.cost } : {}),
+                // getSessionStats() 是**全会话累计**（B0-8）：记账户据此做差值。
+                cumulativeSessionStats: true,
               }
             : { model: usageModel };
           // G6：会话结束主动查“是否已落盘”（上游惰性 flush）；不落盘就**响亮报错**，不静默。

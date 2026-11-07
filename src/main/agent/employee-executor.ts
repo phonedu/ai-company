@@ -38,6 +38,7 @@ import { validateSubmission } from './submission.js';
 import { projectProgressReported, sanitizeToolInput } from './tool-events.js';
 import type { SqliteDb } from '../db/open.js';
 import { listPlanSteps, type PlanStepState } from '../db/plan_steps.js';
+import { readSetting, writeSetting } from '../db/settings.js';
 import { PLAN_STEPS_MAX } from './submit-plan-tool.js';
 
 export interface EmployeeExecutorDeps {
@@ -492,6 +493,52 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
   }
 
   /**
+   * B0-8（ADV-1 I1）：会话统计是**累计值**（Pi `getSessionStats()` 遍历全会话），同会话多轮
+   * （nudge/重试/返工复用会话键）若全额入账就会重复计入。这里按 sessionKey 落**差值**：
+   * 游标持久化在 settings（`cost.usageCursor.<hash>`）——重启后续跑同一落盘会话也不重记。
+   * 非累计用量（fake/单轮）原样返回（既有行为不变）。
+   */
+  function usageDelta(usage: AgentUsage | undefined, sessionKey: string): AgentUsage | undefined {
+    if (!usage || usage.cumulativeSessionStats !== true) return usage;
+    const cursorKey = `cost.usageCursor.${createHash('sha256').update(sessionKey).digest('hex').slice(0, 20)}`;
+    const raw = readSetting(db as SqliteDb, cursorKey);
+    const prev =
+      raw && typeof raw === 'object'
+        ? (raw as { i?: number; o?: number; cr?: number; cw?: number; usd?: number })
+        : null;
+    const cur = {
+      i: usage.inputTokens ?? 0,
+      o: usage.outputTokens ?? 0,
+      cr: usage.cacheReadTokens ?? 0,
+      cw: usage.cacheWriteTokens ?? 0,
+      usd: usage.costUsd ?? 0,
+    };
+    // 会话被重建（统计回退）→ 差值按 0 处理，绝不记负数。
+    const delta = {
+      i: Math.max(0, cur.i - (prev?.i ?? 0)),
+      o: Math.max(0, cur.o - (prev?.o ?? 0)),
+      cr: Math.max(0, cur.cr - (prev?.cr ?? 0)),
+      cw: Math.max(0, cur.cw - (prev?.cw ?? 0)),
+      usd: Math.max(0, cur.usd - (prev?.usd ?? 0)),
+    };
+    try {
+      writeSetting(db as SqliteDb, cursorKey, cur);
+    } catch (error) {
+      console.error('[cost] 用量游标写入失败（本次仍按差值记账）', error);
+    }
+    if (delta.i + delta.o + delta.cr + delta.cw === 0 && delta.usd === 0) return undefined; // 纯重放
+    return {
+      ...usage,
+      inputTokens: delta.i,
+      outputTokens: delta.o,
+      cacheReadTokens: delta.cr,
+      cacheWriteTokens: delta.cw,
+      costUsd: delta.usd,
+      cumulativeSessionStats: undefined,
+    };
+  }
+
+  /**
    * OPT-AI-8：把一次会话的用量落库（**无用量不写行**——不臆造；项目归属由 task 解析）。
    * 记账失败**不阻断会话**，但**响亮报错**（P6：不许静默失败）。
    */
@@ -760,7 +807,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
     const result = run.result;
     finalizeContextMetric(reviewMetricId, result.usage, reviewSession);
 
-    await persistUsage(result.usage, taskId, workItemId, reviewerId); // OPT-AI-8：评审会话同样入账
+    await persistUsage(usageDelta(result.usage, reviewSession), taskId, workItemId, reviewerId); // OPT-AI-8/B0-8：评审会话同口径（差值）
     const call = result.toolCalls.find((t) => t.name === 'submit_review' && t.isError !== true);
     let raw = call ? String((call.input as { verdict?: unknown }).verdict ?? '') : '';
     let notes = call ? String((call.input as { notes?: unknown }).notes ?? '') : '';
@@ -974,7 +1021,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
     const result = run.result;
     finalizeContextMetric(planMetricId, result.usage, planSession);
 
-    await persistUsage(result.usage, taskId, null, plannerId); // OPT-AI-8：规划会话同样入账
+    await persistUsage(usageDelta(result.usage, planSession), taskId, null, plannerId); // OPT-AI-8/B0-8：规划会话同口径（差值）
     const call = result.toolCalls.find((t) => t.name === 'submit_plan' && t.isError !== true);
     const rawSteps = call ? (call.input as { steps?: unknown }).steps : undefined;
     const steps = Array.isArray(rawSteps)
@@ -1182,7 +1229,11 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
           { role: 'employee', allowedModels: project?.allowedModels ?? [] },
         );
         // OPT-AI-8：每次会话（含补提交那一次）都入账——金额与行数如实。
-        if (!r.aborted) await persistUsage(r.result.usage, target.taskId, target.workItemId, employeeId);
+        if (!r.aborted) {
+          // B0-8：会话键跨轮稳定 ⇒ 累计统计必须按差值入账（nudge/重试不重复计入）。
+          const sessionKey = employeeSessionKey({ employeeId, taskId: target.taskId, workItemId: target.workItemId });
+          await persistUsage(usageDelta(r.result.usage, sessionKey), target.taskId, target.workItemId, employeeId);
+        }
         return r;
       };
       try {
@@ -1359,6 +1410,9 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
           continue;
         }
         try {
+          // ADV-1 P0-1：序号必须**跨轮唯一**——旧实现用「本轮下标」i，每轮第一条都是 0，
+          // 返工/重试轮的新问题撞上一轮旧键 → delivered:false → 静默丢失。改用动作版本
+          // （actionKey 的 revision＝重试轮次）＋本轮下标；重放同一动作键不变（仍幂等）。
           const rec = requestAsk(db as never, {
             taskId: target.taskId,
             workItemId: target.workItemId,
@@ -1366,9 +1420,28 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
             to,
             question,
             blocking,
-            seq: i,
+            seq: `r${target.attempt}-${i}`,
             now: now(),
           });
+          if (!rec.delivered) {
+            // 幂等重放（同一动作被 at-least-once 重执行）：不重复投递，但**留痕**（不静默）。
+            insertTaskEvent(db as never, {
+              taskId: target.taskId,
+              workItemId: target.workItemId,
+              ts: now(),
+              kind: 'tool_call',
+              actor,
+              payload: {
+                toolName: 'ask_colleague',
+                toolCallId: ask.id,
+                phase: 'end',
+                replay: true,
+                dedupeKey: rec.dedupeKey,
+                question,
+                scope: 'session_tool',
+              },
+            });
+          }
           if (blocking) blockingAskKeys.push(rec.dedupeKey);
         } catch (error) {
           recordToolError('ask_colleague', ask.id, error instanceof Error ? error.message : String(error));

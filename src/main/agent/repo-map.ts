@@ -2,7 +2,8 @@
  * RET-1 P3 · 确定性 repo map（零 LLM、零原生依赖）：文件/符号索引 + 小查询。
  *
  * 口径（检索设计口径 §5/§7）：
- *  - 只做**确定性**文本扫描（Rust `.rs`/`Cargo.toml`/Markdown 标题），不引 tree-sitter/图数据库/向量库；
+ *  - 只做**确定性**文本扫描（Rust/TS/JS 声明 + Markdown 标题 + 文件索引），不引 tree-sitter/图数据库/向量库；
+ *  - 文件范围：`.rs/.toml/.md/.ts/.tsx/.js/.jsx/.json`（B0-1：此前只认 Rust 三件套，对 TS 项目等于空图）；
  *  - 输出**小而排过序**的答案，不把整张图塞进上下文（否则又是一次大工具输出）；
  *  - 查询为空时只给文件索引（路径＋条目数）；带 `query` 时按路径/符号匹配，最多 `maxChars`。
  */
@@ -25,7 +26,7 @@ export interface RepoMap {
 }
 
 const SKIP_DIRS = new Set(['.git', 'target', 'node_modules', 'out', 'tmp', '.idea', '.vscode', 'dist', 'build']);
-const SCAN_EXT = new Set(['.rs', '.toml', '.md']);
+const SCAN_EXT = new Set(['.rs', '.toml', '.md', '.ts', '.tsx', '.js', '.jsx', '.json']);
 const MAX_FILES = 2000;
 const MAX_ENTRIES = 8000;
 const MAX_ENTRIES_PER_FILE = 120;
@@ -36,13 +37,30 @@ export function isRepoMapEnabled(env: NodeJS.ProcessEnv = process.env): boolean 
   return raw === 'on' || raw === '1' || raw === 'true';
 }
 
+/** 行级符号识别（确定性；Rust + TS/JS + Markdown 标题）。B0-1：补 TS/JS 声明。 */
 function symbolOf(line: string): { kind: string; name: string } | null {
   const fn = /^\s*(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?fn\s+([A-Za-z_][A-Za-z0-9_]*)/.exec(line);
   if (fn) return { kind: 'fn', name: fn[1] as string };
-  const ty = /^\s*(?:pub(?:\([^)]*\))?\s+)?(struct|enum|trait|mod|type|const|static)\s+([A-Za-z_][A-Za-z0-9_]*)/.exec(line);
+  const ty = /^\s*(?:pub(?:\([^)]*\))?\s+)?(struct|enum|trait|mod|type)\s+([A-Za-z_][A-Za-z0-9_]*)/.exec(line);
   if (ty) return { kind: ty[1] as string, name: ty[2] as string };
+  // Rust const/static 要求 SCREAMING_SNAKE ＋ 类型注解，避免把 TS 的 `const x = …` 抢成 Rust 常量。
+  const rustConst = /^\s*(?:pub(?:\([^)]*\))?\s+)?(const|static)\s+([A-Z_][A-Z0-9_]*)\s*:/.exec(line);
+  if (rustConst) return { kind: rustConst[1] as string, name: rustConst[2] as string };
+  // TypeScript / JavaScript（导出/默认导出/抽象/异步都容忍）。
+  const tsFn =
+    /^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+([A-Za-z_$][A-Za-z0-9_$]*)/.exec(line);
+  if (tsFn) return { kind: 'fn', name: tsFn[1] as string };
+  const tsDecl =
+    /^\s*(?:export\s+)?(?:default\s+)?(?:declare\s+)?(?:abstract\s+)?(class|interface|enum|type|namespace|const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)/.exec(
+      line,
+    );
+  // `const x = (...) => …` / `const x = async () => …` —— 声明行里带箭头才算函数。
+  if (tsDecl && /=>/.test(line)) return { kind: 'fn', name: tsDecl[2] as string };
+  if (tsDecl) return { kind: tsDecl[1] as string, name: tsDecl[2] as string };
+
   const impl = /^\s*impl(?:<[^>]*>)?\s+([A-Za-z_][A-Za-z0-9_]*)/.exec(line);
   if (impl) return { kind: 'impl', name: impl[1] as string };
+
   const heading = /^(#{1,3})\s+(.+)$/.exec(line.trim());
   if (heading) return { kind: `h${(heading[1] as string).length}`, name: (heading[2] as string).trim() };
   return null;

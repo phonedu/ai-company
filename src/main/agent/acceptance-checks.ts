@@ -6,7 +6,8 @@
  *  - 任一条 check 失败 ⇒ **硬门失败**（调用方跳过 verifier 模型、直接 fail，不许模型翻案）；
  *  - `aico:docs-check` 是**进程内**文档检查（项目根 `.aico/docs`），不是 shell 命令；
  *  - 项目关闭文档检查（`projects.docs_check_enabled=0`）或无文档树 ⇒ 状态 `skip`（未检查，不冒充通过）；
- *  - 普通命令在**项目根**执行，60s 超时；输出只留尾部摘要（防爆报告）。
+ *  - 普通命令在**项目根**执行，**默认 10 分钟**超时（B0-2：60s 会掐断 `pnpm test` 级验收；
+ *    `AICO_ACCEPTANCE_TIMEOUT_MS` 可配，显式参数优先）；输出只留尾部摘要（防爆报告）。
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -19,6 +20,19 @@ import { readDocText, walkDocsTree } from '../docs/fs.js';
 import type { SqliteDb } from '../db/open.js';
 
 export { DOCS_CHECK_COMMAND };
+
+/**
+ * B0-2（ADV-1 G2）：验收命令默认超时。旧值 60s 对 `pnpm test` 级检查必掐断 → 永远过不了硬门。
+ * 默认 10 分钟；`AICO_ACCEPTANCE_TIMEOUT_MS` 覆盖（正整数毫秒）；显式参数最优先。
+ */
+export const DEFAULT_ACCEPTANCE_TIMEOUT_MS = 10 * 60_000;
+
+export function acceptanceTimeoutMs(explicit?: number): number {
+  if (typeof explicit === 'number' && Number.isFinite(explicit) && explicit > 0) return explicit;
+  const raw = process.env.AICO_ACCEPTANCE_TIMEOUT_MS;
+  const parsed = raw != null && raw.trim().length > 0 ? Number(raw) : Number.NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_ACCEPTANCE_TIMEOUT_MS;
+}
 
 export type MachineCheckStatus = 'pass' | 'fail' | 'skip';
 
@@ -129,7 +143,7 @@ export function runAcceptanceChecks(
       cwd,
       shell: true,
       encoding: 'utf8',
-      timeout: options.timeoutMs ?? 60_000,
+      timeout: acceptanceTimeoutMs(options.timeoutMs),
       windowsHide: true,
       env: process.env,
     });
@@ -221,7 +235,7 @@ export async function runAcceptanceChecksAsync(
       items.push({ text: item.text, check: item.check, status: 'skip', reason: '任务无项目根（未检查）' });
       continue;
     }
-    const res = await runShellCheckAsync(item.check, cwd, options.timeoutMs ?? 60_000);
+    const res = await runShellCheckAsync(item.check, cwd, acceptanceTimeoutMs(options.timeoutMs));
     const output = res.output.trim();
     const tail = output.length > 600 ? output.slice(-600) : output;
     if (res.error) {

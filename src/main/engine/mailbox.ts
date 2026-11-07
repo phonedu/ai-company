@@ -77,8 +77,12 @@ export interface RequestAskInput {
   question: string;
   /** true = 阻塞式：宿主把件置 `blocked`，答复到达后自动回队重派（M2 尾）。 */
   blocking?: boolean;
-  /** 同一 (from,to,work_item) 下的序号（默认 0），用于构造幂等键。 */
-  seq?: number;
+  /**
+   * 同一 (from,to,work_item) 下的轮次序号（默认 0），用于构造幂等键。
+   * **必须跨轮唯一**：生产传「动作版本＋本轮下标」（如 `r2-0`），否则返工/重试轮的第一条提问
+   * 会与上一轮撞键、被幂等静默丢弃（ADV-1 P0-1）。数字形式保留给单测/手写调用。
+   */
+  seq?: number | string;
   now: number;
 }
 
@@ -103,7 +107,7 @@ export function requestAsk(db: SqliteDb, input: RequestAskInput): AskRecord {
       `员工 ${input.to} 已有未结问题问 ${input.from}——先回答再提问（防互问死循环）`,
     );
   }
-  const seq = input.seq ?? 0;
+  const seq = String(input.seq ?? 0);
   const subject = input.workItemId != null ? `wi${input.workItemId}` : `task${input.taskId}`;
   const dedupeKey = `ask:${input.from}:${input.to}:${subject}:${seq}`;
   const channel = `employee:${input.to}`;

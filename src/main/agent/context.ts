@@ -300,10 +300,19 @@ export function buildEmployeeContext(db: unknown, input: EmployeeContextInput): 
   const projectCtxRead = readProjectContextDetailed(projectRoot);
   const projectCtx = projectCtxRead.text;
   const acceptance = parseJsonText(task?.acceptance);
+  // B0-2：验收层带可执行命令（「（机器检查：pnpm test）」）——员工要能对准验收自查，
+  // 否则只知道「测试通过」却不知道过关命令是什么。
   const acceptanceText = Array.isArray(acceptance)
     ? acceptance
         .filter((a) => !isDocsCheckAcceptance(a))
-        .map((a) => (typeof a === 'string' ? a : typeof (a as { text?: unknown })?.text === 'string' ? String((a as { text: string }).text) : ''))
+        .map((a) => {
+          if (typeof a === 'string') return a;
+          const text = typeof (a as { text?: unknown })?.text === 'string' ? String((a as { text: string }).text) : '';
+          const check =
+            typeof (a as { check?: unknown })?.check === 'string' ? String((a as { check: string }).check).trim() : '';
+          if (text.length === 0) return check.length > 0 ? `（机器检查：${check}）` : '';
+          return check.length > 0 ? `${text}（机器检查：${check}）` : text;
+        })
         .filter((s) => s.length > 0)
         .join('；')
     : '';
@@ -315,8 +324,17 @@ export function buildEmployeeContext(db: unknown, input: EmployeeContextInput): 
       : planRecitationLayer(dbh, { taskId: input.taskId, acceptanceText, task });
 
   const brief = parseJsonText(workItem?.brief);
+  // 结构化 brief（`{text, touchedPaths}`，B0-7 的 inplace 整树认领）只把 text 交给模型；
+  // 路径认领是宿主侧并发元数据，不应以 JSON 形式污染提示词。
+  const briefObj = brief && typeof brief === 'object' ? (brief as { text?: unknown }) : null;
   const briefText =
-    typeof brief === 'string' ? brief : brief && typeof brief === 'object' ? JSON.stringify(brief) : '（无）';
+    typeof brief === 'string'
+      ? brief
+      : briefObj && typeof briefObj.text === 'string'
+        ? briefObj.text
+        : brief
+          ? JSON.stringify(brief)
+          : '（无）';
 
   // N4：证据索引（最近 ≤10 条；只读）
   const evidenceLines = listArtifactsByTask(dbh, input.taskId)

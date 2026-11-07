@@ -11,17 +11,25 @@ import type { WaitingReason } from '../../core/types.js';
 /** 派发 hold 原因：统一走 `WaitingReason`（1603；`path_conflict` 即其一）。 */
 export type DispatchHoldReason = WaitingReason;
 
+/** `.`（或 `/`）归一为空串＝**整棵树**（ADV-1 P0-9：inplace 件无路径预言时整棵树认领）。 */
 const normalizePath = (p: string): string =>
-  p.trim().replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\.\//, '').replace(/\/+$/, '').toLowerCase();
+  p
+    .trim()
+    .replace(/\\/g, '/')
+    .replace(/\/+/g, '/')
+    .replace(/^\.\//, '')
+    .replace(/\/+$/, '')
+    .replace(/^\.$/, '')
+    .toLowerCase();
 
-/** 粗粒度相交：同一路径，或一个是另一个的父目录（`src/a.ts` vs `src` / `src/`）。 */
+/** 粗粒度相交：同一路径，或一个是另一个的父目录（`src/a.ts` vs `src` / `src/`）；整棵树与任何路径相交。 */
 export function pathsIntersect(a: string[], b: string[]): boolean {
   for (const pa of a) {
     const na = normalizePath(pa);
-    if (!na) continue;
     for (const pb of b) {
       const nb = normalizePath(pb);
-      if (!nb) continue;
+      // 整棵树（空串）与同 root 内任何路径相交（root 相等由 pathConflictWith 先判）。
+      if (!na || !nb) return true;
       if (na === nb || na.startsWith(`${nb}/`) || nb.startsWith(`${na}/`)) return true;
     }
   }

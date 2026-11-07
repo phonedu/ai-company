@@ -103,7 +103,10 @@ async function main() {
   let inTok = 0;
   let outTok = 0;
   const limit = Number(process.env.GEN_LIMIT ?? '0');
-  const cases = limit > 0 ? set.cases.slice(0, limit) : set.cases;
+  const REPEAT = Math.max(1, Math.min(Number(process.env.GEN_REPEAT ?? '1') || 1, 5));
+  const baseCases = limit > 0 ? set.cases.slice(0, limit) : set.cases;
+  // 多次重复：同一臂内每例跑 REPEAT 次（降低单次波动；成本×REPEAT）。
+  const cases = Array.from({ length: REPEAT }, () => baseCases).flat();
   for (const c of cases) {
     const started = Date.now();
     try {
@@ -154,6 +157,18 @@ async function main() {
       console.log(`[gen] ${c.id} (${c.category}) ERROR ${String(error && error.message ? error.message : error).slice(0, 120)}`);
     }
   }
+  // 每例均值（跨重复次数）：分数与满分。
+  const perCase = Object.values(
+    rows.reduce((acc, r) => {
+      const b = (acc[r.id] ??= { id: r.id, category: r.category, runs: 0, got: 0, max: 0 });
+      b.runs += 1;
+      if (r.score != null) {
+        b.got += r.score;
+        b.max += r.max;
+      }
+      return acc;
+    }, {}),
+  ).map((b) => ({ ...b, mean: b.max > 0 ? Number((b.got / b.max).toFixed(3)) : null }));
   const byCat = {};
   for (const r of rows) {
     const b = (byCat[r.category] ??= { n: 0, got: 0, max: 0 });
@@ -169,7 +184,7 @@ async function main() {
   writeFileSync(
     out,
     JSON.stringify(
-      { model: genTarget.label, judge: judge.label, at: new Date().toISOString(), tokens: { in: inTok, out: outTok }, usd, byCat, rows },
+      { model: genTarget.label, judge: judge.label, repeat: REPEAT, at: new Date().toISOString(), tokens: { in: inTok, out: outTok }, usd, byCat, perCase, rows },
       null,
       2,
     ) + '\n',
@@ -179,7 +194,8 @@ async function main() {
     const pct = b.max > 0 ? ((b.got / b.max) * 100).toFixed(1) : '—';
     console.log(`  ${cat}: ${b.got}/${b.max}（${pct}%）`);
   }
-  console.log(`[gen] tokens in=${inTok} out=${outTok} ≈ $${usd.toFixed(4)}`);
+  console.log('[gen] 每例均值：' + perCase.map((b) => `${b.id}=${b.mean == null ? '—' : (b.mean * 100).toFixed(0) + '%'}`).join(' '));
+  console.log(`[gen] tokens in=${inTok} out=${outTok} ≈ $${usd.toFixed(4)}（repeat=${REPEAT}）`);
   console.log(`[gen] 明细=${out}`);
   try {
     rmSync(TMP_PROFILE, { recursive: true, force: true, maxRetries: 2, retryDelay: 200 });

@@ -95,7 +95,50 @@ const CATEGORY_MIN_TIER: Record<ToolCategory, CapabilityTier> = {
 };
 
 /** 目录穿越 / 敏感路径默认拒绝（`PLAN §16.2`）。 */
-const SENSITIVE = ['.ssh', '.aws', '.env', 'id_rsa', '.npmrc', 'cookies', 'login data', '.aico/secrets'];
+const SENSITIVE = [
+  '.ssh',
+  '.aws',
+  '.env',
+  'id_rsa',
+  '.npmrc',
+  'cookies',
+  'login data',
+  '.aico/secrets',
+  // B0-9：本机数据库 / 导出包 / 微信凭据（审查指出的遗漏面）。
+  'aico.sqlite',
+  'aico.sqlite-wal',
+  'aico.sqlite-shm',
+  '.aico/exports',
+  'wechat.json',
+];
+
+/**
+ * B0-9（58 §3.1 洞 3）：**网络外发命令族**——`gate` 此前按工具名分类，bash 内容不受 external 闸门约束
+ * ⇒ `curl --data @文件`、`git push`、`scp` 在 standard 档自动放行，与「对外动作永不自动放行」承诺相悖。
+ * 这里按命令文本（含 bash -c/脚本串）识别；命中一律 ask（批准后按 `consent:egress` 规则放行）。
+ */
+const EGRESS_COMMAND_PATTERNS: Array<{ re: RegExp; label: string }> = [
+  { re: /\bcurl\b/i, label: 'curl' },
+  { re: /\bwget\b/i, label: 'wget' },
+  { re: /\binvoke-webrequest\b|\biwr\b/i, label: 'Invoke-WebRequest' },
+  { re: /\binvoke-restmethod\b|\birm\b/i, label: 'Invoke-RestMethod' },
+  { re: /\bgit\s+push\b/i, label: 'git push' },
+  { re: /\bgit\s+remote\s+(add|set-url)\b/i, label: 'git remote' },
+  { re: /\b(npm|pnpm|yarn)\s+publish\b/i, label: 'package publish' },
+  { re: /\bscp\b|\bsftp\b/i, label: 'scp/sftp' },
+  { re: /\bssh\b/i, label: 'ssh' },
+  { re: /\bsend-mailmessage\b/i, label: 'send mail' },
+];
+
+/** 返回命中的外发命令族标签；无 → null（纯函数，可测）。 */
+export function detectEgressCommand(command: string): string | null {
+  const text = command ?? '';
+  if (text.trim().length === 0) return null;
+  for (const { re, label } of EGRESS_COMMAND_PATTERNS) {
+    if (re.test(text)) return label;
+  }
+  return null;
+}
 
 export function toolCategory(name: string): ToolCategory {
   const n = name.toLowerCase();
@@ -234,6 +277,14 @@ export function permissionGate(call: ToolCall, ctx: GateContext): GateResult {
   }
 
   const commandText = category === 'command' ? JSON.stringify(call.args ?? {}) : '';
+  const rawCommand =
+    category === 'command'
+      ? String(
+          (call.args as { command?: unknown; cmd?: unknown } | undefined)?.command ??
+            (call.args as { cmd?: unknown } | undefined)?.cmd ??
+            '',
+        )
+      : '';
 
   // ③ 命令黑名单 / 危险命令
   if (category === 'command') {
@@ -245,6 +296,11 @@ export function permissionGate(call: ToolCall, ctx: GateContext): GateResult {
       }
       return precheck;
     }
+    // B0-9：网络外发命令族→ask（在 denylist/consentRules 之前，任何放行档都不自动放行）。
+    const egress = detectEgressCommand(rawCommand);
+    if (egress) {
+      return askOrGrant(ctx, 'consent:egress', `网络外发命令需逐次批准（${egress}）：${rawCommand.slice(0, 160)}`, call.name);
+    }
     const denied = matchesAny(ctx.policy?.commandDenylist, commandText);
     if (denied) return { decision: 'deny', reason: `命令命中黑名单：${denied}`, rule: 'command_denylist' };
     const consent = matchesAny(ctx.policy?.consentRules, commandText);
@@ -254,7 +310,6 @@ export function permissionGate(call: ToolCall, ctx: GateContext): GateResult {
   // ③b MP1-F19：只读命令快速通道——白名单＋保守解析＋路径圈在授权根内，三关全过才放行
   //（写边界理念：边界管写不管读；读也可能外泄，故同样圈根。任何疑点回落下方原有门禁，不兜底放行）。
   if (category === 'command') {
-    const rawCommand = String((call.args as { command?: unknown; cmd?: unknown } | undefined)?.command ?? (call.args as { cmd?: unknown } | undefined)?.cmd ?? '');
     if (rawCommand.length > 0 && isReadOnlyBashCommand(rawCommand, { projectRoot: ctx.projectRoot, cwd: ctx.cwd })) {
       return { decision: 'allow', reason: '只读命令快速通道（白名单＋授权根内）', rule: 'readonly_command' };
     }

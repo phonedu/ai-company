@@ -27,7 +27,12 @@ const RECIPES = [
   {
     id: 'ui2-project-cdp',
     file: 'scripts/verification/ui2-project-cdp.mjs',
-    desc: 'UI-2 S1：项目页行下展开 / 同一时间一张 / Esc 收起回焦 / 待办深链落到项目页并展开目标行',
+    desc: 'UI-2 S1：项目页行下展开 / Esc 回焦 / 三条深链 / 720 窄窗 / 深色 / 异常卡渲染',
+  },
+  {
+    id: 'security-keys-cdp',
+    file: 'scripts/verification/security-keys-cdp.mjs',
+    desc: 'B0-9：供应商 Key 真 IPC 保存 → 落盘 v1 密文（safeStorage）→ 重启可读掩码 → 清除即删',
   },
 ];
 

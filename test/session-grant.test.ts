@@ -116,12 +116,13 @@ test('G1 余项: 覆盖 spend / install / consent:command 三类 ask 的 grant �
   try {
     // 命令 consent 规则
     db.prepare("INSERT INTO permission_policies(scope_type,scope_id,tier,policy,updated_at) VALUES('task',?, 'standard', ?, 1)")
-      .run(taskId, JSON.stringify({ consentRules: ['git push'] }));
+      // 用**非外发**命令测 consent:command 族（外发族由 B0-9 单独归到 consent:egress）。
+      .run(taskId, JSON.stringify({ consentRules: ['npm run build'] }));
     const { gate } = gateWith(db);
     const cases: Array<[string, { toolName: string; input?: Record<string, unknown> }, string]> = [
       ['spend', { toolName: 'purchase', input: {} }, 'consent:spend'],
       ['install', { toolName: 'install', input: {} }, 'consent:install'],
-      ['command', { toolName: 'bash', input: { command: 'git push origin main' } }, 'consent:command'],
+      ['command', { toolName: 'bash', input: { command: 'npm run build' } }, 'consent:command'],
     ];
     for (const [label, event, rule] of cases) {
       assert.equal(gate.evaluate(event, run).block, true, `${label}: 未批应拦`);

@@ -28,6 +28,8 @@ export interface UpdateStatus {
   /** 人话状态（UI 直接显示；不藏错误）。 */
   message: string;
   canCheck: boolean;
+  /** 已发现新版本、等老板点「下载」（B0-9：autoDownload=false）。 */
+  canDownload?: boolean;
   canInstall: boolean;
   checkedAt?: number;
 }
@@ -37,6 +39,8 @@ export interface UpdaterLike {
   autoInstallOnAppQuit: boolean;
   on(event: string, listener: (arg?: unknown) => void): unknown;
   checkForUpdates(): Promise<unknown>;
+  /** B0-9：手动下载（autoDownload=false 后由控制器显式调用）。 */
+  downloadUpdate(): Promise<unknown>;
   quitAndInstall(isSilent?: boolean, isForceRunAfter?: boolean): void;
 }
 
@@ -52,6 +56,8 @@ export interface UpdateControllerDeps {
 export interface UpdateController {
   getStatus(): UpdateStatus;
   check(): Promise<UpdateStatus>;
+  /** B0-9：老板确认后手动下载（autoDownload=false）。 */
+  download(): Promise<{ ok: boolean; error?: string }>;
   install(): { ok: boolean; error?: string };
 }
 
@@ -100,8 +106,10 @@ export function createUpdateController(deps: UpdateControllerDeps): UpdateContro
   const busy = (): boolean => status.phase === 'checking' || status.phase === 'downloading';
 
   if (deps.enabled) {
-    deps.updater.autoDownload = true;
-    deps.updater.autoInstallOnAppQuit = true;
+    // B0-9（58 §3.1 洞 2）：**不自动下载、不自动装**——签名缺失前，发布源被劫持一次即全员静默 RCE。
+    // 发现新版本只提示，老板点「下载」才下载；点「重启安装」才装。
+    deps.updater.autoDownload = false;
+    deps.updater.autoInstallOnAppQuit = false;
     deps.updater.on('checking-for-update', () => {
       emit({ phase: 'checking', message: '正在检查更新…', canCheck: false, canInstall: false, checkedAt: now() });
     });
@@ -111,8 +119,9 @@ export function createUpdateController(deps: UpdateControllerDeps): UpdateContro
         phase: 'available',
         availableVersion: v,
         percent: 0,
-        message: v ? `发现新版本 v${v}，开始下载…` : '发现新版本，开始下载…',
-        canCheck: false,
+        message: v ? `发现新版本 v${v}——点「下载更新」获取（不会自动下载/安装）` : '发现新版本——点「下载更新」获取',
+        canCheck: true,
+        canDownload: true,
         canInstall: false,
       });
     });
@@ -123,6 +132,7 @@ export function createUpdateController(deps: UpdateControllerDeps): UpdateContro
         percent,
         message: percent == null ? '正在下载新版本…' : `正在下载新版本… ${percent}%`,
         canCheck: false,
+        canDownload: false,
         canInstall: false,
       });
     });
@@ -134,6 +144,7 @@ export function createUpdateController(deps: UpdateControllerDeps): UpdateContro
         percent: 100,
         message: v ? `新版本 v${v} 已下载，重启后安装` : '新版本已下载，重启后安装',
         canCheck: true,
+        canDownload: false,
         canInstall: true,
         checkedAt: now(),
       });
@@ -143,6 +154,7 @@ export function createUpdateController(deps: UpdateControllerDeps): UpdateContro
         phase: 'up-to-date',
         message: `已是最新版本（v${deps.currentVersion}）`,
         canCheck: true,
+        canDownload: false,
         canInstall: false,
         checkedAt: now(),
       });
@@ -152,6 +164,7 @@ export function createUpdateController(deps: UpdateControllerDeps): UpdateContro
         phase: 'error',
         message: `检查更新失败：${errorText(error)}`,
         canCheck: true,
+        canDownload: false,
         canInstall: false,
         checkedAt: now(),
       });
@@ -172,12 +185,32 @@ export function createUpdateController(deps: UpdateControllerDeps): UpdateContro
             phase: 'error',
             message: `检查更新失败：${errorText(error)}`,
             canCheck: true,
+            canDownload: false,
             canInstall: false,
             checkedAt: now(),
           });
         }
       }
       return status;
+    },
+    async download() {
+      if (!deps.enabled) return { ok: false, error: '当前版本不支持自动更新' };
+      if (status.phase !== 'available') return { ok: false, error: '没有待下载的新版本（先检查更新）' };
+      emit({ phase: 'downloading', percent: 0, message: '正在下载新版本…', canCheck: false, canDownload: false, canInstall: false });
+      try {
+        await deps.updater.downloadUpdate();
+        return { ok: true };
+      } catch (error) {
+        emit({
+          phase: 'error',
+          message: `下载更新失败：${errorText(error)}`,
+          canCheck: true,
+          canDownload: false,
+          canInstall: false,
+          checkedAt: now(),
+        });
+        return { ok: false, error: errorText(error) };
+      }
     },
     install() {
       if (!deps.enabled || status.phase !== 'downloaded') {

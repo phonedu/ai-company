@@ -2,9 +2,11 @@
  * 供应商 API Key 的**本机凭据面**（设置页「模型与供应商」写入）。
  *
  * 口径（EMPLOYEES §10 / `pi-runtime` 既有解析顺序）：
- *  - 明文只存 `~/.aico/secrets/<provider>_api_key`（受限权限；绝不进 settings 表/仓库/日志）。
- *  - 读取顺序：`env <PROVIDER>_API_KEY` →  canonical 文件 → 旧文件名 `<provider>-api-key.txt`
- *    → `<provider>_api_key.txt`（Explorer 隐藏扩展名时常见的写法）。
+ *  - 落盘：装了系统密钥环（Electron `safeStorage`＝Windows DPAPI / macOS Keychain）时写
+ *    `<provider>_api_key.enc`（`v1:` + 密文 base64）；编码器不可用才回落明文文件（诚实降级）。
+ *    旧明文文件在首次读取时**迁移**为密文并删除（B0-9，对照 IM 凭据口径）。
+ *  - 读取顺序：`env <PROVIDER>_API_KEY` →  canonical 密文 → 旧明文文件名（`<provider>-api-key.txt`
+ *    / `<provider>_api_key.txt` / `<provider>_api_key`）。
  *  - 对外只回「是否配置 / 来源 / 尾号掩码」；**绝不回明文**。
  *  - 环境变量存在时优先生效；界面保存的文件不会覆盖它（状态里同时给出 env/file 两面）。
  */
@@ -18,6 +20,29 @@ export const PROVIDERS = [
   { id: 'anthropic', label: 'Anthropic', envVar: 'ANTHROPIC_API_KEY' },
   { id: 'openai', label: 'OpenAI', envVar: 'OPENAI_API_KEY' },
 ] as const;
+
+/** 本机加密编解码器（Electron safeStorage 注入；测试可注入 fake）。 */
+export interface SecretCodec {
+  available(): boolean;
+  /** 返回 base64 密文（不带前缀）。 */
+  encrypt(plain: string): string;
+  /** 解 base64 密文；失败抛错。 */
+  decrypt(payload: string): string;
+}
+
+let keyCodec: SecretCodec | null = null;
+/** 主进程启动时注入（`security/key-codec.ts`）；传 null＝卸载（测试）。 */
+export function setProviderKeyCodec(codec: SecretCodec | null): void {
+  keyCodec = codec;
+}
+/** 当前编解码器是否可用（状态面/测试用）。 */
+export function providerKeyCodecAvailable(): boolean {
+  try {
+    return keyCodec?.available() === true;
+  } catch {
+    return false;
+  }
+}
 
 export type ProviderId = (typeof PROVIDERS)[number]['id'];
 
@@ -96,11 +121,41 @@ export function resolveProviderKey(provider: string, options: ProviderKeyOptions
   const fromEnv = envKeyFor(provider, env);
   if (fromEnv) return { provider, key: fromEnv, source: 'env' };
   const base = secretsDir(options);
+  // ① canonical 密文（B0-9）：安全存储可用才解得开；不可用则降级看旧明文（诚实，不假装已加密）。
+  const enc = join(base, `${provider}_api_key.enc`);
+  if (existsSync(enc)) {
+    const raw = readFileSync(enc, 'utf8').trim();
+    if (raw.startsWith('v1:') && keyCodec && providerKeyCodecAvailable()) {
+      try {
+        const key = keyCodec.decrypt(raw.slice(3)).trim();
+        if (key.length > 0) return { provider, key, source: 'file', path: enc };
+      } catch (error) {
+        console.error(
+          `[keys] 密文解密失败（系统密钥环变更/损坏）；回退旧文件：${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    } else if (raw.startsWith('v1:')) {
+      console.error('[keys] 密文存在但系统密钥环不可用——跳过密文（回退旧明文，如存在）');
+    }
+  }
+  // ② 旧明文（首读即迁移：写密文、删明文；迁移失败不丢凭据）。
   for (const name of keyFileNames(provider)) {
     const path = join(base, name);
     if (!existsSync(path)) continue;
     const key = readFileSync(path, 'utf8').trim();
-    if (key.length > 0) return { provider, key, source: 'file', path };
+    if (key.length === 0) continue;
+    if (keyCodec && providerKeyCodecAvailable()) {
+      try {
+        writeFileSync(enc, `v1:${keyCodec.encrypt(key)}\n`, { mode: 0o600 });
+        rmSync(path, { force: true });
+        return { provider, key, source: 'file', path: enc };
+      } catch (error) {
+        console.error(
+          `[keys] 旧明文迁移失败（继续明文读取，不丢凭据）：${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+    return { provider, key, source: 'file', path };
   }
   return null;
 }
@@ -154,12 +209,27 @@ export function saveProviderKey(provider: string, key: string, options: Provider
     } catch {
       /* Windows 上 chmod 可能无效；不阻断保存 */
     }
-    const path = join(base, `${provider}_api_key`);
-    writeFileSync(path, `${value}\n`, { mode: 0o600 });
-    try {
-      chmodSync(path, 0o600);
-    } catch {
-      /* 同上 */
+    const encPath = join(base, `${provider}_api_key.enc`);
+    if (keyCodec && providerKeyCodecAvailable()) {
+      writeFileSync(encPath, `v1:${keyCodec.encrypt(value)}\n`, { mode: 0o600 });
+      try {
+        chmodSync(encPath, 0o600);
+      } catch {
+        /* Windows chmod 无效；实际保护来自 DPAPI/Keychain */
+      }
+      // 迁移：旧明文（含兼容文件名）立即删除。
+      for (const name of keyFileNames(provider)) rmSync(join(base, name), { force: true });
+    } else {
+      // 诚实降级：无系统密钥环时只能明文（设置页状态会如实显示）。
+      console.error('[keys] 系统密钥环不可用 → Key 以明文保存（降级；建议开启系统凭据保护）');
+      const plainPath = join(base, `${provider}_api_key`);
+      writeFileSync(plainPath, `${value}\n`, { mode: 0o600 });
+      try {
+        chmodSync(plainPath, 0o600);
+      } catch {
+        /* 同上 */
+      }
+      rmSync(encPath, { force: true });
     }
   } catch (error) {
     throw new ProviderKeyError('write_failed', `写入本机凭据失败：${error instanceof Error ? error.message : String(error)}`);
@@ -173,6 +243,7 @@ export function clearProviderKey(provider: string, options: ProviderKeyOptions =
     throw new ProviderKeyError('bad_provider', `供应商 id 需为小写字母/数字/_/-（≤32 字符）：${provider}`);
   }
   const base = secretsDir(options);
+  rmSync(join(base, `${provider}_api_key.enc`), { force: true });
   for (const name of keyFileNames(provider)) {
     const path = join(base, name);
     try {

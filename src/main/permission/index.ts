@@ -1,6 +1,7 @@
 /** `src/main/permission` 公共出口（OPT-M9-1 权限闸门）。 */
 export {
   permissionGate,
+  detectEgressCommand,
   toolCategory,
   downgradeAutonomy,
   type PermissionDecision,

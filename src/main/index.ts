@@ -1,3 +1,4 @@
+import { installProviderKeyCodec } from './security/key-codec.js';
 import { app, BrowserWindow, Menu, Tray, Notification, ipcMain, nativeImage, dialog, shell, nativeTheme, safeStorage, protocol } from 'electron';
 import type { MenuItemConstructorOptions, NativeImage } from 'electron';
 import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
@@ -1022,6 +1023,8 @@ function initAutoUpdate(): void {
   });
   ipcMain.handle('update:get', () => updateController?.getStatus() ?? null);
   ipcMain.handle('update:check', async () => updateController?.check() ?? null);
+  // B0-9：手动下载（autoDownload=false）——老板确认后才下载。
+  ipcMain.handle('update:download', async () => updateController?.download() ?? { ok: false, error: '更新控制器未就绪' });
   ipcMain.handle('update:install', () => updateController?.install() ?? { ok: false, error: '更新控制器未就绪' });
   if (enabled) {
     updateCheckTimer = setTimeout(() => {
@@ -2513,6 +2516,8 @@ if (!gotSingleInstanceLock) {
   app.whenReady().then(() => {
     appReadyAt = Date.now();
     console.log('[app] ready');
+    // B0-9：先接系统密钥环，再开库/引擎（供应商 Key 解析在会话装配时发生）。
+    installProviderKeyCodec();
     // 2026-10-17 真机反馈「没通知」：Windows 无 AppUserModelID 时 `Notification.show()` 会被系统静默丢弃。
     // 未打包态用 `process.execPath`（与开始菜单里 electron.exe 快捷方式登记的 AUMID 对齐，官方 dev 做法）；
     // 打包态同样指向本 exe，安装器建的快捷方式自然匹配。macOS/Linux 不需要。

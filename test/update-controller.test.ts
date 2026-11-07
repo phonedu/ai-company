@@ -12,6 +12,7 @@ class FakeUpdater implements UpdaterLike {
   autoInstallOnAppQuit = false;
   handlers = new Map<string, (arg?: unknown) => void>();
   checkCalls = 0;
+  downloadCalls = 0;
   quitCalls: Array<[boolean | undefined, boolean | undefined]> = [];
   checkImpl: () => Promise<unknown> = async () => ({});
   on(event: string, listener: (arg?: unknown) => void): unknown {
@@ -24,6 +25,10 @@ class FakeUpdater implements UpdaterLike {
   async checkForUpdates(): Promise<unknown> {
     this.checkCalls += 1;
     return this.checkImpl();
+  }
+  async downloadUpdate(): Promise<unknown> {
+    this.downloadCalls += 1;
+    return {};
   }
   quitAndInstall(isSilent?: boolean, isForceRunAfter?: boolean): void {
     this.quitCalls.push([isSilent, isForceRunAfter]);
@@ -113,11 +118,28 @@ test('自动更新：check 期间重复点击不重复发请求；Promise reject
   assert.equal(c.getStatus().canCheck, true);
 });
 
-test('自动更新：autoDownload/autoInstallOnAppQuit 由控制器统一开启（不让 UI 依赖默认值）', () => {
+test('B0-9：autoDownload/autoInstallOnAppQuit 必须关闭——下载与安装都由老板点（不静默 RCE 面）', () => {
   const updater = new FakeUpdater();
   createUpdateController({ updater, currentVersion: '0.1.0', enabled: true });
-  assert.equal(updater.autoDownload, true);
-  assert.equal(updater.autoInstallOnAppQuit, true);
+  assert.equal(updater.autoDownload, false, '发现新版本不得自动下载（签名缺失前的硬要求）');
+  assert.equal(updater.autoInstallOnAppQuit, false, '退出时不得自动安装（必须点「重启安装」）');
+});
+
+test('B0-9：available → 老板点「下载更新」才 downloadUpdate；未检查/未发现时拒绝', async () => {
+  const updater = new FakeUpdater();
+  const c = createUpdateController({ updater, currentVersion: '0.1.0', enabled: true });
+  assert.equal((await c.download()).ok, false, 'idle 时不得下载');
+  assert.equal(updater.downloadCalls, 0);
+  await c.check();
+  updater.emit('update-available', { version: '0.1.2' });
+  assert.equal(c.getStatus().phase, 'available');
+  assert.equal(c.getStatus().canDownload, true);
+  const r = await c.download();
+  assert.equal(r.ok, true);
+  assert.equal(updater.downloadCalls, 1, '确认后只下载一次');
+  assert.equal(c.getStatus().phase, 'downloading');
+  updater.emit('update-downloaded', { version: '0.1.2' });
+  assert.equal(c.getStatus().canInstall, true, '下载完成才出现「重启安装」');
 });
 
 test('自动更新：AICO_UPDATE_NO_RELAUNCH=1 时安装后不强制重启（冒烟隔离用）', () => {

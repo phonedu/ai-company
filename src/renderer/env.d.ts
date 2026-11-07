@@ -180,6 +180,8 @@ declare global {
     update: {
       get(): Promise<unknown>;
       check(): Promise<unknown>;
+      /** B0-9：手动下载（autoDownload=false）。 */
+      download(): Promise<unknown>;
       install(): Promise<unknown>;
       onStatus(callback: (status: unknown) => void): Unsubscribe;
     };

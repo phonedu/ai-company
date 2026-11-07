@@ -48,6 +48,7 @@ const api = {
   update: {
     get: (): Promise<unknown> => invoke('update:get'),
     check: (): Promise<unknown> => invoke('update:check'),
+    download: (): Promise<unknown> => invoke('update:download'),
     install: (): Promise<unknown> => invoke('update:install'),
     onStatus: (callback: (status: unknown) => void): Unsubscribe => {
       const handler = (_e: unknown, status: unknown): void => callback(status);

@@ -26,7 +26,7 @@ export const PRELOAD_CHANNELS = [
   'employee:get', 'employee:list', 'employee:recruit', 'employee:update', 'file:import', 'file:import-bytes', 'hall:state', 'hall:subscribe',
   'evt:snapshot',
   'im:bind', 'im:unbind', 'inbox:answer', 'inbox:list', 'inbox:read-mark', 'inbox:read-state', 'ipc:bench:ping', 'mailbox:answer', 'mailbox:list', 'mcp:list', 'mcp:set', 'memory:manage', 'model:catalog', 'notes:delete', 'notes:list', 'notes:preview', 'notes:promote', 'notes:read', 'notes:search', 'notes:write', 'notify:test', 'provider:clear-key', 'provider:custom', 'provider:list', 'provider:set-key',
-  'project:alias-set', 'project:archive', 'project:assistant-write-mode-set', 'project:trigger-manage', 'project:attach', 'project:open-dir', 'project:company-config', 'project:create', 'project:delete', 'project:export', 'project:docs-check-set', 'project:get', 'project:list', 'project:model-policy-set', 'project:default-budget-set', 'project:target-branch-set', 'project:skills-set', 'project:staffing-set', 'app:info', 'app:open-data-dir', 'update:get', 'update:check', 'update:install', 'scheduler:slots', 'seams:list', 'search:global', 'settings:get', 'settings:set', 'settings:maintenance', 'settings:permission-list', 'settings:permission-revoke',
+  'project:alias-set', 'project:archive', 'project:assistant-write-mode-set', 'project:trigger-manage', 'project:attach', 'project:open-dir', 'project:company-config', 'project:create', 'project:delete', 'project:export', 'project:docs-check-set', 'project:get', 'project:list', 'project:model-policy-set', 'project:default-budget-set', 'project:target-branch-set', 'project:skills-set', 'project:staffing-set', 'app:info', 'app:open-data-dir', 'update:get', 'update:check', 'update:download', 'update:install', 'scheduler:slots', 'seams:list', 'search:global', 'settings:get', 'settings:set', 'settings:maintenance', 'settings:permission-list', 'settings:permission-revoke',
   'skills:list', 'skills:set',
   'task:approve', 'task:create', 'task:discard', 'task:edit-plan', 'task:export', 'task:get', 'task:list',
   'task:diff', 'task:merge', 'task:rework-merge-conflict', 'task:read-artifact', 'task:read-tool-output', 'task:reference-artifact', 'task:rollback', 'task:transition', 'ui:mounted',
@@ -41,7 +41,7 @@ export const IPC_CHANNELS = [
   'employee:get', 'employee:list', 'employee:recruit', 'employee:update', 'file:import', 'file:import-bytes',
   'evt:snapshot',
   'hall:state', 'hall:subscribe', 'im:bind', 'im:unbind', 'inbox:answer', 'inbox:list', 'inbox:read-mark', 'inbox:read-state',
-  'ipc:bench:ping', 'mailbox:answer', 'mailbox:list', 'mcp:list', 'mcp:set', 'memory:manage', 'model:catalog', 'notes:delete', 'notes:list', 'notes:preview', 'notes:promote', 'notes:read', 'notes:search', 'notes:write', 'notify:test', 'provider:clear-key', 'provider:custom', 'provider:list', 'provider:set-key', 'project:alias-set', 'project:archive', 'project:assistant-write-mode-set', 'project:trigger-manage', 'project:attach', 'project:open-dir', 'project:company-config', 'project:create', 'project:delete', 'project:export', 'project:docs-check-set', 'project:get', 'project:list', 'project:model-policy-set', 'project:default-budget-set', 'project:target-branch-set', 'project:skills-set', 'project:staffing-set', 'app:info', 'app:open-data-dir', 'update:get', 'update:check', 'update:install', 'scheduler:slots', 'seams:list', 'search:global', 'settings:get',
+  'ipc:bench:ping', 'mailbox:answer', 'mailbox:list', 'mcp:list', 'mcp:set', 'memory:manage', 'model:catalog', 'notes:delete', 'notes:list', 'notes:preview', 'notes:promote', 'notes:read', 'notes:search', 'notes:write', 'notify:test', 'provider:clear-key', 'provider:custom', 'provider:list', 'provider:set-key', 'project:alias-set', 'project:archive', 'project:assistant-write-mode-set', 'project:trigger-manage', 'project:attach', 'project:open-dir', 'project:company-config', 'project:create', 'project:delete', 'project:export', 'project:docs-check-set', 'project:get', 'project:list', 'project:model-policy-set', 'project:default-budget-set', 'project:target-branch-set', 'project:skills-set', 'project:staffing-set', 'app:info', 'app:open-data-dir', 'update:get', 'update:check', 'update:download', 'update:install', 'scheduler:slots', 'seams:list', 'search:global', 'settings:get',
   'settings:set', 'settings:maintenance', 'settings:permission-list', 'settings:permission-revoke', 'skills:list', 'skills:set', 'task:approve', 'task:create', 'task:discard', 'task:edit-plan', 'task:export', 'task:get', 'task:list',
   'task:diff', 'task:merge', 'task:rework-merge-conflict', 'task:read-artifact', 'task:read-tool-output', 'task:reference-artifact', 'task:rollback', 'task:transition', 'ui:mounted',
   // 2026-10-16 替换批·壳层重排：自绘三键 handler（有意新增；冻结数随批 +3）。
@@ -130,17 +130,17 @@ function allSources(): [string, string][] {
   return out;
 }
 
-test('OPT-M2-3 struct-preload-count: preload 暴露 channel 恰好 95 个（冻结；少一处即静默 reject）', () => {
+test('OPT-M2-3 struct-preload-count: preload 暴露 channel 恰好 96 个（冻结；B0-9 新增 update:download；少一处即静默 reject）', () => {
   const actual = readPreloadChannels();
   const { missing, extra } = diffSets(actual, PRELOAD_CHANNELS);
-  assert.equal(actual.length, 95, `preload 暴露数应为 95，实际 ${actual.length}`);
+  assert.equal(actual.length, 96, `preload 暴露数应为 96，实际 ${actual.length}`);
   assert.deepEqual({ missing, extra }, { missing: [], extra: [] }, `preload channel 面漂移：缺=${missing} 多=${extra}`);
 });
 
-test('OPT-M2-3 struct-ipc-count: 主进程 IPC 注册 channel 恰好 95 个（冻结；缺即 handler 缺失）', () => {
+test('OPT-M2-3 struct-ipc-count: 主进程 IPC 注册 channel 恰好 96 个（冻结；B0-9 新增 update:download；缺即 handler 缺失）', () => {
   const actual = readIpcChannels();
   const { missing, extra } = diffSets(actual, IPC_CHANNELS);
-  assert.equal(actual.length, 95, `IPC 注册数应为 95，实际 ${actual.length}`);
+  assert.equal(actual.length, 96, `IPC 注册数应为 96，实际 ${actual.length}`);
   assert.deepEqual({ missing, extra }, { missing: [], extra: [] }, `IPC 注册面漂移：缺=${missing} 多=${extra}`);
 });
 
@@ -203,6 +203,7 @@ export const KNOWN_MAIN_DIRS = [
   'notify',
   'permission',
   'seams',
+  'security',
   'tray',
   'triggers',
 ].sort();

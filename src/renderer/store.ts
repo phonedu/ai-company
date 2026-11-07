@@ -3260,6 +3260,7 @@ export interface AppUpdateStatus {
   percent?: number;
   message: string;
   canCheck: boolean;
+  canDownload?: boolean;
   canInstall: boolean;
   checkedAt?: number;
 }
@@ -3290,6 +3291,17 @@ export async function checkAppUpdate(): Promise<void> {
     appUpdate.error = error instanceof Error ? error.message : String(error);
   } finally {
     appUpdate.busy = false;
+  }
+}
+
+/** B0-9：手动下载更新（autoDownload=false；下载完才有「重启安装」）。 */
+export async function downloadAppUpdate(): Promise<void> {
+  appUpdate.error = null;
+  try {
+    const r = (await window.api?.update?.download()) as { ok?: boolean; error?: string } | undefined;
+    if (r?.ok === false) appUpdate.error = r.error ?? '下载更新失败';
+  } catch (error) {
+    appUpdate.error = error instanceof Error ? error.message : String(error);
   }
 }
 

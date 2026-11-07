@@ -189,9 +189,11 @@ export interface SettingsPaneProps {
     percent?: number;
     message: string;
     canCheck: boolean;
+    canDownload?: boolean;
     canInstall: boolean;
   } | null;
   onCheckUpdate?: () => void;
+  onDownloadUpdate?: () => void;
   onInstallUpdate?: () => void;
   onOpenDataDir?: () => void;
   /** 2026-11-03（逐页错误注入）：设置加载失败后的重试。 */
@@ -2065,6 +2067,17 @@ export function SettingsPane(props: SettingsPaneProps): ReactElement {
               >
                 {props.updateStatus?.phase === 'checking' ? '检查中…' : '检查更新'}
               </button>
+              {props.updateStatus?.canDownload === true ? (
+                <button
+                  type="button"
+                  data-testid="settings-update-download"
+                  disabled={!props.onDownloadUpdate}
+                  title={props.onDownloadUpdate ? '手动下载新版本（不自动下载/安装）' : '未接线'}
+                  onClick={() => props.onDownloadUpdate?.()}
+                >
+                  下载更新
+                </button>
+              ) : null}
               {props.updateStatus?.canInstall === true ? (
                 <button type="button" data-testid="settings-update-install" onClick={() => props.onInstallUpdate?.()}>
                   重启安装

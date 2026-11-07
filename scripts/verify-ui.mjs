@@ -34,6 +34,16 @@ const RECIPES = [
     file: 'scripts/verification/security-keys-cdp.mjs',
     desc: 'B0-9：供应商 Key 真 IPC 保存 → 落盘 v1 密文（safeStorage）→ 重启可读掩码 → 清除即删',
   },
+  {
+    id: 'startup-migration-backup-cdp',
+    file: 'scripts/verification/startup-migration-backup-cdp.mjs',
+    desc: 'B0-12：库落后一版 → 迁移前自动备份 → 毒迁移 fail-closed（非 0 退出，不开窗，原库完好）',
+  },
+  {
+    id: 'update-manual-download-cdp',
+    file: 'scripts/verification/update-manual-download-cdp.mjs',
+    desc: 'B0-9：更新人工确认链路（假更新器）——不自动下载 → 点「下载更新」→ 完成才出现「重启安装」',
+  },
 ];
 
 const onlyArg = process.argv.find((a) => a.startsWith('--only='));

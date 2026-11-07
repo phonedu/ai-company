@@ -1,5 +1,6 @@
 import { installProviderKeyCodec } from './security/key-codec.js';
 import { backupBeforeMigration } from './db/startup-backup.js';
+import { createFakeUpdater } from './update-fake.js';
 import { app, BrowserWindow, Menu, Tray, Notification, ipcMain, nativeImage, dialog, shell, nativeTheme, safeStorage, protocol } from 'electron';
 import type { MenuItemConstructorOptions, NativeImage } from 'electron';
 import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
@@ -291,13 +292,16 @@ async function initDatabaseAndIpc(): Promise<void> {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error('[db] 迁移前备份/迁移失败——拒绝继续（不带着坏库开窗）:', error);
-      crashOptions.notify(
-        '数据库升级失败（已停止启动）',
-        `${message}
+      // 自动化演练（startup-migration-backup-cdp）用：跳过模态框，直接以退出码 1 收场。
+      if (process.env['AICO_STARTUP_FAIL_SILENT'] !== '1') {
+        crashOptions.notify(
+          '数据库升级失败（已停止启动）',
+          `${message}
 
 数据目录：${app.getPath('userData')}
 若已有 backups/ 自动备份，可联系维护者按备份恢复。`,
-      );
+        );
+      }
       app.exit(1);
       return;
     }
@@ -1025,14 +1029,17 @@ function loadRenderer(): Promise<boolean> {
 /** 自动更新接线：开发版/免安装版禁用并说明；安装版启动 20s 后静默自查。 */
 function initAutoUpdate(): void {
   const portable = Boolean(process.env['PORTABLE_EXECUTABLE_DIR']);
-  const enabled = app.isPackaged && !portable;
+  // B0-9 冒烟钩子：仅**开发版** + 显式 env；打包版永远走真 updater。
+  const fakeUpdater =
+    !app.isPackaged && process.env['AICO_UPDATE_FAKE'] === '1' ? createFakeUpdater() : null;
+  const enabled = (app.isPackaged && !portable) || fakeUpdater != null;
   const disabledReason = !app.isPackaged
     ? '开发版不支持自动更新'
     : portable
       ? '免安装版请手动下载新版本'
       : undefined;
   updateController = createUpdateController({
-    updater: autoUpdater as unknown as UpdaterLike,
+    updater: (fakeUpdater ?? autoUpdater) as unknown as UpdaterLike,
     currentVersion: app.getVersion(),
     enabled,
     ...(disabledReason != null ? { disabledReason } : {}),

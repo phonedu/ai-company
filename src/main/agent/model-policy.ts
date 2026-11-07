@@ -108,6 +108,19 @@ export function getFallbackChain(): readonly string[] {
   return fallbackChain;
 }
 
+/**
+ * B0-11：链内降级的指数退避（500ms 起、翻倍、8s 封顶）。`AICO_LLM_BACKOFF_MS` 配基值（0=关）。
+ * 目的：单供应商限流/5xx 时不要「立刻打满整链」——先等一拍，仍失败再换模型。
+ */
+export function providerBackoffMs(hop: number, env: NodeJS.ProcessEnv = process.env): number {
+  const raw = (env.AICO_LLM_BACKOFF_MS ?? '').trim();
+  const parsed = raw.length > 0 ? Number(raw) : Number.NaN;
+  const base = Number.isFinite(parsed) && parsed >= 0 ? parsed : 500;
+  if (base === 0) return 0;
+  const exp = Math.max(0, Math.trunc(hop));
+  return Math.min(base * 2 ** exp, 8000);
+}
+
 /** 裸模型名 → 供应商（deepseek-flash→deepseek，mimo-*→xiaomi；带 `/` 时按前缀）。 */
 function providerIdOf(model: string): string {
   const provider = providerOf(model);

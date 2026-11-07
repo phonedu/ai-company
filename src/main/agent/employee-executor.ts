@@ -26,7 +26,7 @@ import { contextWindowForModel } from './model-catalog.js';
 import { formatMachineChecks, runAcceptanceChecksAsync } from './acceptance-checks.js';
 import { sendRecruitCard } from './assistant-cards.js';
 import { heartbeatWorkItem } from '../engine/timers.js';
-import { getFallbackChain, getRoleMap, isProviderUnavailableError, modelRefKey, normalModelName, resolveSessionModel } from './model-policy.js';
+import { getFallbackChain, getRoleMap, isProviderUnavailableError, modelRefKey, normalModelName, providerBackoffMs, resolveSessionModel } from './model-policy.js';
 import {
   assistantChoiceCandidates,
   type AssistantChoice,
@@ -417,6 +417,9 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
         lastError = error;
         const next = chain[hop];
         if (!isProviderUnavailableError(message) || next == null) throw error;
+        // B0-11：指数退避后再换模型（限流/5xx 不要立刻打满整链）。
+        const wait = providerBackoffMs(hop);
+        if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
         console.warn(`[agent] 主模型不可用 → 降级（${note.role}）：${candidate} → ${next}（${message.slice(0, 140)}）`);
         insertTaskEvent(db as never, {
           taskId: base.taskId,
@@ -550,6 +553,21 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
     const cacheWrite = usage.cacheWriteTokens ?? 0;
     const usd = usage.costUsd ?? 0;
     if (tokensIn + tokensOut + cacheRead + cacheWrite === 0 && usd === 0) return; // 零用量＝无事实可记
+    // B0-11：未定价模型（底座没给 cost）→ 留痕告警，不静默把花费当 $0（美元预算闸会失真）。
+    if (usage.costUsd == null) {
+      try {
+        insertTaskEvent(db as never, {
+          taskId,
+          workItemId,
+          ts: now(),
+          kind: 'cost_unpriced',
+          actor: 'system',
+          payload: { model: usage.model ?? 'unknown', tokens: tokensIn + tokensOut + cacheRead + cacheWrite },
+        });
+      } catch (error) {
+        console.error('[cost] 未定价告警落库失败（不阻断记账）', error);
+      }
+    }
     let projectId: number | null = null;
     try {
       projectId = (getTaskById(db as never, taskId) as { project_id?: number } | undefined)?.project_id ?? null;

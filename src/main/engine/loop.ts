@@ -241,8 +241,19 @@ export class Engine {
           if (action.kind === 'dispatch_planning' && action.taskId != null) {
             const insufficient = this.budgetPrecheckInsufficient(action.taskId);
             if (insufficient != null) {
-              await this.escalateBudgetInsufficient(action.taskId, insufficient);
+              await this.escalateBudgetInsufficient(action.taskId, insufficient, 'planning');
               return;
+            }
+          }
+          // B0-11：预算预检扩展到**执行派发**（此前只在规划前拦——预算见底后仍会开新会话烧钱）。
+          if (action.kind === 'dispatch' && action.taskId != null) {
+            const task = getTaskById(this.db, action.taskId) as { state?: string } | undefined;
+            if (task?.state === 'executing') {
+              const insufficient = this.budgetPrecheckInsufficient(action.taskId);
+              if (insufficient != null) {
+                await this.escalateBudgetInsufficient(action.taskId, insufficient, 'dispatch');
+                return;
+              }
             }
           }
           // BRK17（挂载 3 余·取消小步）：任务级取消 → 真中断在跑的件（见方法头注）。
@@ -955,9 +966,11 @@ export class Engine {
   private async escalateBudgetInsufficient(
     taskId: number,
     info: { budget: number; cost: number; remaining: number },
+    phase: 'planning' | 'dispatch' = 'planning',
   ): Promise<void> {
+    const phaseText = phase === 'planning' ? '规划前检查' : '执行前检查';
     console.warn(
-      `[engine] 预算预检拦截规划派发：task=${taskId} 已用=${info.cost} 上限=${info.budget}（剩余 ${info.remaining} < ${MIN_DISPATCH_BUDGET_TOKENS}）`,
+      `[engine] 预算预检拦截${phase === 'planning' ? '规划' : '执行'}派发：task=${taskId} 已用=${info.cost} 上限=${info.budget}（剩余 ${info.remaining} < ${MIN_DISPATCH_BUDGET_TOKENS}）`,
     );
     await this.dispatch({
       scope: 'task',
@@ -967,10 +980,10 @@ export class Engine {
       payload: {
         reason: 'budget_insufficient',
         question:
-          `预算不足（规划前检查）：已用 ${info.cost} / 上限 ${info.budget} token，剩余 ${info.remaining} 不够一次规划。` +
-          `请到任务详情「预算上限」加预算后点「已加预算，重试规划」，或取消任务。`,
+          `预算不足（${phaseText}）：已用 ${info.cost} / 上限 ${info.budget} token，剩余 ${info.remaining} 不够一次${phase === 'planning' ? '规划' : '执行'}。` +
+          `请到任务详情「预算上限」加预算后点「已加预算，重试${phase === 'planning' ? '规划' : '执行'}」，或取消任务。`,
         options: [
-          { key: 'retry', label: '已加预算，重试规划' },
+          { key: 'retry', label: `已加预算，重试${phase === 'planning' ? '规划' : '执行'}` },
           { key: 'cancel', label: '取消任务' },
         ],
         urgent: true,
@@ -1776,6 +1789,45 @@ export class Engine {
           const companyBudgetDetail = this.companyDailyBudgetHold();
           if (companyBudgetDetail) {
             this.pathHolds.set(action.workItemId, { reason: 'budget', conflictsWith: [], detail: companyBudgetDetail });
+            continue;
+          }
+          // B0-11：任务预算不足 → **派发前 hold**（件保持 queued、等待原因可见）＋一次决策卡。
+          // 放在这里（fixpoint，事务内）而不是执行器里：先于 running 迁移，避免「件 running 但会话没开」挂死。
+          const taskBudgetGap = this.budgetPrecheckInsufficient(
+            getWorkItem(this.db, action.workItemId)?.task_id ?? 0,
+          );
+          if (taskBudgetGap) {
+            this.pathHolds.set(action.workItemId, {
+              reason: 'budget',
+              conflictsWith: [],
+              detail: `预算不足：已用 ${taskBudgetGap.cost} / 上限 ${taskBudgetGap.budget} token`,
+            });
+            const budgetTaskId = getWorkItem(this.db, action.workItemId)?.task_id ?? 0;
+            const budgetTask = budgetTaskId > 0 ? getTaskById(this.db, budgetTaskId) : undefined;
+            if (budgetTask?.state === 'executing') {
+              this.applyDerivedInTx(
+                [
+                  {
+                    scope: 'task',
+                    id: budgetTaskId,
+                    event: 'escalate',
+                    actor: 'system',
+                    payload: {
+                      reason: 'budget_insufficient',
+                      question:
+                        `预算不足（执行前检查）：已用 ${taskBudgetGap.cost} / 上限 ${taskBudgetGap.budget} token，` +
+                        `剩余 ${taskBudgetGap.remaining} 不够一次执行。请加预算后点「已加预算，重试执行」，或取消任务。`,
+                      options: [
+                        { key: 'retry', label: '已加预算，重试执行' },
+                        { key: 'cancel', label: '取消任务' },
+                      ],
+                      urgent: true,
+                    },
+                  },
+                ],
+                keys,
+              );
+            }
             continue;
           }
           // N2 速率闸门：超"排队线" → **新派发 hold**（在跑任务不打断；降档已在装配期生效）

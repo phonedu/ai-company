@@ -54,16 +54,38 @@ test('B0-9①：保存后落盘是密文（不含明文），解析能回读', (
   }
 });
 
-test('B0-9①：旧明文文件首次读取即迁移（写密文、删明文）', () => {
+test('B0-9①：**读取不迁移**（事故修复）——旧明文保持原样，只有显式保存才加密', () => {
   const dir = freshDir();
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, 'deepseek_api_key'), 'sk-TESTONLY-legacy-abcdef\n');
   setProviderKeyCodec(fakeCodec);
   try {
     const cred = resolveProviderKey('deepseek', { baseDir: dir, env: {} });
-    assert.equal(cred?.key, 'sk-TESTONLY-legacy-abcdef', '旧文件仍可读（迁移不丢凭据）');
-    assert.ok(existsSync(join(dir, 'deepseek_api_key.enc')), '迁移必须写密文');
-    assert.ok(!existsSync(join(dir, 'deepseek_api_key')), '迁移后明文必须删除');
+    assert.equal(cred?.key, 'sk-TESTONLY-legacy-abcdef', '旧文件仍可读');
+    assert.ok(!existsSync(join(dir, 'deepseek_api_key.enc')), '读操作不得写密文（读=只读）');
+    assert.ok(existsSync(join(dir, 'deepseek_api_key')), '读操作不得删除明文');
+    // 显式保存 → 才加密并清掉明文。
+    saveProviderKey('deepseek', 'sk-TESTONLY-legacy-abcdef', { baseDir: dir, env: {} });
+    assert.ok(existsSync(join(dir, 'deepseek_api_key.enc')));
+    assert.ok(!existsSync(join(dir, 'deepseek_api_key')));
+  } finally {
+    setProviderKeyCodec(null);
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('B0-9①：profile 不稳定（临时 userData）→ 禁用加密、只写明文（防止密钥随 profile 消失）', () => {
+  const dir = freshDir();
+  setProviderKeyCodec({ ...fakeCodec, stable: false });
+  try {
+    saveProviderKey('deepseek', 'sk-TESTONLY-ephemeral-01', { baseDir: dir, env: {} });
+    assert.ok(existsSync(join(dir, 'deepseek_api_key')), '不稳定 profile 必须回落明文');
+    assert.ok(!existsSync(join(dir, 'deepseek_api_key.enc')), '不得写密文（否则密钥随临时目录消失）');
+    assert.equal(resolveProviderKey('deepseek', { baseDir: dir, env: {} })?.key, 'sk-TESTONLY-ephemeral-01');
+    // 已存在的密文也不会被“解成明文再覆盖”——保存明文时清掉不可用密文（避免两边并存）。
+    writeFileSync(join(dir, 'xiaomi_api_key.enc'), 'v1:garbage');
+    saveProviderKey('xiaomi', 'sk-TESTONLY-ephemeral-02', { baseDir: dir, env: {} });
+    assert.ok(!existsSync(join(dir, 'xiaomi_api_key.enc')), '保存明文必须清掉不可用密文');
   } finally {
     setProviderKeyCodec(null);
     rmSync(dir, { recursive: true, force: true });

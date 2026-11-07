@@ -38,6 +38,8 @@ const start = () =>
       USERPROFILE: home,
       HOME: home,
       AICO_USER_DATA_DIR: userData,
+      // 配方显式声明：本 profile 由配方自持（不删）——允许加密；生产隔离 profile 默认禁用加密。
+      AICO_ALLOW_EPHEMERAL_ENCRYPTION: '1',
     },
   }).pid;
 const killTree = (pid) => spawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' });

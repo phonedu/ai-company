@@ -2543,7 +2543,11 @@ if (!gotSingleInstanceLock) {
     appReadyAt = Date.now();
     console.log('[app] ready');
     // B0-9：先接系统密钥环，再开库/引擎（供应商 Key 解析在会话装配时发生）。
-    installProviderKeyCodec();
+    // B0-9 事故修复：隔离 profile（AICO_USER_DATA_DIR）下 OSCrypt 密钥随临时目录消失 ⇒ 禁用加密。
+    // 仅显式允许（自动化 Key 加密配方）才视为稳定。
+    installProviderKeyCodec({
+      stable: userDataOverride == null || process.env['AICO_ALLOW_EPHEMERAL_ENCRYPTION'] === '1',
+    });
     // 2026-10-17 真机反馈「没通知」：Windows 无 AppUserModelID 时 `Notification.show()` 会被系统静默丢弃。
     // 未打包态用 `process.execPath`（与开始菜单里 electron.exe 快捷方式登记的 AUMID 对齐，官方 dev 做法）；
     // 打包态同样指向本 exe，安装器建的快捷方式自然匹配。macOS/Linux 不需要。

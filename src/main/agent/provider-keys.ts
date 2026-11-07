@@ -24,6 +24,12 @@ export const PROVIDERS = [
 /** 本机加密编解码器（Electron safeStorage 注入；测试可注入 fake）。 */
 export interface SecretCodec {
   available(): boolean;
+  /**
+   * B0-9 事故修复：密钥材料是否绑定在**稳定 profile**（默认 userData）。
+   * `AICO_USER_DATA_DIR` 等临时/可删除 profile 下 OSCrypt 密钥会随目录消失
+   * ⇒ 密文永久不可解（2026-11-07 真机事故）。此类 profile 必须禁用加密/迁移。
+   */
+  stable?: boolean;
   /** 返回 base64 密文（不带前缀）。 */
   encrypt(plain: string): string;
   /** 解 base64 密文；失败抛错。 */
@@ -42,6 +48,23 @@ export function providerKeyCodecAvailable(): boolean {
   } catch {
     return false;
   }
+}
+
+/** B0-9：**可安全读写密文**＝编码器可用 且 密钥材料绑定在稳定 profile。 */
+export function providerKeyCodecUsable(): boolean {
+  try {
+    return keyCodec?.available() === true && keyCodec.stable !== false;
+  } catch {
+    return false;
+  }
+}
+
+/** 只提示一次（旧明文未迁移/密文不可解），避免每次状态轮询刷日志。 */
+const warned = new Set<string>();
+function warnOnce(key: string, message: string): void {
+  if (warned.has(key)) return;
+  warned.add(key);
+  console.warn(message);
 }
 
 export type ProviderId = (typeof PROVIDERS)[number]['id'];
@@ -121,40 +144,39 @@ export function resolveProviderKey(provider: string, options: ProviderKeyOptions
   const fromEnv = envKeyFor(provider, env);
   if (fromEnv) return { provider, key: fromEnv, source: 'env' };
   const base = secretsDir(options);
-  // ① canonical 密文（B0-9）：安全存储可用才解得开；不可用则降级看旧明文（诚实，不假装已加密）。
+  // ① canonical 密文（B0-9）：安全存储可用且 profile 稳定才解得开。
   const enc = join(base, `${provider}_api_key.enc`);
   if (existsSync(enc)) {
     const raw = readFileSync(enc, 'utf8').trim();
-    if (raw.startsWith('v1:') && keyCodec && providerKeyCodecAvailable()) {
+    if (raw.startsWith('v1:') && keyCodec && providerKeyCodecUsable()) {
       try {
         const key = keyCodec.decrypt(raw.slice(3)).trim();
         if (key.length > 0) return { provider, key, source: 'file', path: enc };
       } catch (error) {
-        console.error(
-          `[keys] 密文解密失败（系统密钥环变更/损坏）；回退旧文件：${error instanceof Error ? error.message : String(error)}`,
+        // 只提示一次：密文坏了/密钥环变了时状态轮询不刷屏（老板重填一次会覆盖新密文）。
+        warnOnce(
+          `enc-fail:${provider}`,
+          `[keys] 密文解密失败（系统密钥环变更/损坏/临时 profile）；回退旧文件：${error instanceof Error ? error.message : String(error)}`,
         );
       }
     } else if (raw.startsWith('v1:')) {
-      console.error('[keys] 密文存在但系统密钥环不可用——跳过密文（回退旧明文，如存在）');
+      warnOnce(
+        `enc-unusable:${provider}`,
+        '[keys] 密文存在但密钥环不可用或 profile 不稳定——跳过密文（回退旧明文，如存在）',
+      );
     }
   }
-  // ② 旧明文（首读即迁移：写密文、删明文；迁移失败不丢凭据）。
+  // ② 旧明文：**读操作只读**（B0-9 事故：此前「首读即迁移」会在临时 profile 下把真实明文
+  // 加密成一把随后被删掉的密钥 ⇒ 永久不可解）。加密迁移只在显式保存时发生。
   for (const name of keyFileNames(provider)) {
     const path = join(base, name);
     if (!existsSync(path)) continue;
     const key = readFileSync(path, 'utf8').trim();
     if (key.length === 0) continue;
-    if (keyCodec && providerKeyCodecAvailable()) {
-      try {
-        writeFileSync(enc, `v1:${keyCodec.encrypt(key)}\n`, { mode: 0o600 });
-        rmSync(path, { force: true });
-        return { provider, key, source: 'file', path: enc };
-      } catch (error) {
-        console.error(
-          `[keys] 旧明文迁移失败（继续明文读取，不丢凭据）：${error instanceof Error ? error.message : String(error)}`,
-        );
-      }
-    }
+    warnOnce(
+      `legacy-plain:${provider}`,
+      `[keys] ${provider} 仍是旧明文文件（未自动迁移）；在设置里重新保存一次即会加密`,
+    );
     return { provider, key, source: 'file', path };
   }
   return null;
@@ -210,7 +232,7 @@ export function saveProviderKey(provider: string, key: string, options: Provider
       /* Windows 上 chmod 可能无效；不阻断保存 */
     }
     const encPath = join(base, `${provider}_api_key.enc`);
-    if (keyCodec && providerKeyCodecAvailable()) {
+    if (keyCodec && providerKeyCodecUsable()) {
       writeFileSync(encPath, `v1:${keyCodec.encrypt(value)}\n`, { mode: 0o600 });
       try {
         chmodSync(encPath, 0o600);

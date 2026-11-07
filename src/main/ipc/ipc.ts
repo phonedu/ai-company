@@ -300,6 +300,8 @@ interface TaskDTO {
   priority: number;
   riskLevel: number;
   createdAt: number;
+  /** UI-2（任务行相对时间）：最近更新（`tasks.updated_at` 直读）。 */
+  updatedAt: number;
   readySince: number | null;
   /** M2 尾：截止时刻（epoch ms；NULL＝未设）。 */
   deadline: number | null;
@@ -332,6 +334,7 @@ function toTaskDTO(task: StoredTask): TaskDTO {
     priority: task.priority,
     riskLevel: task.riskLevel,
     createdAt: task.createdAt,
+    updatedAt: task.updatedAt,
     readySince: task.readySince,
     deadline: task.deadline ?? null,
     acceptance: task.acceptance,

@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 import { useSnapshot } from 'valtio';
 
-import { attachExistingProject, createProject, loadProjectsForOverview, loadTasks, projectActions, session, showProject, tasks } from '../store.js';
+import { attachExistingProject, createProject, loadProjectsForOverview, loadTasks, projectActions, session, showArchive, showProject, tasks } from '../store.js';
 import type { ProjectDTO, TaskDTO } from '../types.js';
 import { EmptyState } from './EmptyState.js';
 import { ProjectOverview } from './ProjectOverview.js';
@@ -30,10 +30,16 @@ export function ProjectsPage(): ReactElement {
   const [createError, setCreateError] = useState('');
   const [attachError, setAttachError] = useState('');
   const [createBusy, setCreateBusy] = useState(false);
-  const groups = projectsFromList(
+  // UI-2 S1：项目列表瘦身——搜索过滤（名/别名）。
+  const allGroups = projectsFromList(
     projectsSnap.list as unknown as ProjectDTO[],
     (tasksSnap.list as unknown as TaskDTO[]).filter((task) => task.archived !== 1),
   );
+  const [query, setQuery] = useState('');
+  const q = query.trim().toLowerCase();
+  const groups = q.length === 0
+    ? allGroups
+    : allGroups.filter((g) => g.name.toLowerCase().includes(q) || (g.alias ?? '').toLowerCase().includes(q));
   // F3-12/F3-14：归档项目折叠可见；任务数用全量任务（含已归档）算，不写死 0。
   const narrow = useNarrowViewport();
   const archivedGroups = archivedProjectsFromList(
@@ -183,6 +189,13 @@ export function ProjectsPage(): ReactElement {
             </p>
           </form>
         ) : null}
+        <input
+          className="projects-page__search"
+          data-testid="projects-search"
+          value={query}
+          placeholder="搜索项目…"
+          onChange={(event) => setQuery(event.target.value)}
+        />
         <ProjectsList
           error={projectsSnap.error ?? tasksSnap.error ?? null}
           groups={groups}
@@ -190,6 +203,14 @@ export function ProjectsPage(): ReactElement {
           selectedId={selected}
           onSelect={(projectId) => showProject(projectId)}
         />
+        <button
+          type="button"
+          className="projects-page__archive-entry"
+          data-testid="projects-archive-entry"
+          onClick={() => showArchive()}
+        >
+          归档（{archivedGroups.length}）
+        </button>
       </aside>
         }
         main={

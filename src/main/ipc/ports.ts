@@ -86,6 +86,8 @@ export interface StoredTask {
   priority: number;
   riskLevel: number;
   createdAt: number;
+  /** UI-2（任务行相对时间）：最近更新（epoch ms；`tasks.updated_at` 直读）。 */
+  updatedAt: number;
   readySince: number | null;
   /** M2 尾：截止时刻（epoch ms；NULL＝未设；调度次级排序键）。 */
   deadline: number | null;

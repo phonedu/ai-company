@@ -301,6 +301,7 @@ function toStoredTask(
     priority: row.priority,
     riskLevel: row.risk_level,
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
     readySince: row.ready_since,
     deadline: row.deadline ?? null,
     acceptance,

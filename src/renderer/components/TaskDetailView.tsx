@@ -56,69 +56,8 @@ export function TaskDetailView(): ReactElement {
   const [steerText, setSteerText] = useState('');
   const [steerNotice, setSteerNotice] = useState('');
   /** UG-03：任务级设置的可选值（项目允许清单 + 只读模型目录 / 已启用技能）。 */
-  const [modelOptions, setModelOptions] = useState<readonly TaskModelOption[]>([]);
-  const [skillOptions, setSkillOptions] = useState<readonly string[]>([]);
-  const settingTask = detail?.task ?? null;
 
-  useEffect(() => {
-    const projectId = settingTask?.projectId;
-    if (projectId == null) return;
-    let cancelled = false;
-    void (async () => {
-      const api = getApi();
-      if (!api) return;
-      try {
-        const [rawProject, rawCatalog, rawSkills] = await Promise.all([
-          api.project.get({ projectId }) as Promise<ProjectDTO | undefined>,
-          api.model.catalog({}) as Promise<{ models?: Array<{ provider: string; id: string; name: string; providerLabel: string; keyConfigured: boolean }> } | undefined>,
-          api.skills.list({}) as Promise<SkillDTO[] | undefined>,
-        ]);
-        if (cancelled) return;
-        const allowed = rawProject?.allowedModels ?? [];
-        const catalog = rawCatalog?.models ?? [];
-        const options: TaskModelOption[] = catalog.map((model) => {
-          const value = `${model.provider}/${model.id}`;
-          return {
-            value,
-            label: `${model.name} · ${model.providerLabel}`,
-            allowed: allowed.length === 0 || allowed.includes(value),
-            keyConfigured: model.keyConfigured,
-          };
-        });
-        // 目录未加载/为空时，仍把项目允许清单如实列出来（不丢可选值）。
-        if (options.length === 0) {
-          for (const value of allowed) options.push({ value, label: value, allowed: true });
-        }
-        const current = settingTask?.model ?? null;
-        if (current && !options.some((option) => option.value === current)) {
-          options.unshift({ value: current, label: `${current}（任务当前）`, allowed: true });
-        }
-        setModelOptions(options);
-        const skills = rawSkills ?? [];
-        setSkillOptions(skills.filter((skill) => skill.enabled === 1).map((skill) => skill.name));
-      } catch {
-        if (!cancelled) {
-          setModelOptions([]);
-          setSkillOptions([]);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [settingTask?.projectId, settingTask?.model]);
 
-  const taskLabel = settingTask?.shortId ?? (settingTask ? `T${settingTask.id}` : null);
-
-  /** UG-03：复用已实现的高置信命令（加预算 / 模型 / 用技能）；**拒绝结构化回传**（`rejected`）→
-   *  就地显示在 popover 里，不当成功。回执原文同时落老板频道（同一份事实）。 */
-  const runTaskCommand = async (text: string): Promise<TaskSettingResult> => {
-    const result = await sendMessage({ text, attachments: [] });
-    if (result == null) return { ok: false, error: '命令未送出（主进程未连接）' };
-    if (result.rejected) return { ok: false, error: result.rejected };
-    if (settingTask) await openTaskDetail(settingTask.id);
-    return { ok: true };
-  };
 
   useEffect(() => {
     // 键盘交互批：**Esc 返回**（输入中/危险动作确认条/预览抽屉在场时不抢——
@@ -168,14 +107,9 @@ export function TaskDetailView(): ReactElement {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅在「选中任务变化 / 详情缺失」时取数
   }, [selected, detail, list]);
 
-  // OPT-EXT-13 成本 tab：选中任务变化时拉单任务成本（含 byModel）。
-  useEffect(() => {
-    if (selected != null) void loadTaskCosts(selected);
-  }, [selected]);
+
 
   const label = detail ? `${detail.task.shortId ?? `#${detail.task.id}`} · ${detail.task.title}` : null;
-  // M1-3：等待文案**只由单一映射表产出**（`waitingReason.ts`）；无等待 → 空数组 → 不渲染占位。
-  const waitTexts = (detail?.waits ?? []).map((wait: TaskWaitDTO) => waitingReasonText(wait));
 
   return (
     <section className="task-detail-view" data-testid="task-detail-view" style={VIEW_ROOT_STYLE}>
@@ -276,6 +210,120 @@ export function TaskDetailView(): ReactElement {
           </span>
         ) : null}
       </div>
+      {/* UI-2：详情本体抽为 TaskDetailBody（项目页行内展开复用同一组件）。 */}
+      <TaskDetailBody />
+    </section>
+  );
+}
+
+/**
+ * UI-2 抽出：详情**本体**（`<TaskDetail>` 的全部 props 接线）——整页视图与项目页行下展开共用。
+ * `embedded`：行内模式——不自动选第一个任务、Esc 交给 `onEsc`（收起行）、取数回刷走 `reload`（不切视图）。
+ */
+export function TaskDetailBody({ embedded = false, onEsc, reload }: {
+  embedded?: boolean;
+  onEsc?: () => void;
+  reload?: (taskId: number) => Promise<void>;
+}): ReactElement {
+  const detailSnap = useSnapshot(taskDetail);
+  const sessionSnap = useSnapshot(session);
+  const costSnap = useSnapshot(taskCost);
+  const selected = sessionSnap.selectedTaskId;
+  const detail = detailSnap.data as unknown as TaskDetailDTO | null;
+  const [modelOptions, setModelOptions] = useState<readonly TaskModelOption[]>([]);
+  const [skillOptions, setSkillOptions] = useState<readonly string[]>([]);
+  const settingTask = detail?.task ?? null;
+  useEffect(() => {
+    const projectId = settingTask?.projectId;
+    if (projectId == null) return;
+    let cancelled = false;
+    void (async () => {
+      const api = getApi();
+      if (!api) return;
+      try {
+        const [rawProject, rawCatalog, rawSkills] = await Promise.all([
+          api.project.get({ projectId }) as Promise<ProjectDTO | undefined>,
+          api.model.catalog({}) as Promise<{ models?: Array<{ provider: string; id: string; name: string; providerLabel: string; keyConfigured: boolean }> } | undefined>,
+          api.skills.list({}) as Promise<SkillDTO[] | undefined>,
+        ]);
+        if (cancelled) return;
+        const allowed = rawProject?.allowedModels ?? [];
+        const catalog = rawCatalog?.models ?? [];
+        const options: TaskModelOption[] = catalog.map((model) => {
+          const value = `${model.provider}/${model.id}`;
+          return {
+            value,
+            label: `${model.name} · ${model.providerLabel}`,
+            allowed: allowed.length === 0 || allowed.includes(value),
+            keyConfigured: model.keyConfigured,
+          };
+        });
+        // 目录未加载/为空时，仍把项目允许清单如实列出来（不丢可选值）。
+        if (options.length === 0) {
+          for (const value of allowed) options.push({ value, label: value, allowed: true });
+        }
+        const current = settingTask?.model ?? null;
+        if (current && !options.some((option) => option.value === current)) {
+          options.unshift({ value: current, label: `${current}（任务当前）`, allowed: true });
+        }
+        setModelOptions(options);
+        const skills = rawSkills ?? [];
+        setSkillOptions(skills.filter((skill) => skill.enabled === 1).map((skill) => skill.name));
+      } catch {
+        if (!cancelled) {
+          setModelOptions([]);
+          setSkillOptions([]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [settingTask?.projectId, settingTask?.model]);
+
+  const taskLabel = settingTask?.shortId ?? (settingTask ? `T${settingTask.id}` : null);
+
+  /** UG-03：复用已实现的高置信命令（加预算 / 模型 / 用技能）；**拒绝结构化回传**（`rejected`）→
+   *  就地显示在 popover 里，不当成功。回执原文同时落老板频道（同一份事实）。 */
+  const runTaskCommand = async (text: string): Promise<TaskSettingResult> => {
+    const result = await sendMessage({ text, attachments: [] });
+    if (result == null) return { ok: false, error: '命令未送出（主进程未连接）' };
+    if (result.rejected) return { ok: false, error: result.rejected };
+    if (settingTask) await openTaskDetail(settingTask.id);
+    return { ok: true };
+  };
+
+  // OPT-EXT-13 成本 tab：选中任务变化时拉单任务成本（含 byModel）。
+  useEffect(() => {
+    if (selected != null) void loadTaskCosts(selected);
+  }, [selected]);
+
+  const label = detail ? `${detail.task.shortId ?? `#${detail.task.id}`} · ${detail.task.title}` : null;
+  // M1-3：等待文案**只由单一映射表产出**（`waitingReason.ts`）；无等待 → 空数组 → 不渲染占位。
+  const waitTexts = (detail?.waits ?? []).map((wait: TaskWaitDTO) => waitingReasonText(wait));
+
+  // UI-2：行内模式的 Esc＝收起行（输入中/确认条/抽屉在场时不抢——守卫与整页一致）。
+  useEffect(() => {
+    if (!embedded) return;
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape') return;
+      const target = event.target as HTMLElement | null;
+      if (
+        target != null &&
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)
+      ) {
+        return;
+      }
+      if (document.querySelector('[data-testid="task-action-confirm"]') != null) return;
+      if (document.querySelector('[data-testid="artifact-drawer-scrim"]') != null) return;
+      if (document.querySelector('[data-testid="attachment-preview"]') != null) return;
+      onEsc?.();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [embedded, onEsc]);
+
+  return (
       <TaskDetail
         data={detail}
         waitTexts={waitTexts}
@@ -365,6 +413,5 @@ export function TaskDetailView(): ReactElement {
           void transitionTask(detail.task.id, action.event, action.payload);
         }}
       />
-    </section>
   );
 }

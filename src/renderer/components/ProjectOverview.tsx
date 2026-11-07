@@ -17,6 +17,9 @@ import {
   checkProjectDocs,
   deleteProject,
   exportProject,
+  collapseTaskRow,
+  expandTaskInline,
+  expandTaskRow,
   companyConfig,
   docsHealth,
   exportCompanyConfig,
@@ -25,6 +28,7 @@ import {
   docsOrganize,
   loadProjectsForOverview,
   loadSkills,
+  projectPage,
   loadStaffingDefaults,
   openProjectDir,
   openTaskDetail,
@@ -48,12 +52,41 @@ import { EmptyState } from './EmptyState.js';
 import { PencilIcon } from './icons.js';
 import { STATE_TONE } from './taskVisuals.js';
 import { TaskCreateDialog } from './TaskCreateDialog.js';
+import { TaskDetailBody } from './TaskDetailView.js';
 import { ProjectTriggers } from './ProjectTriggers.js';
 import { ProjectMemory } from './ProjectMemory.js';
 import { WAITING_REASON_TEXT, waitingSummary } from './waitingReason.js';
 
 /** 终态集（FLOWS：done/failed/cancelled 才可归档）——自左栏任务行退役后，归档入口在本页任务行。 */
 const TERMINAL_STATES: ReadonlySet<string> = new Set(['done', 'failed', 'cancelled']);
+
+
+/** UI-2 S1：任务行相对时间（`tasks.updated_at`；无值显 —）。 */
+function relativeTime(ts: number | undefined, now = Date.now()): string {
+  if (ts == null) return '—';
+  const diff = Math.max(0, now - ts);
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return '刚刚';
+  if (m < 60) return `${m} 分钟前`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} 小时前`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `${d} 天前`;
+  return new Date(ts).toLocaleDateString('zh-CN');
+}
+
+/** UI-2 S1：项目状态 chip（派生自任务真值；归档优先，不臆造）。 */
+function projectStatusOf(tasks: ReadonlyArray<TaskDTO>, archived: boolean): { label: string; tone: string } {
+  if (archived) return { label: '已归档', tone: 'done' };
+  if (tasks.length === 0) return { label: '空', tone: 'empty' };
+  const running = tasks.filter((t) => t.state === 'executing').length;
+  const waiting = tasks.filter((t) => t.state === 'needs_decision' || t.state === 'awaiting_approval').length;
+  const terminal = tasks.every((t) => TERMINAL_STATES.has(t.state));
+  if (running > 0) return { label: '进行中', tone: 'run' };
+  if (waiting > 0) return { label: '等待拍板', tone: 'wait' };
+  if (terminal) return { label: '已结束', tone: 'done' };
+  return { label: '进行中', tone: 'run' };
+}
 
 export function ProjectOverview(): ReactElement {
   const sessionSnap = useSnapshot(session);
@@ -119,6 +152,10 @@ export function ProjectOverview(): ReactElement {
   /** 2026-10-17（建任务入口批）：页头「＋建任务」→ 结构化表单（预填本项目）；成功回执本页显示。 */
   const [createOpen, setCreateOpen] = useState(false);
   const [createNotice, setCreateNotice] = useState('');
+  // UI-2 S1：页签容器（任务/设置；产物/运行/记忆随 S3 接入）＋任务搜索＋行下展开（store 承载，深链可写）。
+  const [tab, setTab] = useState<'tasks' | 'settings'>('tasks');
+  const [taskQuery, setTaskQuery] = useState('');
+  const expandedTaskId = useSnapshot(projectPage).expandedTaskId;
   const list = tasksSnap.list as unknown as TaskDTO[];
   // 项目概览也以 project:list 为准（空项目可达；2026-10-17 真机修复）。
   const selectedProject = actionsSnap.list.find((p) => p.id === sessionSnap.selectedProjectId) ?? null;
@@ -278,9 +315,28 @@ export function ProjectOverview(): ReactElement {
       {group ? (
         <>
           <header className="project-pane__head" data-testid="project-head">
+            {/* UI-2 S1：项目头（头像＝首字色环；状态 chip 派生自任务真值，不臆造）。 */}
+            <div className="project-head__identity" data-testid="project-identity">
+              <span className="project-avatar" data-testid="project-avatar" data-avatar-tone={group.name.charCodeAt(0) % 5} aria-hidden="true">
+                {group.name.slice(0, 1)}
+              </span>
+              <div className="project-head__idtext">
+                <div className="project-head__idrow">
             <span className="project-pane__name" data-testid="project-name">
               {group.name}
             </span>
+            {(() => {
+              const st = projectStatusOf(
+                group.tasks,
+                (actionsSnap.list.find((pp) => pp.id === group.projectId)?.archived ?? 0) === 1,
+              );
+              return (
+                <span className="project-status" data-testid="project-status" data-tone={st.tone}>
+                  {st.label}
+                </span>
+              );
+            })()}
+            </div>
             {aliasEditing ? (
               <span className="project-pane__alias-edit" data-testid="project-alias-editor">
                 <input
@@ -367,6 +423,8 @@ export function ProjectOverview(): ReactElement {
                 {aliasError}
               </span>
             ) : null}
+              </div>
+            </div>
             <span className="project-pane__count" data-testid="project-count">
               {group.taskCount} 个任务
             </span>
@@ -461,6 +519,16 @@ export function ProjectOverview(): ReactElement {
               </button>
             )}
           </header>
+
+          {/* UI-2 S1：页签容器——任务 / 设置（产物/运行/记忆随 S3 接入，不摆空页签）。 */}
+          <nav className="project-tabs" data-testid="project-tabs">
+            <button type="button" className="project-tab" data-testid="project-tab-tasks" aria-selected={tab === 'tasks'} onClick={() => setTab('tasks')}>
+              任务 <span className="project-tab__count">{group.tasks.length}</span>
+            </button>
+            <button type="button" className="project-tab" data-testid="project-tab-settings" aria-selected={tab === 'settings'} onClick={() => setTab('settings')}>
+              设置
+            </button>
+          </nav>
 
           {/* P0/C1：归档选择卡（文档 F7：全部结束并归档 / 保留暂停任务并归档 / 先不归档） */}
           {archiveConfirm && sessionSnap.selectedProjectId != null ? (
@@ -566,6 +634,144 @@ export function ProjectOverview(): ReactElement {
             </p>
           ) : null}
 
+
+
+          {tab === 'tasks' ? (
+          <section className="project-pane__card project-pane__card--grow project-tasks-card" data-testid="project-tasks-card">
+            <div className="project-tasks__toolbar">
+              <input
+                className="project-tasks__search"
+                data-testid="project-tasks-search"
+                value={taskQuery}
+                placeholder="搜索任务…"
+                onChange={(event) => setTaskQuery(event.target.value)}
+              />
+            </div>
+            {group.tasks.length === 0 ? (
+              <EmptyState
+                variant="inline"
+                testid="project-tasks-empty"
+                title="这个项目还没有任务"
+                hint="点上方「＋建任务」，或在老板频道说一句话。"
+              />
+            ) : (
+            <ul className="project-view__tasks" data-testid="project-tasks">
+            {groupProjectTasks(group.tasks).map((bucket) => {
+              const collapsed = bucket.state === 'cancelled';
+              const q = taskQuery.trim().toLowerCase();
+              const visible = q.length === 0
+                ? bucket.tasks
+                : bucket.tasks.filter((t) =>
+                    t.title.toLowerCase().includes(q) || (t.shortId ?? '').toLowerCase().includes(q));
+              if (visible.length === 0) return null;
+              const rows = (
+                <ul>
+                  {visible.map((task) => {
+                    const waitTitle = waitingSummary(task.waits);
+                    const waitText = task.waits && task.waits.length > 0
+                      ? `等待：${task.waits.map((w) => WAITING_REASON_TEXT[w.reason] ?? String(w.reason)).join('；')}`
+                      : null;
+                    const expanded = expandedTaskId === task.id;
+                    return (
+                    <li key={task.id} className="project-task-row" data-testid="project-task" data-task-id={task.id} data-state={task.state} data-expanded={expanded ? '1' : '0'}>
+                      <div className="project-task-row__line">
+                        <button
+                          type="button"
+                          className="project-task-row__main"
+                          data-testid="project-task-row"
+                          onClick={() => {
+                            if (expanded) collapseTaskRow();
+                            else void expandTaskRow(task.id);
+                          }}
+                        >
+                          <span className="project-view__dot" data-tone={STATE_TONE[task.state] ?? 'dim'} aria-hidden="true" />
+                          <span className="project-view__short">{task.shortId ?? `#${task.id}`}</span>
+                          <span className="project-view__task-title">{task.title}</span>
+                          {task.executor?.name ? (
+                            <span className="project-task-row__executor" data-testid="project-task-executor" data-employee-id={task.executor.id}>
+                              {task.executor.name}
+                            </span>
+                          ) : (
+                            <span className="project-task-row__executor project-task-row__executor--none">未派</span>
+                          )}
+                          <span className="project-task-row__time" data-testid="project-task-updated">
+                            {relativeTime(task.updatedAt)}
+                          </span>
+                        </button>
+                        {waitText ? (
+                          <span className="project-view__task-wait" data-testid="project-task-wait" title={waitTitle ?? waitText}>
+                            {waitText}
+                          </span>
+                        ) : null}
+                        {task.state === 'executing' ? (
+                          <button type="button" className="project-view__task-archive" data-testid="project-task-pause"
+                            title="暂停（员工会话真中止；恢复后 interrupted 件自动重派，计划/产物不丢）"
+                            onClick={() => { void pauseResumeTask(task.id, 'pause'); }}
+                          >
+                            暂停
+                          </button>
+                        ) : null}
+                        {task.state === 'paused' ? (
+                          <button type="button" className="project-view__task-archive" data-testid="project-task-resume"
+                            title="恢复（interrupted 件自动重派，继续执行）"
+                            onClick={() => { void pauseResumeTask(task.id, 'resume'); }}
+                          >
+                            恢复
+                          </button>
+                        ) : null}
+                        {TERMINAL_STATES.has(task.state) && task.archived !== 1 ? (
+                          <button type="button" className="project-view__task-archive" data-testid="project-task-archive"
+                            title="归档（「归档」页可见；归档后不可撤销结束，只能续办）"
+                            onClick={() => { void archiveTask(task.id); }}
+                          >
+                            归档
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          className="project-view__task-open"
+                          data-testid="project-task-open"
+                          title="整页打开任务详情（逃生口）"
+                          onClick={() => { void openTaskDetail(task.id); }}
+                        >
+                          ↗
+                        </button>
+                      </div>
+                      {expanded ? (
+                        <div className="project-task-row__detail" data-testid="project-task-inline">
+                          <TaskDetailBody embedded onEsc={() => collapseTaskRow()} reload={(id) => expandTaskInline(id)} />
+                        </div>
+                      ) : null}
+                    </li>
+                    );
+                  })}
+                </ul>
+              );
+              return (
+                <li key={bucket.state} className="project-view__state-group" data-testid="project-state-group" data-state={bucket.state}>
+                  {collapsed ? (
+                    <details>
+                      <summary className="project-view__state-title">
+                        {bucket.label}（{bucket.tasks.length}）
+                      </summary>
+                      {rows}
+                    </details>
+                  ) : (
+                    <>
+                      <h3 className="project-view__state-title">
+                        {bucket.label}（{bucket.tasks.length}）
+                      </h3>
+                      {rows}
+                    </>
+                  )}
+                </li>
+              );
+            })}
+            </ul>
+            )}
+          </section>
+          ) : (
+          <section className="project-pane__card" data-testid="project-settings-panel">
           {/* D-22：项目模型策略——概览只读摘要；编辑面在设置·模型与员工（避免项目页再长出一套表单）。 */}
           {project ? (
             <details className="project-settings" data-testid="project-settings">
@@ -1043,6 +1249,7 @@ export function ProjectOverview(): ReactElement {
             </details>
           ) : null}
 
+          {/* UI-2 S3 将迁「运行」页签；先随设置页保底可见。 */}
           {/* S13-G / C3：变更历史（跨任务；只读人话版） */}
           <section className="project-pane__card" data-testid="project-history">
             <h3 className="project-pane__cardtitle">变更历史（本项目 · 最近 50 条）</h3>
@@ -1071,123 +1278,8 @@ export function ProjectOverview(): ReactElement {
               </ul>
             )}
           </section>
-
-          <section className="project-pane__card project-pane__card--grow project-tasks-card" data-testid="project-tasks-card">
-            <h3 className="project-pane__cardtitle">任务树（当前项目）</h3>
-            <p className="project-view__docs-text" data-testid="project-tasks-hint">
-              按状态分组；「打开 ▸」进详情，产物/变更在详情内看。
-            </p>
-            {group.tasks.length === 0 ? (
-              <EmptyState
-                variant="inline"
-                testid="project-tasks-empty"
-                title="这个项目还没有任务"
-                hint="点上方「＋建任务」，或在老板频道说一句话。"
-              />
-            ) : (
-            <ul className="project-view__tasks" data-testid="project-tasks">
-            {groupProjectTasks(group.tasks).map((bucket) => {
-              // 2026-10-17（概览批）：**已取消组默认收起**（板 v2）；其余组常态展开。
-              const collapsed = bucket.state === 'cancelled';
-              const rows = (
-                <ul>
-                  {bucket.tasks.map((task) => {
-                    const waitTitle = waitingSummary(task.waits);
-                    const waitText = task.waits && task.waits.length > 0
-                      ? `等待：${task.waits.map((w) => WAITING_REASON_TEXT[w.reason] ?? String(w.reason)).join('；')}`
-                      : null;
-                    return (
-                    <li key={task.id} className="project-view__task" data-testid="project-task" data-task-id={task.id} data-state={task.state}>
-                      <span className="project-view__dot" data-tone={STATE_TONE[task.state] ?? 'dim'} aria-hidden="true" />
-                      <span className="project-view__short">{task.shortId ?? `#${task.id}`}</span>
-                      <span className="project-view__task-title">{task.title}</span>
-                      {waitText ? (
-                        <span className="project-view__task-wait" data-testid="project-task-wait" title={waitTitle ?? waitText}>
-                          {waitText}
-                        </span>
-                      ) : null}
-                      {/* RW-13（M5 真机带回，老板指认）：暂停入口从详情页前移到任务行——
-                          任务普遍 1–3 分钟完成，批准后再切详情页就跑完了；executing 行原地可暂停，
-                          paused 行原地可恢复（task:transition 通路，同归档按钮模式）。 */}
-                      {task.state === 'executing' ? (
-                        <button
-                          type="button"
-                          className="project-view__task-archive"
-                          data-testid="project-task-pause"
-                          title="暂停（员工会话真中止；恢复后 interrupted 件自动重派，计划/产物不丢）"
-                          onClick={() => {
-                            void pauseResumeTask(task.id, 'pause');
-                          }}
-                        >
-                          暂停
-                        </button>
-                      ) : null}
-                      {task.state === 'paused' ? (
-                        <button
-                          type="button"
-                          className="project-view__task-archive"
-                          data-testid="project-task-resume"
-                          title="恢复（interrupted 件自动重派，继续执行）"
-                          onClick={() => {
-                            void pauseResumeTask(task.id, 'resume');
-                          }}
-                        >
-                          恢复
-                        </button>
-                      ) : null}
-                      {/* 2026-10-17：左栏任务列表退役——终态任务的归档入口挪到任务行（不静默丢功能）。 */}
-                      {TERMINAL_STATES.has(task.state) && task.archived !== 1 ? (
-                        <button
-                          type="button"
-                          className="project-view__task-archive"
-                          data-testid="project-task-archive"
-                          title="归档（「归档」页可见；归档后不可撤销结束，只能续办）"
-                          onClick={() => {
-                            void archiveTask(task.id);
-                          }}
-                        >
-                          归档
-                        </button>
-                      ) : null}
-                      {/* 任务行皆可点（v2）：〔打开 ▸〕→ 任务详情。 */}
-                      <button
-                        type="button"
-                        className="project-view__task-open"
-                        data-testid="project-task-open"
-                        onClick={() => {
-                          void openTaskDetail(task.id);
-                        }}
-                      >
-                        打开 ▸
-                      </button>
-                    </li>
-                    );
-                  })}
-                </ul>
-              );
-              return (
-                <li key={bucket.state} className="project-view__state-group" data-testid="project-state-group" data-state={bucket.state}>
-                  {collapsed ? (
-                    <details>
-                      <summary className="project-view__state-title">
-                        {bucket.label}（{bucket.tasks.length}）
-                      </summary>
-                      {rows}
-                    </details>
-                  ) : (
-                    <>
-                      <h3 className="project-view__state-title">
-                        {bucket.label}（{bucket.tasks.length}）
-                      </h3>
-                      {rows}
-                    </>
-                  )}
-                </li>
-              );
-            })}
-            </ul>
-            )}
           </section>
+          )}
 
           {createOpen ? (
             <TaskCreateDialog

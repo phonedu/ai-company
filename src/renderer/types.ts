@@ -139,6 +139,8 @@ export interface TaskDTO {
   priority: number;
   riskLevel: number;
   createdAt: number;
+  /** UI-2：最近更新（任务行相对时间；`task:list` 直读 `tasks.updated_at`）。 */
+  updatedAt?: number;
   readySince: number | null;
   /** M2 尾：截止时刻（epoch ms；未设 ⇒ null）。 */
   deadline?: number | null;

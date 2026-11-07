@@ -1271,11 +1271,10 @@ export function showEmployee(employeeId: number, mode: 'ops' | 'config' = 'ops')
 }
 
 /** 打开某任务详情：切视图 + 取 `task:get` 详情（左栏任务行点击即走这里）。 */
-export async function openTaskDetail(taskId: number): Promise<void> {
-  // 「返回」随入口动态：记录**进入详情前**的视图（已在详情里再开别的任务不覆盖）。
-  if (session.view !== 'task') session.detailReturnView = session.view;
-  session.view = 'task';
-  session.selectedTaskId = taskId;
+/**
+ * 详情取数（UI-2 抽出）：`task:get` + 引用候选，**不碰视图路由**——整页详情与项目页行内展开共用。
+ */
+async function loadTaskDetailData(taskId: number): Promise<void> {
   taskDetail.taskId = taskId;
   // 回执/预览属于上一个任务：打开新任务先清，避免把 A 的“已丢弃/已合并”显示在 B 上。
   taskDetail.actionNotice = null;
@@ -1286,7 +1285,6 @@ export async function openTaskDetail(taskId: number): Promise<void> {
   taskDetail.artifactNotice = null;
   taskDetail.exportNotice = null;
   taskDetail.artifactPreview = null;
-  persistSession();
   const api = getApi();
   if (!api) return;
   taskDetail.loading = true;
@@ -1310,6 +1308,33 @@ export async function openTaskDetail(taskId: number): Promise<void> {
   } finally {
     taskDetail.loading = false;
   }
+}
+
+export async function openTaskDetail(taskId: number): Promise<void> {
+  // 「返回」随入口动态：记录**进入详情前**的视图（已在详情里再开别的任务不覆盖）。
+  if (session.view !== 'task') session.detailReturnView = session.view;
+  session.view = 'task';
+  session.selectedTaskId = taskId;
+  persistSession();
+  await loadTaskDetailData(taskId);
+}
+
+/** 项目页任务行下展开（UI-2）：取详情但**不切视图**——留在项目页原地渲染。 */
+export async function expandTaskInline(taskId: number): Promise<void> {
+  session.selectedTaskId = taskId;
+  persistSession();
+  await loadTaskDetailData(taskId);
+}
+
+/** 收起行内展开：清选中与详情缓存，**不导航**（视图本就没切走）。 */
+export function collapseTaskInline(): void {
+  session.selectedTaskId = null;
+  taskDetail.taskId = null;
+  taskDetail.data = null;
+  taskDetail.loading = false;
+  taskDetail.error = null;
+  taskDetail.artifactPreview = null;
+  persistSession();
 }
 
 /**
@@ -3255,4 +3280,21 @@ export function subscribeAppUpdateStatus(): Unsubscribe | null {
   return window.api?.update?.onStatus((status) => {
     if (status != null) appUpdate.status = status as AppUpdateStatus;
   }) ?? null;
+}
+
+// ── UI-2 项目页：行下展开状态（深链可写；同一时间只展开一行）─────────────
+export const projectPage = proxy({ expandedTaskId: null as number | null });
+
+/** 展开某任务行（先收起旧的；加载详情但不切视图）。 */
+export async function expandTaskRow(taskId: number): Promise<void> {
+  const prev = projectPage.expandedTaskId;
+  projectPage.expandedTaskId = taskId;
+  if (prev !== taskId) await expandTaskInline(taskId);
+}
+
+/** 收起当前展开行（Esc / 再点同行）。 */
+export function collapseTaskRow(): void {
+  if (projectPage.expandedTaskId == null) return;
+  projectPage.expandedTaskId = null;
+  collapseTaskInline();
 }

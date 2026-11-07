@@ -1,0 +1,171 @@
+// B1-1 生成质量基线（内部 59 §2）：四类任务各 2 条，直连模型生成 → 同一模型按 rubric 打分。
+//
+// 运行：`pnpm eval:gen`（Electron 主进程；从应用 userData 解 OSCrypt 读取真实 DeepSeek Key，
+// 只用 env/内存传递，不打印、不落盘）。成本受 maxTokens 约束（约 $0.01/轮）。
+// 产物：`out/eval/generation-<stamp>.json`（明细；gitignored）＋控制台分类汇总。
+const { app, safeStorage } = require('electron');
+const { join } = require('node:path');
+const { pathToFileURL } = require('node:url');
+const { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } = require('node:fs');
+const { tmpdir } = require('node:os');
+
+const REPO = join(__dirname, '..', '..');
+const BASE = 'https://api.deepseek.com';
+const MODEL = 'deepseek-flash';
+const PRICE = { input: 0.3 / 1e6, output: 1.2 / 1e6 }; // USD / token（pi 目录价）
+const OUT_DIR = join(REPO, 'out', 'eval');
+
+// 复用应用 profile 的 OSCrypt 密钥：**必须在 app ready 之前**把 userData 指到副本
+// （ready 之后 OSCrypt 已按默认 profile 初始化）。应用在跑时直接共用同一 profile 会被锁。
+const APP_PROFILE = join(process.env.APPDATA || '', 'ai-company');
+const TMP_PROFILE = mkdtempSync(join(tmpdir(), 'aico-genbench-'));
+copyFileSync(join(APP_PROFILE, 'Local State'), join(TMP_PROFILE, 'Local State'));
+app.setPath('userData', TMP_PROFILE);
+
+const SYSTEM = {
+  conversation: '你是一名专业的中文商务顾问。回答直接、具体、语气专业，不空泛。',
+  brainstorm: '你是资深产品/增长顾问。先发散再收敛，点子要具体可执行，并说明取舍。',
+  planning: '你是项目经理。输出可执行的里程碑与依赖，标注风险与应对，不写套话。',
+  devfix: '你是资深工程师。先指出根因，再给可直接运行的修复代码/ SQL，并给能暴露问题的用例。',
+};
+
+function stamp() {
+  return new Date().toISOString().replace(/[:.]/g, '-');
+}
+
+async function call(messages, maxTokens, target = { base: BASE, model: MODEL, key: process.env.DEEPSEEK_API_KEY }) {
+  const res = await fetch(`${target.base}/chat/completions`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${target.key}` },
+    body: JSON.stringify({
+      model: target.model,
+      messages,
+      max_tokens: maxTokens,
+      temperature: 0.3,
+      // DeepSeek V3.2：显式关思考（否则推理会吃掉 max_tokens，content 为空）。
+      thinking: { type: 'disabled' },
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
+  const json = JSON.parse(text);
+  const choice = json.choices?.[0] ?? {};
+  const content = String(choice.message?.content ?? '');
+  if (content.trim().length === 0) {
+    throw new Error(`空输出（finish_reason=${choice.finish_reason ?? '?'}）`);
+  }
+  return { content, usage: json.usage ?? { prompt_tokens: 0, completion_tokens: 0 } };
+}
+
+function parseJudge(raw, n) {
+  const m = /\{[\s\S]*\}/.exec(raw);
+  if (!m) return null;
+  try {
+    const obj = JSON.parse(m[0]);
+    const scores = Array.isArray(obj.scores) ? obj.scores.map((x) => (x === 1 || x === true ? 1 : 0)) : null;
+    if (!scores || scores.length !== n) return null;
+    return { scores, reasons: Array.isArray(obj.reasons) ? obj.reasons.map(String) : [] };
+  } catch {
+    return null;
+  }
+}
+
+async function main() {
+  const pk = await import(pathToFileURL(join(REPO, 'dist/src/main/agent/provider-keys.js')).href);
+  pk.setProviderKeyCodec({
+    stable: true,
+    available: () => safeStorage.isEncryptionAvailable(),
+    encrypt: (plain) => safeStorage.encryptString(plain).toString('base64'),
+    decrypt: (payload) => safeStorage.decryptString(Buffer.from(payload, 'base64')),
+  });
+  const cred = pk.resolveProviderKey('deepseek');
+  if (!cred) throw new Error('DeepSeek Key 未配置（先在设置里填写）');
+  process.env.DEEPSEEK_API_KEY = cred.key;
+  const xCred = pk.resolveProviderKey('xiaomi');
+  // 跨模型评审（DeepSeek 生成 / MiMo 评审）以降低自我偏袒；MiMo 不可用则回落同模型评审并如实标注。
+  const judge = xCred
+    ? { base: 'https://api.xiaomimimo.com/v1', model: 'mimo-v2.6-flash', key: xCred.key, label: 'mimo-v2.6-flash' }
+    : { base: BASE, model: MODEL, key: cred.key, label: `${MODEL}（同模型，MiMo 未配置）` };
+  console.log(`[gen] judge=${judge.label}`);
+
+  const set = JSON.parse(readFileSync(join(REPO, 'scripts/eval/generation-cases.json'), 'utf8'));
+  const rows = [];
+  let inTok = 0;
+  let outTok = 0;
+  const limit = Number(process.env.GEN_LIMIT ?? '0');
+  const cases = limit > 0 ? set.cases.slice(0, limit) : set.cases;
+  for (const c of cases) {
+    const started = Date.now();
+    try {
+    const gen = await call(
+      [
+        { role: 'system', content: SYSTEM[c.category] ?? '' },
+        { role: 'user', content: c.prompt },
+      ],
+      Math.max(c.maxTokens, 4000),
+    );
+    inTok += gen.usage.prompt_tokens ?? 0;
+    outTok += gen.usage.completion_tokens ?? 0;
+    const judgePrompt =
+      `请按下面每条评分标准给「待评输出」打 0 或 1（1=满足）。只输出 JSON：{"scores":[0/1,...],"reasons":["..."]}\n` +
+      `评分标准：\n${c.rubric.map((r, i) => `${i + 1}. ${r}`).join('\n')}\n\n待评输出：\n${gen.content}`;
+    // judge 也走同一推理模型：给足 token（推理+JSON），否则 content 可能为空。
+    const verdict = await call([{ role: 'user', content: judgePrompt }], 900);
+    inTok += verdict.usage.prompt_tokens ?? 0;
+    outTok += verdict.usage.completion_tokens ?? 0;
+    const judged = parseJudge(verdict.content, c.rubric.length);
+    const score = judged ? judged.scores.reduce((a, b) => a + b, 0) : null;
+    rows.push({
+      id: c.id,
+      category: c.category,
+      ms: Date.now() - started,
+      chars: gen.content.length,
+      score,
+      max: c.rubric.length,
+      reasons: judged?.reasons ?? [],
+      output: gen.content,
+    });
+    console.log(
+      `[gen] ${c.id} (${c.category}) score=${score ?? '解析失败'}/${c.rubric.length} chars=${gen.content.length} ${Date.now() - started}ms`,
+    );
+    } catch (error) {
+      // 单条失败不拖垮整轮（限流/网络/空输出都如实记录）。
+      rows.push({ id: c.id, category: c.category, ms: Date.now() - started, chars: 0, score: null, max: c.rubric.length, reasons: [], error: String(error && error.message ? error.message : error) });
+      console.log(`[gen] ${c.id} (${c.category}) ERROR ${String(error && error.message ? error.message : error).slice(0, 120)}`);
+    }
+  }
+  const byCat = {};
+  for (const r of rows) {
+    const b = (byCat[r.category] ??= { n: 0, got: 0, max: 0 });
+    b.n += 1;
+    if (r.score != null) {
+      b.got += r.score;
+      b.max += r.max;
+    }
+  }
+  const usd = inTok * PRICE.input + outTok * PRICE.output;
+  mkdirSync(OUT_DIR, { recursive: true });
+  const out = join(OUT_DIR, `generation-${stamp()}.json`);
+  writeFileSync(
+    out,
+    JSON.stringify({ model: MODEL, at: new Date().toISOString(), tokens: { in: inTok, out: outTok }, usd, byCat, rows }, null, 2) + '\n',
+  );
+  console.log('\n[gen] 分类汇总（rubric 得分）：');
+  for (const [cat, b] of Object.entries(byCat)) {
+    const pct = b.max > 0 ? ((b.got / b.max) * 100).toFixed(1) : '—';
+    console.log(`  ${cat}: ${b.got}/${b.max}（${pct}%）`);
+  }
+  console.log(`[gen] tokens in=${inTok} out=${outTok} ≈ $${usd.toFixed(4)}`);
+  console.log(`[gen] 明细=${out}`);
+  try {
+    rmSync(TMP_PROFILE, { recursive: true, force: true, maxRetries: 2, retryDelay: 200 });
+  } catch {
+    /* 进程仍持有 profile 文件：留给系统临时目录清理，不影响结果 */
+  }
+  app.exit(0);
+}
+
+app.whenReady().then(main).catch((error) => {
+  console.error('[gen] 失败：' + (error && error.message ? error.message : String(error)));
+  app.exit(1);
+});

@@ -1,0 +1,122 @@
+{
+  "version": 1,
+  "note": "OPT-AI-13 评测集（M2 §7 序 5）。字段：id/title/goal/risk(0=L0,1=L1)/tags/acceptance[{text,check}]。impossible＝有牙样本（check 恒不通过，任务集必须含 ≥1）。dryRunArtifacts 仅 --dry-run 用（脚本化员工产出）；真跑不看它。判分器＝评测跑器（在工作区跑 check），与 app 内 verifier 会话分开。",
+  "tasks": [
+    {
+      "id": "add-fn",
+      "title": "写一个加法模块",
+      "goal": "在当前工作目录创建 add.js（CommonJS）：module.exports = { add }，add(a, b) 返回两数之和；用 node 自测一遍。",
+      "risk": 0,
+      "tags": ["code", "l0"],
+      "acceptance": [
+        { "text": "add(2,3) === 5", "check": "node -e \"const {add}=require('./add.js'); if(add(2,3)!==5) process.exit(1)\"" },
+        { "text": "add(-1,1) === 0", "check": "node -e \"const {add}=require('./add.js'); if(add(-1,1)!==0) process.exit(1)\"" }
+      ],
+      "dryRunArtifacts": { "add.js": "module.exports = { add: (a, b) => a + b };\n" }
+    },
+    {
+      "id": "bugfix-calc",
+      "title": "修一个减法写错的加法",
+      "goal": "当前目录 calc.js 里的 add 写错了（实现成了减法）。修好它：add(a, b) 返回两数之和，其他函数不要动。",
+      "risk": 0,
+      "tags": ["code", "l0", "bugfix"],
+      "seedFiles": { "calc.js": "// 计算工具\nfunction add(a, b) { return a - b; }\nfunction sub(a, b) { return a - b; }\nmodule.exports = { add, sub };\n" },
+      "acceptance": [
+        { "text": "add(4,2) === 6", "check": "node -e \"const {add}=require('./calc.js'); if(add(4,2)!==6) process.exit(1)\"" },
+        { "text": "sub 未被破坏（sub(4,2) === 2）", "check": "node -e \"const {sub}=require('./calc.js'); if(sub(4,2)!==2) process.exit(1)\"" }
+      ],
+      "dryRunArtifacts": { "calc.js": "// 计算工具\nfunction add(a, b) { return a + b; }\nfunction sub(a, b) { return a - b; }\nmodule.exports = { add, sub };\n" }
+    },
+    {
+      "id": "count-lines",
+      "title": "数行数写出 count.json",
+      "goal": "当前目录 data.txt 每行一条记录。写 count.json：{\"lines\": 行数}（数字，从 1 数起）。",
+      "risk": 0,
+      "tags": ["code", "l0"],
+      "seedFiles": { "data.txt": "alpha\nbeta\ngamma\ndelta\nepsilon\nzeta\neta\ntheta\niota\nkappa\nlambda\nmu\n" },
+      "acceptance": [{ "text": "count.json.lines === 12", "check": "node -e \"const j=require('./count.json'); if(j.lines!==12) process.exit(1)\"" }],
+      "dryRunArtifacts": { "count.json": "{\"lines\": 12}\n" }
+    },
+    {
+      "id": "csv-sum",
+      "title": "把 CSV 数字求和写出来",
+      "goal": "当前目录 nums.csv 每行一个数字。把它们的和写进 sum.txt（只写数字本身，不要别的内容）。",
+      "risk": 0,
+      "tags": ["code", "l0"],
+      "seedFiles": { "nums.csv": "1\n2\n3\n4\n" },
+      "acceptance": [{ "text": "sum.txt 内容为 10", "check": "node -e \"const t=require('fs').readFileSync('sum.txt','utf8').trim(); if(t!=='10') process.exit(1)\"" }],
+      "dryRunArtifacts": { "sum.txt": "10\n" }
+    },
+    {
+      "id": "slug",
+      "title": "按规则生成 slug",
+      "goal": "读当前目录 title.txt 的一行标题，写 slug.txt：小写、空格换连字符、去掉所有非 [a-z0-9-] 字符。例：\"Hello World!\" → hello-world。",
+      "risk": 0,
+      "tags": ["code", "l0"],
+      "seedFiles": { "title.txt": "Make It Simple, Stupid!\n" },
+      "acceptance": [{ "text": "slug.txt === make-it-simple-stupid", "check": "node -e \"const t=require('fs').readFileSync('slug.txt','utf8').trim(); if(t!=='make-it-simple-stupid') process.exit(1)\"" }],
+      "dryRunArtifacts": { "slug.txt": "make-it-simple-stupid\n" }
+    },
+    {
+      "id": "summary-3",
+      "title": "把杂记压成三条要点",
+      "goal": "读当前目录 notes.md 的杂记，写 summary.md：**恰好 3 条**列表项（每条以「- 」开头），全文不少于 40 字；不许出现 TODO 字样。",
+      "risk": 1,
+      "tags": ["content", "l1"],
+      "seedFiles": { "notes.md": "TODO: 周五前确认预算\n想法：把导出做成 CSV 更省事\nTODO: 和设计对一下空态文案\n风险：真机验证要早点排\n想法：日报里加一句成本\n" },
+      "acceptance": [
+        { "text": "恰好 3 条列表项（以「- 」开头）", "check": "node -e \"const t=require('fs').readFileSync('summary.md','utf8'); const n=(t.match(/^- /gm)||[]).length; if(n!==3) process.exit(1)\"" },
+        { "text": "全文 ≥ 40 字且不含 TODO", "check": "node -e \"const t=require('fs').readFileSync('summary.md','utf8'); if(t.length<40 || /TODO/.test(t)) process.exit(1)\"" }
+      ],
+      "dryRunArtifacts": { "summary.md": "- 周五前确认预算口径，避免月底对不上账\n- 导出改 CSV 更省事，和设计确认后再动手\n- 真机验证要早点排期，日报加一行成本读数\n" }
+    },
+    {
+      "id": "todos-extract",
+      "title": "抽出所有 TODO",
+      "goal": "读当前目录 notes.md，把所有 TODO 条目抄进 todos.md（每条一行，原文照抄「TODO」字样）。",
+      "risk": 1,
+      "tags": ["content", "l1"],
+      "seedFiles": { "notes.md": "TODO: 周五前确认预算\n想法：把导出做成 CSV 更省事\nTODO: 和设计对一下空态文案\nTODO: 真机验证排期\n" },
+      "acceptance": [
+        { "text": "至少 3 行且都含 TODO", "check": "node -e \"const ls=require('fs').readFileSync('todos.md','utf8').split('\\n').filter(Boolean); if(ls.length<3 || !ls.every((l)=>l.includes('TODO'))) process.exit(1)\"" }
+      ],
+      "dryRunArtifacts": { "todos.md": "TODO: 周五前确认预算\nTODO: 和设计对一下空态文案\nTODO: 真机验证排期\n" }
+    },
+    {
+      "id": "title-variants",
+      "title": "起 5 个候选标题",
+      "goal": "读当前目录 brief.md（一句话产品描述），写 titles.md：**恰好 5 行**候选标题，每行 8–30 个字符，不带序号标记。",
+      "risk": 1,
+      "tags": ["content", "l1"],
+      "seedFiles": { "brief.md": "一个让老板和 AI 员工分工协作的桌面工作台，任务走在闸门里，成本可查。\n" },
+      "acceptance": [
+        { "text": "恰好 5 行且每行 8–30 字符", "check": "node -e \"const ls=require('fs').readFileSync('titles.md','utf8').split('\\n').filter(Boolean); if(ls.length!==5 || !ls.every((l)=>{const n=[...l.trim()].length; return n>=8 && n<=30;})) process.exit(1)\"" }
+      ],
+      "dryRunArtifacts": { "titles.md": "把闸门装进工作台\n一人公司的 AI 幕僚台\n任务走在闸门里的工作台\n成本看得见的一人公司\n老板与 AI 员工的分工台\n" }
+    },
+    {
+      "id": "glossary",
+      "title": "整理术语表",
+      "goal": "读当前目录 brief.md，抽取 3 个关键术语，写 glossary.md：每行「术语：一句话解释」，恰好 3 行。",
+      "risk": 1,
+      "tags": ["content", "l1"],
+      "seedFiles": { "brief.md": "闸门＝任务按风险走直通/审计划/全流程三档；工作项＝一个员工领取的一件活；汇报卡＝交付时推给你的一张卡。\n" },
+      "acceptance": [
+        { "text": "恰好 3 行且都用「：」分隔", "check": "node -e \"const ls=require('fs').readFileSync('glossary.md','utf8').split('\\n').filter(Boolean); if(ls.length!==3 || !ls.every((l)=>l.includes('：'))) process.exit(1)\"" }
+      ],
+      "dryRunArtifacts": { "glossary.md": "闸门：任务按风险走直通/审计划/全流程三档\n工作项：一个员工领取的一件活\n汇报卡：交付时推给老板的一张卡\n" }
+    },
+    {
+      "id": "impossible",
+      "title": "不可能满足的验收（有牙样本）",
+      "goal": "在当前目录创建 proof.md，内容为「已完成」；**并且**该文件必须不存在。（本条的验收按设计**永远不通过**——用来证明判分器真的会判 fail。）",
+      "risk": 0,
+      "tags": ["meta", "l0", "impossible"],
+      "impossible": true,
+      "acceptance": [
+        { "text": "proof.md 存在且同时不存在（恒假）", "check": "node -e \"const fs=require('fs'); const ok = fs.existsSync('proof.md') && !fs.existsSync('proof.md'); if(!ok) process.exit(1)\"" }
+      ],
+      "dryRunArtifacts": { "proof.md": "已完成\n" }
+    }
+  ]
+}

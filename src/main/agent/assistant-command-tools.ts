@@ -258,3 +258,68 @@ export async function createAssistantCommandTools(deps: AssistantCommandDeps) {
 
   return { createTaskTool, dispatchTool, steerTool, listHoldsTool };
 }
+
+
+// ── B3-4/D-31：draft_sop——为新角色起草 SOP → 确认卡（老板批准才入库） ──────────
+
+/** 幕僚长 draft_sop 工具：起草新角色 SOP（工作方法/输出规范/自检清单）→ 确认卡。 */
+export async function createDraftSopTool(deps: AssistantCommandDeps) {
+  const [{ defineTool }, { Type }] = await Promise.all([
+    import('@earendil-works/pi-coding-agent'),
+    import('@earendil-works/pi-ai'),
+  ]);
+  return defineTool({
+    name: 'draft_sop',
+    label: 'Draft SOP',
+    description:
+      '为新角色起草 SOP（工作方法/输出规范/自检清单三段，各至少 5 条）。草案出确认卡由老板批准，批准后由宿主落库到 .aico/sops 目录并对该角色员工生效。已有内置 SOP 的预设角色不需要起草。',
+    parameters: Type.Object({
+      role: Type.String({ description: '角色名（与招募角色一致，如 数据分析师）' }),
+      method: Type.String({ description: '工作方法：≥5 条「怎么做这类活」' }),
+      outputSpec: Type.String({ description: '输出规范：交付物长什么样、怎么提交' }),
+      checklist: Type.String({ description: '自检清单：交付前逐条过的 ≥5 条' }),
+    }),
+    async execute(_toolCallId: string, params: { role: string; method: string; outputSpec: string; checklist: string }) {
+      const role = String(params.role ?? '').trim();
+      const method = String(params.method ?? '').trim();
+      const outputSpec = String(params.outputSpec ?? '').trim();
+      const checklist = String(params.checklist ?? '').trim();
+      if (role.length === 0 || method.length < 80 || outputSpec.length < 60 || checklist.length < 60) {
+        const details: { outcome: string; approvalId: number | null } = { outcome: 'rejected', approvalId: null };
+        return { content: [{ type: 'text' as const, text: 'draft_sop 被拒：role 必填，三段各需实质内容（方法≥80 字/规范≥60 字/清单≥60 字）。' }], details };
+      }
+      const { insertApproval, linkApprovalReport } = await import('../db/approvals.js');
+      const { notify } = await import('../notify/index.js');
+      const now = Date.now();
+      let details: { outcome: string; approvalId: number | null };
+      try {
+        const question = `SOP 草案待批准：${role}（三段，共 ${method.length + outputSpec.length + checklist.length} 字）`;
+        const options = [
+          { key: 'approve_sop', label: '批准入库' },
+          { key: 'reject_sop', label: '不采用' },
+        ];
+        const approval = insertApproval(deps.db, { taskId: null, question, options, defaultAction: null, timeoutAt: null });
+        const card = notify(deps.db, {
+          taskId: null,
+          kind: 'ask',
+          dedupeKey: `sop_draft:${role}:${now}`,
+          payload: {
+            title: `SOP 草案：${role}`,
+            card: 'sop_draft',
+            question,
+            options,
+            sopDraft: { role, method, outputSpec, checklist },
+            via: 'draft_sop',
+          },
+          now,
+        });
+        if (card.reportId != null) linkApprovalReport(deps.db, approval.id, card.reportId);
+        const details: { outcome: string; approvalId: number | null } = { outcome: 'card', approvalId: approval.id };
+        return { content: [{ type: 'text' as const, text: `SOP 草案已出确认卡（角色：${role}）——老板批准后由宿主落库生效。` }], details };
+      } catch (error) {
+        const errDetails: { outcome: string; approvalId: number | null } = { outcome: 'error', approvalId: null };
+        return { content: [{ type: 'text' as const, text: `SOP 草案出卡失败：${error instanceof Error ? error.message : String(error)}` }], details: errDetails };
+      }
+    },
+  });
+}

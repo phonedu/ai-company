@@ -22,6 +22,7 @@ import { latestSetbackText } from './compaction-handoff.js';
 import { isCtxEnabled } from './context-flags.js';
 import { isRepoMapEnabled } from './repo-map.js';
 import { docsIndexLayer } from './read-doc-tool.js';
+import { renderSopLayer, sopFor } from './role-sops.js';
 import { isDocsCheckAcceptance } from '../docs/contract.js';
 import type { SqliteDb } from '../db/open.js';
 import type { EmployeeContext, EmployeeContextInput } from './types.js';
@@ -47,10 +48,14 @@ export const DELIVERY_DISCIPLINE_LAYER =
   // B3-6/D-31②：输出治理——长文直接写文件（输出 token 是成本大头，禁整段回读对话流）。
   '超过 2000 字的长文（文档/报告/纪要类产物）必须用 write 工具直接写文件，submit_work_item 只给文件路径与要点清单，不要把长文整段贴进对话或提交结果。';
 
-/** ② 角色规则（按 `employees.role`）。 */
+/** ② 角色规则（按 `employees.role`）。B3-4/D-31：预设角色附 SOP 三段资产（精确匹配才附）。 */
 export function roleLayer(role: string): string {
   const r = role.trim().length > 0 ? role.trim() : '员工';
-  return `[角色规则] 你是「${r}」。遵守项目约定与验收标准；只做被派发的工作项；不要越权。`;
+  const base = `[角色规则] 你是「${r}」。遵守项目约定与验收标准；只做被派发的工作项；不要越权。`;
+  const sop = sopFor(r);
+  return sop == null ? base : `${base}
+
+${renderSopLayer(sop)}`;
 }
 
 /** ③ 员工人设（`employees.persona`；为空也要留可辨识占位，防以后补全时重写）。 */

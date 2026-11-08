@@ -12,6 +12,7 @@ import { resolve } from 'node:path';
 import { DEFAULT_SCHEDULER_CONFIG, planScheduling, type SchedulerConfig, type SchedulerInput } from '../../core/scheduler.js';
 import { normalizePlanWorkItems, type NormalizedPlanWorkItem } from '../../core/plan.js';
 import { insertWorkItemDep } from '../db/work_item_deps.js';
+import { SqliteMemoryStore } from '../memory/index.js';
 import type { TaskState, WaitingReason } from '../../core/types.js';
 import { DEFAULT_RATE_LIMITS, describeRateLimit, rateAction, type RateLimits, type RateTier } from './rate-gate.js';
 import { setEconomyMode } from '../agent/model-policy.js';
@@ -1264,6 +1265,9 @@ export class Engine {
     // G11：任务进终态 `done` → 参与者员工的项目记忆（确定性投影、同事务、幂等；见 db/memory.ts）
     if (outcome.to === 'done') {
       recordTaskMemory(this.db, task.id, now);
+      // B3-5/D-31：LLM 抽取提议卡（**异步、不阻塞事务**；fail-closed——无 Key/失败仅留痕，
+      // 候选写 provisional 待老板确认，见 agent/memory-extract.ts）
+      void this.extractMemoryCandidatesFor(task.id);
     }
 
     const registered = registerActions(this.db, outcome.actions, now);
@@ -1990,6 +1994,71 @@ export class Engine {
    * R3-2：顶栏「槽位 x/y」（**任务级活跃槽位**；占用/上限——与 UI §1「槽位占用（x/3）」一致）。
    * 真读数：正在 `executing` 的任务数（空库＝0/3 也如实；引擎缺失时 ipc 层回 `null` → UI 显 `—`）。
    */
+  /**
+   * B3-5/D-31：任务 done 后 LLM 抽取记忆候选（异步 fire-and-forget）。
+   * 材料＝任务目标＋参与者提交摘要；候选写 provisional（老板确认才进 brief）；
+   * 失败/无 Key → 落 `memory_extract_failed` 事件（有 Key 时）或不留痕（无 Key＝未配置，正常态）。
+   */
+  private async extractMemoryCandidatesFor(taskId: number): Promise<void> {
+    try {
+      const { extractMemoryCandidates, writeCandidatesAsProvisional, memoryExtractKeyAvailable } = await import(
+        '../agent/memory-extract.js',
+      );
+      if (!memoryExtractKeyAvailable()) return; // 未配置 Key＝正常态，不留痕
+      const task = getTaskById(this.db, taskId) as { goal?: string; title?: string; project_id?: number | null } | undefined;
+      if (!task) return;
+      const items = listWorkItemsByTask(this.db, taskId);
+      const summaries = items
+        .map((w) => {
+          try {
+            const r = JSON.parse(w.result ?? 'null') as { summary?: unknown } | string | null;
+            const summary = typeof r === 'string' ? r : (r?.summary ?? '');
+            return typeof summary === 'string' ? summary : '';
+          } catch {
+            return '';
+          }
+        })
+        .filter((s) => s.trim().length > 0)
+        .join('\n');
+      const text = `${task.title ?? ''}\n${task.goal ?? ''}\n${summaries}`.trim();
+      if (text.length === 0) return;
+      const candidates = await extractMemoryCandidates({ text });
+      if (candidates.length === 0) {
+        insertTaskEvent(this.db, {
+          taskId,
+          ts: this.now(),
+          kind: 'memory_extract_failed',
+          actor: 'system',
+          payload: { reason: 'no_candidates_or_error' },
+        });
+        return;
+      }
+      const written = await writeCandidatesAsProvisional(
+        new SqliteMemoryStore(this.db),
+        { taskId, projectId: task.project_id ?? null, candidates, now: this.now() },
+      );
+      insertTaskEvent(this.db, {
+        taskId,
+        ts: this.now(),
+        kind: 'memory_extracted',
+        actor: 'system',
+        payload: { candidates: candidates.length, written },
+      });
+    } catch (error) {
+      try {
+        insertTaskEvent(this.db, {
+          taskId,
+          ts: this.now(),
+          kind: 'memory_extract_failed',
+          actor: 'system',
+          payload: { reason: error instanceof Error ? error.message.slice(0, 200) : String(error).slice(0, 200) },
+        });
+      } catch (writeError) {
+        console.error('[engine] memory_extract_failed 留痕写入失败（不静默）', writeError);
+      }
+    }
+  }
+
   /**
    * B2-4/D-30：路径所有权**执行期实测**登记（采集器在工具调用执行前调用）。
    * 内存 ws.touched（本件提交白名单用）∪ DB brief（running 认领/崩溃恢复用）；不抛（采集不反噬会话）。

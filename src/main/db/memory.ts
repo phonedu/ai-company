@@ -1,3 +1,5 @@
+import { appendFileSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 /**
  * G11 · 员工长期记忆（`employee_memory`：DAO ＋ 任务收尾的确定性投影）。
  *
@@ -83,6 +85,26 @@ export function appendMemory(
   if (current.includes(input.marker)) return false;
   const blocks = current.split(BLOCK_SEP).filter((b) => b.trim().length > 0);
   blocks.push(input.block);
+  // B3-5/D-31：超 MAX_MEMORY_BLOCKS 的挤出块**归档不丢弃**——落库旁
+  // `.aico/memory-archive/<emp>-<proj>.md`（追加写；与 notes 同哲学）；内存库跳过（无盘可归）。
+  if (blocks.length > MAX_MEMORY_BLOCKS) {
+    const evicted = blocks.slice(0, blocks.length - MAX_MEMORY_BLOCKS);
+    try {
+      const dbName = (db as unknown as { name?: string }).name ?? ':memory:';
+      if (dbName !== ':memory:') {
+        const archiveDir = join(dbName, '..', '.aico', 'memory-archive');
+        mkdirSync(archiveDir, { recursive: true });
+        appendFileSync(
+          join(archiveDir, `${input.employeeId}-${input.projectId}.md`),
+          evicted.map((b) => `## 归档（${new Date(input.now).toISOString()}）\n\n${b}`).join('\n\n') + '\n',
+          'utf8',
+        );
+      }
+    } catch (error) {
+      // 归档失败不阻断记忆写入，但必须响（不静默）。
+      console.error('[memory] 归档写入失败（挤出块仍被丢弃，响亮报错）', error);
+    }
+  }
   const memory = blocks.slice(-MAX_MEMORY_BLOCKS).join(BLOCK_SEP);
   db.prepare(
     `INSERT INTO employee_memory(employee_id, project_id, memory, updated_at) VALUES(?, ?, ?, ?)

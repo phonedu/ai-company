@@ -103,6 +103,14 @@ function ftsFactSearch(db: SqliteDb, projectId: number, terms: readonly string[]
  * 排除当前任务自己的事件/产物（那是基线，不是"历史"）；记忆/事实是项目级，保留。
  * RET-F-03：预筛用前 3 词 OR（原先只用首词，常见 2-gram 会把召回卡住）；`memory_items` 纳入（只取项目级、active、非 pinned）。
  */
+/**
+ * B3-5/D-31：全局笔记真源目录（与 ipc `globalNotesDir` 同口径抽公共件）：
+ * 库文件旁 `notes/`；内存库（:memory:）回落 cwd/.aico-notes（测试/无盘场景）。
+ */
+export function globalNotesDirForDb(dbName: string): string {
+  return dbName === ':memory:' ? join(process.cwd(), '.aico-notes') : join(dbName, '..', 'notes');
+}
+
 export function searchRelated(
   db: SqliteDb,
   input: { projectId: number; taskId?: number | null; text: string; limit?: number },
@@ -178,11 +186,22 @@ export function searchRelated(
       .prepare('SELECT root_dir FROM projects WHERE id = ?')
       .get(input.projectId) as { root_dir: string } | undefined;
     if (proj?.root_dir != null) {
-      const noteHits = searchNotes({
-        query: terms.join(' '),
-        projects: [{ id: input.projectId, name: '', rootDir: proj.root_dir }],
-        globalDir: join(proj.root_dir, '..', '..', '.aico-notes'),
-      });
+      // B3-5/D-31 两层修复：① globalDir 真源（库文件旁 notes/，此前拼 root_dir/../.. 错路径）；
+      // ② searchNotes 是整串 includes——terms.join(' ') 的滑窗串永远不命中 ⇒ 改逐词 OR（前 3 词，RET-F-03 同款）。
+      const seenNames = new Set<string>();
+      const noteHits: Array<{ name: string; preview: string }> = [];
+      for (const term of terms.slice(0, 3)) {
+        for (const nh of searchNotes({
+          query: term,
+          projects: [{ id: input.projectId, name: '', rootDir: proj.root_dir }],
+          globalDir: globalNotesDirForDb(db.name),
+        })) {
+          if (seenNames.has(nh.name)) continue;
+          seenNames.add(nh.name);
+          noteHits.push(nh);
+        }
+        if (noteHits.length >= 2) break;
+      }
       for (const nh of noteHits.slice(0, 2)) {
         hits.push({ source: 'note', taskId: null, text: `${nh.name}：${nh.preview}`, at: Date.now() });
       }

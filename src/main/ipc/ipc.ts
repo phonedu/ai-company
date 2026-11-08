@@ -4341,9 +4341,31 @@ function projectsFromDb(db: NonNullable<IpcDeps['db']>): ProjectRef[] {
     .map((p) => ({ id: p.id, name: p.name, rootDir: p.root_dir }));
 }
 
+import { globalNotesDirForDb } from '../db/retrieval.js';
+
+/**
+ * B3-5/D-31：`memory:confirm`——老板确认抽取的提议卡（confidence provisional→confirmed）。
+ * 确认后该条进 brief（08-记忆设计 §7 闸门的确认侧）。
+ */
+export function handleMemoryConfirm(deps: IpcDeps, raw: unknown): { ok: true; id: number } | { ok: false; code: string; message: string } {
+  const input = (raw ?? {}) as { id?: unknown };
+  if (typeof input.id !== 'number') {
+    return { ok: false, code: 'bad_request', message: 'id is required' };
+  }
+  if (!deps.db) return { ok: false, code: 'no_db', message: 'db not ready' };
+  const info = deps.db
+    .prepare('UPDATE memory_items SET confidence = ?, updated_at = ? WHERE id = ? AND confidence = ?')
+    .run('confirmed', Date.now(), input.id, 'provisional');
+  if (Number(info.changes) === 0) {
+    return { ok: false, code: 'not_provisional', message: `条目 #${input.id} 不存在或不是待确认（provisional）` };
+  }
+  deps.onInboxChanged?.();
+  return { ok: true, id: input.id };
+}
+
 function globalNotesDir(deps: IpcDeps): string {
-  const dbPath = deps.db?.name ?? ':memory:';
-  return dbPath === ':memory:' ? join(process.cwd(), '.aico-notes') : join(dbPath, '..', 'notes');
+  // B3-5/D-31：口径抽公共件（retrieval.ts 同源；员工检索与 UI 列表不再两套）
+  return globalNotesDirForDb(deps.db?.name ?? ':memory:');
 }
 
 export function handleNotesList(deps: IpcDeps, raw: unknown) {

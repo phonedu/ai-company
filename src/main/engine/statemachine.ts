@@ -396,14 +396,28 @@ export const TASK_TRANSITIONS: readonly TaskTransition[] = [
   },
   // verifying
   {
+    // B2-6/D-30③：L1+ verifier pass **不自动 done**——迁 needs_decision 出签收卡
+    // （options 由 loop 侧按件清单填充：sign＋逐件 rework）；不新增状态（复用 needs_decision 回边）。
     from: 'verifying',
     event: 'verification_completed',
-    guard: (ctx) => (ctx.payload.verdict ?? 'pass') === 'pass',
+    guard: (ctx) => (ctx.payload.verdict ?? 'pass') === 'pass' && ctx.riskLevel >= 1,
+    to: 'needs_decision',
+    kinds: ['verification_completed', 'signoff_required'],
+    patch: () => ({ resume_state: 'verifying' }),
+    actions: (ctx) => [notifyAction(ctx, 'decision')],
+    m0: false,
+    note: '签收卡：老板点「签」→ signoff→done；点「返工件 N」→ signoff_reject→executing',
+  },
+  {
+    from: 'verifying',
+    event: 'verification_completed',
+    guard: (ctx) => (ctx.payload.verdict ?? 'pass') === 'pass' && ctx.riskLevel < 1,
     to: 'done',
     kinds: ['verification_completed', 'task_completed'],
     patch: close,
     actions: (ctx) => [notifyAction(ctx, 'report')],
     m0: true,
+    note: 'B2-6：L0 机器门直通不变（D-30③）',
   },
   {
     from: 'verifying',
@@ -510,6 +524,30 @@ export const TASK_TRANSITIONS: readonly TaskTransition[] = [
     patch: readyNow,
     m0: true,
     note: '挂载 3 转正（BRK17）：UI 解除 disabled（taskActions done.undo-finish）；超窗/已归档经 task:transition 得人话回执',
+  },
+  {
+    // B2-6/D-30③：老板签收 → done（boss_signoff 审计；与 verifier pass 的自动 done 区分）。
+    from: 'needs_decision',
+    event: 'signoff',
+    to: 'done',
+    kinds: ['boss_signoff', 'task_completed'],
+    patch: close,
+    actions: (ctx) => [notifyAction(ctx, 'report')],
+    m0: false,
+  },
+  {
+    // B2-6/D-30③：签收拒绝 → 只该件返工（spawnReworkItem retry_of 血缘），任务回 executing。
+    from: 'needs_decision',
+    event: 'signoff_reject',
+    to: 'executing',
+    kinds: ['signoff_rejected'],
+    actions: (ctx) => {
+      const wi = typeof ctx.payload.workItemId === 'number' && ctx.payload.workItemId > 0 ? ctx.payload.workItemId : null;
+      return wi == null
+        ? []
+        : [act('spawn_work_item', 'work_item', wi, (ctx.decisionRevision ?? 0) + 1, ctx.taskId, { workItemId: wi, notes: '签收拒绝：按老板要求返工该件' })];
+    },
+    m0: false,
   },
   { from: 'done', event: 'renew', to: 'KEEP', kinds: ['task_renewed'], m0: true, actions: renewAction, note: '续办：建新任务（继承语境、不继承承诺；F6/(c)）' },
   {

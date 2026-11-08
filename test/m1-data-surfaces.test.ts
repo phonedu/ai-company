@@ -48,6 +48,10 @@ test('D4: task_deps 写入面 → 阻塞任务依赖满足后自动激活（此�
     const a = mk(db, projectId, 'A');
     await drive(engine, a, TO_DONE); // A → executing → verifying
     await engine.dispatch(ev(a, 'verification_completed', { verdict: 'pass' }));
+    // B2-6/D-30③：L1+ pass 现迁 needs_decision（签收卡）——补老板签收步
+    if ((getTaskById(db, a) as { state: string }).state === 'needs_decision') {
+      await engine.dispatch(ev(a, 'signoff', { via: 'b26-regression' }));
+    }
     assert.equal(getTaskById(db, a)?.state, 'done');
 
     const b = mk(db, projectId, 'B');

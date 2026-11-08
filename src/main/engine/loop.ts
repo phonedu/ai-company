@@ -815,6 +815,10 @@ export class Engine {
     const srcWiId = Number(payload.workItemId ?? 0);
     const src = srcWiId ? getWorkItem(this.db, srcWiId) : undefined;
     if (!src) throw new Error(`[engine] spawn_work_item 动作缺少有效 workItemId（actionKey=${action.actionKey}）`);
+    // B2-6：跨任务守卫——签收拒绝的件必须属于本任务（防越权返工别的任务的件）。
+    if (action.taskId != null && src.task_id !== action.taskId) {
+      throw new Error(`[engine] spawn_work_item 拒绝：件 ${srcWiId} 属任务 ${src.task_id}，动作属任务 ${action.taskId}`);
+    }
     const notes = typeof payload.notes === 'string' && payload.notes.trim() ? payload.notes.trim() : null;
     const employeeId = typeof payload.employeeId === 'number' ? payload.employeeId : src.employee_id;
     insertWorkItem(this.db, {
@@ -1192,6 +1196,19 @@ export class Engine {
           .get(task.id) as { n: number }
       ).n ?? 0,
     );
+    // B2-6/D-30③：L1+ verifier pass 的签收卡——事件 payload 填 question＋options
+    // （sign＋逐件 rework；notifyAction 透传 → 决策卡＋approvals 行）。0 件可返工时只给 sign。
+    if (event.event === 'verification_completed' && (event.payload as { verdict?: unknown } | undefined)?.verdict === 'pass' && (task.risk_level ?? 1) >= 1 && (event.payload as { options?: unknown }).options == null) {
+      const signoffItems = listWorkItemsByTask(this.db, task.id).filter((w) => w.state === 'done' || w.state === 'submitted');
+      event.payload = {
+        ...event.payload,
+        options: [
+          { key: 'sign', label: '✅ 签收通过' },
+          ...signoffItems.slice(0, 6).map((w) => ({ key: `rework:${w.id}`, label: `↩ 返工：${w.title.slice(0, 18)}` })),
+        ],
+        question: `验收通过，请签收：${task.short_id ?? `#${task.id}`}（${String(task.title ?? '').slice(0, 30)}）`,
+      };
+    }
     const ctx: TaskTransitionContext = {
       taskId: task.id,
       from: task.state as TaskState,

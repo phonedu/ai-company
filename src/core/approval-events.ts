@@ -20,6 +20,13 @@ export function approvalAnswerEvent(
   if (taskState === 'needs_decision') {
     // RW-21 收尾：三个卡选项各走机器真边——cancel→真取消；proceed→最新稿视同批准（不重规划）；
     // 其余（revise 等）→ decision_made（回 resume_state，规划期自动重派规划）。
+    // B2-6/D-30③：签收卡机器真边——sign→signoff（done）；rework:<wiId>→signoff_reject（单件返工）。
+    if (chosen === 'sign') return { event: 'signoff' };
+    if (chosen.startsWith('rework:')) {
+      const wi = Number(chosen.slice('rework:'.length));
+      if (Number.isInteger(wi) && wi > 0) return { event: 'signoff_reject', payload: { workItemId: wi } };
+      return null;
+    }
     if (chosen === 'cancel') return { event: 'cancel' };
     if (chosen === 'proceed') return { event: 'decision_proceed_latest' };
     return { event: 'decision_made', payload: { chosen } };

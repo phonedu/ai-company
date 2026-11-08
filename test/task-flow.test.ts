@@ -112,6 +112,8 @@ test('T0.6: 建任务 → 主链全走 + paused 往返（逐步对照 05 §3.1�
   await step('start_task');
   await step('all_work_items_done');
   await step('verification_completed', { verdict: 'pass' });
+  // B2-6/D-30③：L1+ pass 不再直通 done——迁 needs_decision 出签收卡；老板签 → done
+  await step('signoff');
 
   // ① 逐条对照 05 §3.1 主链（state 终值 + 新增 kind）
   assert.deepEqual(steps, [
@@ -124,7 +126,8 @@ test('T0.6: 建任务 → 主链全走 + paused 往返（逐步对照 05 §3.1�
     { event: 'resume', state: 'ready', kinds: 'task_resumed' },
     { event: 'start_task', state: 'executing', kinds: 'task_started' },
     { event: 'all_work_items_done', state: 'verifying', kinds: 'verification_started' },
-    { event: 'verification_completed', state: 'done', kinds: 'verification_completed+task_completed' },
+    { event: 'verification_completed', state: 'needs_decision', kinds: 'verification_completed+signoff_required' },
+    { event: 'signoff', state: 'done', kinds: 'boss_signoff+task_completed' },
   ]);
 
   // task:list 供左栏分组（终态 done）

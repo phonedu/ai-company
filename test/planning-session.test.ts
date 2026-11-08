@@ -481,7 +481,12 @@ test('D2＋D3 全链（L2 强制验证）：批准 → 派工 → 提交 → ver
     await handleTaskApprove(deps, { approvalId: approval.id, chosen: 'approve' }, AT);
     await engine.schedulePass();
 
-    assert.equal(st(), 'done', 'L2 全链闭环：提交 → 强制验证 pass → 件被接受 → done');
+    // B2-6/D-30③：L2 pass 现迁 needs_decision（签收卡）——补老板签收步
+    if (st() === 'needs_decision') {
+      await engine!.dispatch({ scope: 'task', id: task.id, event: 'signoff', actor: 'boss', payload: { via: 'b26-regression' } });
+      await engine!.schedulePass();
+    }
+    assert.equal(st(), 'done', 'L2 全链闭环：提交 → 强制验证 pass → 签收 → done');
     const items = db.prepare('SELECT state, employee_id, verifier_employee_id FROM work_items WHERE task_id=?').all(task.id) as Array<{
       state: string;
       employee_id: number;

@@ -94,6 +94,10 @@ test('RW-10: done 完成卡存在 open changeset 时提示「产物在暂存工�
     ).run(taskId);
     // 免验聚合：verificationNeeded=false ⇒ 引擎如实自动 pass ⇒ done ＋ 完成卡（此时 open changeset 在场）
     await engine.dispatch({ scope: 'task', id: taskId, event: 'all_work_items_done', payload: { verificationNeeded: false } });
+    // B2-6/D-30③：L1+（含免验）pass 现迁 needs_decision（签收卡）——补老板签收步，done 后才有完成卡
+    if ((db.prepare('SELECT state FROM tasks WHERE id=?').get(taskId) as { state: string }).state === 'needs_decision') {
+      await engine.dispatch({ scope: 'task', id: taskId, event: 'signoff', actor: 'boss', payload: { via: 'b26-regression' } });
+    }
     const row = db
       .prepare("SELECT payload FROM reports WHERE task_id = ? AND kind = 'report' ORDER BY id DESC LIMIT 1")
       .get(taskId) as { payload: string };

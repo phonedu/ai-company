@@ -34,6 +34,20 @@ export const ORPHAN_DISPOSITIONS: Disposition[] = [
   },
   {
     check: 'event',
+    name: 'signoff',
+    status: 'intended',
+    ref: 'B2-6/D-30③（2026-11-08 挂载：签收关卡）',
+    note: '生产方已接线：L1+ verifier pass 出签收卡（needs_decision），老板点「签」经 approvalAnswerEvent 映射 sign→handleTaskApprove dispatch（ipc.ts 唯一映射点）；锚＝test/b2-6-signoff.test.ts',
+  },
+  {
+    check: 'event',
+    name: 'signoff_reject',
+    status: 'intended',
+    ref: 'B2-6/D-30③（同上挂载）',
+    note: '生产方已接线：签收卡点「返工件 N」经 approvalAnswerEvent 映射 rework:N→signoff_reject{workItemId}→spawnReworkItem（retry_of 血缘，跨任务守卫）；锚＝test/b2-6-signoff.test.ts',
+  },
+  {
+    check: 'event',
     name: 'block',
     status: 'fixed',
     ref: 'D4（2026-10-17）＋ BRK6（M3-R-2）',

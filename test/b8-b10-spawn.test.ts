@@ -190,7 +190,15 @@ test('B10: `verifying` 打回（verdict=fail）建新 work item（批注成 brie
       payload: { verdict: 'pass', workItemId: src2.id },
     });
     assert.equal(listWorkItemsByTask(db, task2.id).length, 1, 'pass 不得建返工项');
-    assert.equal(getTaskById(db, task2.id)?.state, 'done');
+    // B2-6/D-30③：L1+ pass 不再自动 done——迁 needs_decision 等签收
+    const t2 = getTaskById(db, task2.id) as { state: string; risk_level: number };
+    if (t2.risk_level >= 1) {
+      assert.equal(t2.state, 'needs_decision');
+      await engine.dispatch({ scope: 'task', id: task2.id, event: 'signoff', actor: 'boss', payload: { via: 'b10-regression' } });
+      assert.equal(getTaskById(db, task2.id)?.state, 'done', '签收后 done');
+    } else {
+      assert.equal(getTaskById(db, task2.id)?.state, 'done');
+    }
   } finally {
     db.close();
   }

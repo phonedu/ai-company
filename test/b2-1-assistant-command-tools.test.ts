@@ -61,12 +61,15 @@ async function makeTools(deps: AssistantCommandDeps) {
 
 // ── ① 提示词：过期声明删除＋新工具口径 ─────────────────────────────────────
 
-test('B2-8: 风暴纪律行——头脑风暴一等对话（不建任务不推流程），纪要出口＝write_note／转任务＝create_task', () => {
+test('B2-8: 风暴纪律行——头脑风暴一等对话（不建任务不推流程），纪要出口＝note_write／转任务＝create_task', () => {
   assert.match(ASSISTANT_SYSTEM_PROMPT_M0, /头脑风暴/);
   assert.match(ASSISTANT_SYSTEM_PROMPT_M0, /一等对话/);
   assert.match(ASSISTANT_SYSTEM_PROMPT_M0, /不建任务/);
-  assert.match(ASSISTANT_SYSTEM_PROMPT_M0, /write_note/);
+  assert.match(ASSISTANT_SYSTEM_PROMPT_M0, /note_write/);
   assert.match(ASSISTANT_SYSTEM_PROMPT_M0, /create_task/);
+  // B2b 终验抓出的缺陷回归锚：提示词点名的工具必须存在于幕僚长工具注册名单
+  // （write_note 是员工侧工具，幕僚长侧叫 note_write——点名不存在的工具＝模型必跑空）。
+  assert.ok(!/`write_note`/.test(ASSISTANT_SYSTEM_PROMPT_M0), '不得点名员工侧工具 write_note');
 });
 
 test('B2-1: M0 提示词删「后续里程碑接入」过期声明，写明四指挥工具口径', () => {

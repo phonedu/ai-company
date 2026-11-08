@@ -188,9 +188,9 @@ test('`003`–`017` 老库升级路径：v2 库 → 补应用（只加列＋005 
     );
     db.prepare("INSERT INTO costs(task_id, model, tokens_in, tokens_out, usd, created_at) VALUES(?, 'm', 1, 2, 0.5, 1)").run(tid);
     const second = runMigrations(db);
-    assert.deepEqual(second.applied, [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23], '老库应补应用 003–023（B2-3 工作项 DAG）');
+    assert.deepEqual(second.applied, [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24], '老库应补应用 003–024（B3-2 多文档根）');
     assert.deepEqual(second.skipped, [1, 2], '已应用的 001/002 不重跑');
-    assert.equal(second.userVersion, 23);
+    assert.equal(second.userVersion, 24);
     const reportTaskId = (db.prepare('PRAGMA table_info(reports)').all() as Array<{ name: string; notnull: number }>).find(
       (c) => c.name === 'task_id',
     );
@@ -207,8 +207,8 @@ test('`003`–`017` 老库升级路径：v2 库 → 补应用（只加列＋005 
     );
     const tablesAfter = (db.prepare("SELECT count(*) c FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").get() as { c: number }).c;
     const idxAfter = (db.prepare("SELECT count(*) c FROM sqlite_master WHERE type='index' AND name NOT LIKE 'sqlite_%'").get() as { c: number }).c;
-    assert.equal(tablesAfter, tablesBefore + 13, '012/013/014/016/020 各新增表＋017 FTS 虚拟表及 4 shadow 表＋B2-3 work_item_deps');
-    assert.equal(idxAfter, 34, 'v1 22 + idx_seams_project + idx_changesets_wi_head + idx_task_checkpoints_task + 两个 im_outbox + remote_event_log 过期索引 + 016 三个 + 020 两个＋B2-3 idx_work_item_deps_dep');
+    assert.equal(tablesAfter, tablesBefore + 14, '012/013/014/016/020 各新增表＋017 FTS 虚拟表及 4 shadow 表＋B2-3 work_item_deps＋B3-2 project_documents');
+    assert.equal(idxAfter, 35, 'v1 22 + idx_seams_project + idx_changesets_wi_head + idx_task_checkpoints_task + 两个 im_outbox + remote_event_log 过期索引 + 016 三个 + 020 两个＋B2-3 idx_work_item_deps_dep＋B3-2 idx_project_documents_project');
     const taskCols = (db.prepare('PRAGMA table_info(tasks)').all() as Array<{ name: string }>).map((c) => c.name);
     assert.ok(taskCols.includes('max_parallel_work_items'), '005 的 P20 列应已就位');
     const costInfo = (db.prepare('PRAGMA table_info(costs)').all() as Array<{ name: string; notnull: number }>).find((c) => c.name === 'task_id');
@@ -221,7 +221,7 @@ test('`003`–`017` 老库升级路径：v2 库 → 补应用（只加列＋005 
     // ③ 幂等：再跑一遍无变更
     const third = runMigrations(db);
     assert.deepEqual(third.applied, []);
-    assert.equal(third.userVersion, 23);
+    assert.equal(third.userVersion, 24);
   } finally {
     db.close();
   }

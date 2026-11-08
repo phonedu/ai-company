@@ -229,7 +229,7 @@ test('M2-D 备份一致性：VACUUM INTO 单文件可独立打开（表数/数�
     const copy = openDatabase(dest);
     try {
       const tables = (copy.prepare("SELECT COUNT(*) c FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").get() as { c: number }).c;
-      assert.equal(tables, 44, '备份应是全量 schema（39 业务表＋FTS 虚拟表及 shadow；B2-3 加 work_item_deps）');
+      assert.equal(tables, 45, '备份应是全量 schema（39 业务表＋FTS 虚拟表及 shadow；B2-3 加 work_item_deps）');
       assert.equal((copy.prepare('SELECT alias FROM projects LIMIT 1').get() as { alias: string }).alias, '记账', '数据一致');
       assert.ok(!existsSync(`${dest}-wal`) || statSync(`${dest}-wal`).size === 0, 'VACUUM INTO 产物无待合并 WAL');
     } finally {

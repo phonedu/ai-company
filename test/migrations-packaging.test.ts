@@ -14,11 +14,11 @@ const SQL_FILE = join(process.cwd(), 'src', 'main', 'db', 'migrations', '001_ini
 
 test('packaging: 迁移内联（无 fs 依赖）—— 基线含 30 表 / 22 索引，checksum 自洽', () => {
   const migrations = loadMigrations();
-  assert.equal(migrations.length, 23, 'B2-3 加 023 后共 23 个迁移');
+  assert.equal(migrations.length, 24, 'B3-2 加 024 后共 24 个迁移');
   const sql = migrations[0]!.sql;
   assert.ok(sql.length > 20_000, '基线 SQL 应非空且为完整 DDL');
-  assert.equal((sql.match(/CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS/g) ?? []).length, 30, '30 张表（001 基线；B2-3 的 work_item_deps 走 023 独立迁移）');
-  assert.equal((sql.match(/CREATE\s+(UNIQUE\s+)?INDEX\s+IF\s+NOT\s+EXISTS/g) ?? []).length, 22, '22 个索引（001 基线；B2-3 的索引走 023 独立迁移）');
+  assert.equal((sql.match(/CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS/g) ?? []).length, 30, '30 张表（001 基线；B2-3/B3-2 走 023/024 独立迁移）');
+  assert.equal((sql.match(/CREATE\s+(UNIQUE\s+)?INDEX\s+IF\s+NOT\s+EXISTS/g) ?? []).length, 22, '22 个索引（001 基线；B2-3/B3-2 的索引走 023/024 独立迁移）');
   assert.equal(migrations[0]!.checksum, sha256(sql));
 });
 
@@ -74,20 +74,22 @@ test('packaging: 内联常量与审计用 001/002 .sql 逐字一致（源码树�
   assert.equal(loadMigrations()[21]!.sql, readFileSync(file22, 'utf8'), '内联 SQL 与 022_*.sql 必须逐字一致');
   const file23 = join(process.cwd(), 'src', 'main', 'db', 'migrations', '023_work_item_deps.sql');
   assert.equal(loadMigrations()[22]!.sql, readFileSync(file23, 'utf8'), '内联 SQL 与 023_*.sql 必须逐字一致');
+  const file24 = join(process.cwd(), 'src', 'main', 'db', 'migrations', '024_project_documents.sql');
+  assert.equal(loadMigrations()[23]!.sql, readFileSync(file24, 'utf8'), '内联 SQL 与 024_*.sql 必须逐字一致');
 });
 
 test('packaging: 迁移可直接在空库应用（不依赖任何文件）', () => {
   const db = openMemoryDatabase();
   try {
     const result = runMigrations(db);
-    assert.deepEqual(result.applied, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]);
-    assert.equal(result.userVersion, 23);
+    assert.deepEqual(result.applied, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]);
+    assert.equal(result.userVersion, 24);
     const tables = (
       db.prepare("SELECT count(*) c FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").get() as {
         c: number;
       }
     ).c;
-    assert.equal(tables, 44, '39 张业务表（B2-3 加 work_item_deps）＋memory_items_fts 虚拟表及 4 张 shadow 表');
+    assert.equal(tables, 45, '40 张业务表（B3-2 加 project_documents）＋memory_items_fts 虚拟表及 4 张 shadow 表');
     const fts = db.prepare("SELECT count(*) c FROM sqlite_master WHERE type='table' AND name='memory_items_fts'").get() as {
       c: number;
     };

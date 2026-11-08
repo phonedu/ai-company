@@ -74,7 +74,7 @@ test('迁移 008：老库（007＋数据）升级 → reports 数据逐字段保
       .all()
       .map((r) => (r as { name: string }).name);
     assert.ok(idx.includes('idx_reports_pending'), '索引已重建');
-    assert.equal(db.pragma('user_version', { simple: true }), 23, 'user_version 前进到 23（B2-3 工作项 DAG）');
+    assert.equal(db.pragma('user_version', { simple: true }), 24, 'user_version 前进到 24（B3-2 多文档根）');
   } finally {
     db.close();
   }

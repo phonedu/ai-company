@@ -61,6 +61,14 @@ async function makeTools(deps: AssistantCommandDeps) {
 
 // ── ① 提示词：过期声明删除＋新工具口径 ─────────────────────────────────────
 
+test('B2-8: 风暴纪律行——头脑风暴一等对话（不建任务不推流程），纪要出口＝write_note／转任务＝create_task', () => {
+  assert.match(ASSISTANT_SYSTEM_PROMPT_M0, /头脑风暴/);
+  assert.match(ASSISTANT_SYSTEM_PROMPT_M0, /一等对话/);
+  assert.match(ASSISTANT_SYSTEM_PROMPT_M0, /不建任务/);
+  assert.match(ASSISTANT_SYSTEM_PROMPT_M0, /write_note/);
+  assert.match(ASSISTANT_SYSTEM_PROMPT_M0, /create_task/);
+});
+
 test('B2-1: M0 提示词删「后续里程碑接入」过期声明，写明四指挥工具口径', () => {
   assert.ok(!ASSISTANT_SYSTEM_PROMPT_M0.includes('后续里程碑接入'), '过期声明必须删除（58 §1.6 P1）');
   assert.match(ASSISTANT_SYSTEM_PROMPT_M0, /create_task/);

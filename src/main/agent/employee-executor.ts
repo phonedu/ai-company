@@ -1098,6 +1098,22 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
       if (!target) {
         const review = parseReviewAction(action);
         if (review) {
+          // B3-6/D-31②：critic 限档——L1 默认**跳过 critic 会话**（直接合成 approve 的
+          // plan_reviewed，payload.skipped='risk_tier' 如实留痕；链路/打回/批准卡全不变，
+          // 省下 L1 的双会话成本）。L2 照旧真开 critic 会话。
+          if (review.role === 'critic') {
+            const criticTask = getTaskById(db as never, review.taskId) as { risk_level?: number } | undefined;
+            if ((criticTask?.risk_level ?? 1) < 2) {
+              await deps.dispatch?.({
+                scope: 'task',
+                id: review.taskId,
+                event: 'plan_reviewed',
+                actor: 'system',
+                payload: { verdict: 'approve', skipped: 'risk_tier', notes: 'L1 默认跳过 critic 会话（D-31② 限档；老板可在批准卡打回）' },
+              });
+              return;
+            }
+          }
           await runReview(review.role, review.taskId);
           return;
         }

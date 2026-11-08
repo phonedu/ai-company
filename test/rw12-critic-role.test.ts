@@ -33,7 +33,7 @@ test('RW-12①: critic 选人优先 role=review（不再按 id 顺序拿 dev 同
     db.prepare("INSERT INTO employees(id,name,role,capability_tier,created_at) VALUES(7,'实现者','dev','standard',1)").run();
     db.prepare("INSERT INTO employees(id,name,role,capability_tier,created_at) VALUES(8,'dev同事','dev','standard',1)").run();
     db.prepare("INSERT INTO employees(id,name,role,capability_tier,created_at) VALUES(9,'专职评审','review','standard',1)").run();
-    const task = createTask(db, new SqliteCounterStore(db), { projectId, title: 'T', goal: 'g', riskLevel: 1 });
+    const task = createTask(db, new SqliteCounterStore(db), { projectId, title: 'T', goal: 'g', riskLevel: 2 }); // B3-6：critic 选人依赖 critic 真开（L2）
     insertWorkItem(db, { taskId: task.id, employeeId: 7, title: 'w', brief: 'b', now: 1 });
 
     const events: EngineEvent[] = [];

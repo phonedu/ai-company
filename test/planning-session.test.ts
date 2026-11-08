@@ -280,7 +280,7 @@ test('重规划 v+1：打回 → **真再派规划**（新幂等键 revision=1�
 test('重规划安全阀：critic 连续打回达上限 → escalate 交老板（不无限重规划烧真会话）', async () => {
   const { db, projectId } = setup();
   try {
-    const task = createTask(db, new SqliteCounterStore(db), { projectId, title: '反复打回', goal: 'g', riskLevel: 1, ownerId: 7 });
+    const task = createTask(db, new SqliteCounterStore(db), { projectId, title: '反复打回', goal: 'g', riskLevel: 2, ownerId: 7 }); // B3-6：L2 才有 critic 会话（安全阀依赖 critic 打回）
     let engine: Engine | undefined;
     const fake = routingRuntime(['一步'], { critic: 'revise' }); // critic 永远打回
     const exec = createEmployeeExecutor({ db, runtime: new EmployeeSessionRuntime(fake), dispatch: (e) => engine!.dispatch(e) });
@@ -288,6 +288,12 @@ test('重规划安全阀：critic 连续打回达上限 → escalate 交老板�
 
     await engine.dispatch({ scope: 'task', id: task.id, event: 'triage', actor: 'boss', payload: {} });
 
+    // B3-6：L2 critic 打回链长——等安全阀触发（needs_decision）
+    for (let i = 0; i < 100; i += 1) {
+      const stNow = (db.prepare('SELECT state FROM tasks WHERE id=?').get(task.id) as { state: string }).state;
+      if (stNow === 'needs_decision') break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
     const st = (): string => (db.prepare('SELECT state FROM tasks WHERE id=?').get(task.id) as { state: string }).state;
     assert.equal(st(), 'needs_decision', '达上限 ⇒ 交老板（needs_decision），不无限重规划');
     assert.ok(
@@ -411,7 +417,7 @@ test('C2 真拆派 · "有牙"：已有工作项 → 不建第二份（v1 不重
   }
 });
 
-test('R3-1-C L1 对照：同链路 plan_drafted 后**不直通**——critic 过 → 停在 awaiting_approval 等老板', async () => {
+test('R3-1-C L1 对照（B3-6/D-31②）：plan_drafted 后跳 critic 会话（合成 skipped=risk_tier）→ 停在 awaiting_approval 等老板', async () => {
   const { db, projectId } = setup();
   try {
     const task = createTask(db, new SqliteCounterStore(db), { projectId, title: 'T', goal: 'g', riskLevel: 1, ownerId: 7 });
@@ -423,8 +429,12 @@ test('R3-1-C L1 对照：同链路 plan_drafted 后**不直通**——critic 过
     await engine.dispatch({ scope: 'task', id: task.id, event: 'triage', actor: 'boss', payload: {} });
 
     const row = db.prepare('SELECT state FROM tasks WHERE id = ?').get(task.id) as { state: string };
-    assert.equal(row.state, 'awaiting_approval', 'L1：critic 通过后仍等老板批准（与 L0 直通分岔由状态机决定）');
-    assert.ok(fake.runs.some((r) => r.sessionKey?.startsWith('role:critic')), 'critic 会话真的跑了');
+    assert.equal(row.state, 'awaiting_approval', 'L1：经合成 plan_reviewed 后仍等老板批准（与 L0 直通分岔由状态机决定）');
+    // B3-6/D-31②：L1 跳过 critic 会话——fake.runs 里不得有 role:critic（省双会话成本）
+    assert.ok(!fake.runs.some((r) => r.sessionKey?.startsWith('role:critic')), 'L1 不开 critic 会话（D-31② 限档）');
+    const reviewed = listTaskEvents(db, task.id).find((e) => e.kind === 'plan_reviewed');
+    const rp = reviewed != null ? (JSON.parse(String(reviewed.payload ?? '{}')) as { skipped?: string }) : null;
+    assert.equal(rp?.skipped, 'risk_tier', '跳过标记如实留痕');
     const wi = db.prepare('SELECT id FROM work_items WHERE task_id = ?').all(task.id) as Array<{ id: number }>;
     assert.equal(wi.length, 0, '未批准前不派工（L1 的闸门真的在拦；C2：也不建工作项——计划未成终稿，不留孤儿件）');
 
@@ -601,7 +611,7 @@ test('D4 闸门卡：L1 计划待批 → 真出决策卡（`kind=ask`）＋ 审�
 test('V3 修・有牙：critic 打回**不产出幽灵批准卡**；重规划 v+1 后（第二次 approve）恰一张真卡', async () => {
   const { db, projectId } = setup();
   try {
-    const task = createTask(db, new SqliteCounterStore(db), { projectId, title: 'L1 打回', goal: 'g', riskLevel: 1, ownerId: 7 });
+    const task = createTask(db, new SqliteCounterStore(db), { projectId, title: 'L2 打回', goal: 'g', riskLevel: 2, ownerId: 7 }); // B3-6：critic 打回链依赖真 critic 会话（L2 才开）
     let engine: Engine | undefined;
     // critic：第一次 revise（打回）→ 重规划后第二次 approve（收敛）；规划器两版
     let criticRound = 0;
@@ -623,6 +633,13 @@ test('V3 修・有牙：critic 打回**不产出幽灵批准卡**；重规划 v+
 
     await engine.dispatch({ scope: 'task', id: task.id, event: 'triage', actor: 'boss', payload: {} });
 
+    // B3-6：L2 全链更长（planner→critic revise→重规划→critic approve→批准卡）——等会话落定
+    for (let i = 0; i < 100; i += 1) {
+      const stNow = (db.prepare('SELECT state FROM tasks WHERE id=?').get(task.id) as { state: string }).state;
+      const nApprovals = (db.prepare('SELECT COUNT(*) n FROM approvals WHERE task_id=?').get(task.id) as { n: number }).n;
+      if (stNow === 'awaiting_approval' && nApprovals >= 1) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
     const st = (): string => (db.prepare('SELECT state FROM tasks WHERE id=?').get(task.id) as { state: string }).state;
     assert.equal(st(), 'awaiting_approval', '打回→重规划→再评审通过 ⇒ 停在等老板批准');
     assert.equal(
@@ -637,8 +654,10 @@ test('V3 修・有牙：critic 打回**不产出幽灵批准卡**；重规划 v+
     );
     const verdicts = listTaskEvents(db, task.id)
       .filter((e) => e.kind === 'plan_reviewed')
-      .map((e) => (JSON.parse(e.payload) as { verdict?: string }).verdict);
-    assert.ok(verdicts.includes('revise'), '打回真的发生过（revise 行在案）');
+      .map((e) => {
+        try { return (JSON.parse(e.payload) as { verdict?: string }).verdict ?? ''; } catch { return ''; }
+      });
+    assert.ok(verdicts.includes('revise'), `打回真的发生过（revise 行在案；verdicts=${verdicts.join(',')}）`);
     assert.equal(planRound, 2, '重规划 v+1 真跑了第二版计划');
   } finally {
     db.close();

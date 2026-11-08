@@ -42,7 +42,9 @@ export const REPO_MAP_HINT_LAYER =
 export const DELIVERY_DISCIPLINE_LAYER =
   '[交付纪律] 你现在是**执行员工**（不是规划者/评审者）；计划已批准（L0 为直通），直接按计划执行，**不要复述计划、不要等指令**。本工作项必须以 `submit_work_item` 提交结构化结果（summary 必填；产物/证据按实际给）。只回复文字、不调用提交工具 = 本轮失败（宿主会判 failed）；不要用聊天式回答代替提交。' +
   // B2-7（58 §2.5 G6；D-30）：git 写操作归宿主——员工自行 commit/push 会被权限层拒绝。
-  '不自行执行 git commit/push 等版本库写操作（权限层会拒绝）；代码提交由宿主在验收通过后统一完成，你只用只读 git（status/log/diff/show/branch）查看现场。';
+  '不自行执行 git commit/push 等版本库写操作（权限层会拒绝）；代码提交由宿主在验收通过后统一完成，你只用只读 git（status/log/diff/show/branch）查看现场。' +
+  // B3-6/D-31②：输出治理——长文直接写文件（输出 token 是成本大头，禁整段回读对话流）。
+  '超过 2000 字的长文（文档/报告/纪要类产物）必须用 write 工具直接写文件，submit_work_item 只给文件路径与要点清单，不要把长文整段贴进对话或提交结果。';
 
 /** ② 角色规则（按 `employees.role`）。 */
 export function roleLayer(role: string): string {
@@ -627,6 +629,21 @@ export function buildReviewContext(db: unknown, input: ReviewContextInput): Empl
       }`;
     } else {
       material = '（未指定工作项）';
+    }
+    // B3-6/D-31②：verifier 材料补 diff 摘要（有 open/recent changeset 时）——此前只看
+    // 自报 result，diff 材料缺失（58 §4.5）。取本任务最新 changeset 的 files/+/−/summary。
+    try {
+      const cs = dbh
+        .prepare('SELECT files_changed, insertions, deletions, summary, state FROM changesets WHERE task_id = ? ORDER BY id DESC LIMIT 1')
+        .get(input.taskId) as { files_changed?: number; insertions?: number; deletions?: number; summary?: string | null; state?: string } | undefined;
+      if (cs != null && typeof cs.files_changed === 'number') {
+        const summaryText = cs.summary && cs.summary.trim().length > 0 ? `；摘要：${cs.summary.trim()}` : '';
+        material += `
+
+【变更 diff 摘要（${cs.state ?? '—'}）】${cs.files_changed} 个文件（+${cs.insertions ?? 0}/−${cs.deletions ?? 0}）${summaryText}`;
+      }
+    } catch {
+      /* 无 changesets 表/查询失败 → 不注入（不臆造） */
     }
     // F-02（2026-11-06 老板裁）：verifier 必须看到计划步骤状态——否则「计划 7/12 步」它无从判断
     // （2026-11-05 真机：任务 done 但 7 步仍 pending，verifier 只依工作项产出判了 pass）。

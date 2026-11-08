@@ -261,7 +261,7 @@ export const TASK_TRANSITIONS: readonly TaskTransition[] = [
     kinds: ['plan_drafted'],
     actions: sessionActionC,
     m0: true,
-    note: 'L1/L2：启动 critic',
+    note: 'L1/L2：派 critic 关卡（B3-6/D-31②：L1 时执行器**跳过 critic 会话**直接合成 plan_reviewed[skipped=risk_tier]——链路不变、双会话成本省下；L2 真开 critic）',
   },
   {
     from: 'planning',

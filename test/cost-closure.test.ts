@@ -17,14 +17,14 @@ import { toPersistedAction } from '../src/main/engine/index.js';
 import type { EngineEvent } from '../src/main/engine/types.js';
 import { EmployeeSessionRuntime, createEmployeeExecutor, makeFakeAgentRuntime } from '../src/main/agent/index.js';
 
-function setup(): { db: SqliteDb; projectId: number; taskId: number; wiId: number } {
+function setup(opts: { riskLevel?: 0 | 1 | 2 } = {}): { db: SqliteDb; projectId: number; taskId: number; wiId: number } {
   const db = openMemoryDatabase();
   runMigrations(db);
   const projectId = Number(db.prepare("INSERT INTO projects(name, root_dir, created_at) VALUES('P','D:/repo',1)").run().lastInsertRowid);
   db.prepare("INSERT INTO employees(id,name,role,capability_tier,created_at) VALUES(0,'幕僚长','assistant','standard',1)").run();
   db.prepare("INSERT INTO employees(id,name,role,capability_tier,created_at) VALUES(7,'实现者','dev','standard',1)").run();
   db.prepare("INSERT INTO employees(id,name,role,capability_tier,created_at) VALUES(9,'验证者','reviewer','standard',1)").run();
-  const task = createTask(db, new SqliteCounterStore(db), { projectId, title: 'T', goal: 'g', riskLevel: 1 });
+  const task = createTask(db, new SqliteCounterStore(db), { projectId, title: 'T', goal: 'g', riskLevel: opts.riskLevel ?? 1 });
   const wi = insertWorkItem(db, { taskId: task.id, employeeId: 7, title: 'w', brief: 'b', now: 1 });
   db.prepare('UPDATE work_items SET verifier_employee_id = 9 WHERE id = ?').run(wi.id);
   return { db, projectId, taskId: task.id, wiId: wi.id };
@@ -93,8 +93,8 @@ test('AI-8 "不臆造": 无 usage / 全零用量 → 不写成本行', async () 
   }
 });
 
-test('AI-8: 评审会话（critic）同样入账（它也烧钱）', async () => {
-  const { db, projectId, taskId } = setup();
+test('AI-8: 评审会话（critic）同样入账（它也烧钱；B3-6 起 L2 才开 critic 会话）', async () => {
+  const { db, projectId, taskId } = setup({ riskLevel: 2 });
   try {
     const usage = { model: 'fake/critic', inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheWriteTokens: 0, costUsd: 0.0007 };
     const fake = makeFakeAgentRuntime([{ text: '', usage, toolCalls: [{ id: 'c1', name: 'submit_review', input: { verdict: 'approve', notes: 'n' }, isError: false }] }]);

@@ -182,9 +182,12 @@ export function planScheduling(input: SchedulerInput): SchedulerAction[] {
       // B2-3/D-30②：工作项依赖门控——前置件未全部 done → hold（不占员工、任务不被 block）；
       // 前置件幻影按满足处理（fail-open，与任务级 dependenciesSatisfied 同哲学）。
       const wiDepsList = wiDeps.get(wi.id) ?? [];
+      // B2a 出口 B 实测修正：前置件 `submitted`（已提交、等任务级验证）也算满足——
+      // 产物已落盘、内容可用；否则带机器验收的任务（件停在 submitted 等验证）会让
+      // 依赖件死等 ⇒ 任务永卡 executing（本批真机出口 B 实抓）。
       const depsSatisfied = wiDepsList.every((d) => {
         const dep = wiById.get(d);
-        return dep == null || dep.state === 'done';
+        return dep == null || dep.state === 'done' || dep.state === 'submitted';
       });
       if (!depsSatisfied) {
         actions.push({ type: 'hold', taskId: t.id, reason: 'dependency' });

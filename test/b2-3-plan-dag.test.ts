@@ -154,6 +154,21 @@ test('B2-3: 调度按依赖门控——有依赖件等前置（hold deps_unsatis
       runningByEmployee: new Map(),
     });
     assert.ok(actions2.some((d) => d.type === 'dispatch_work_item' && d.workItemId === c.id), '前置 done → C 派发');
+    // B2a 出口 B 实测修正：前置 submitted（已提交等任务级验证）也算满足（防死等）
+    const actions3 = planScheduling({
+      now: 3,
+      config: DEFAULT_SCHEDULER_CONFIG,
+      tasks: [db.prepare('SELECT * FROM tasks WHERE id=?').get(taskId) as never],
+      workItems: [
+        { id: a.id, taskId, employeeId: 7, state: 'submitted', createdAt: 1 },
+        { id: b.id, taskId, employeeId: 8, state: 'done', createdAt: 2 },
+        { id: c.id, taskId, employeeId: 8, state: 'queued', createdAt: 3 },
+      ],
+      deps: new Map(),
+      workItemDeps: new Map([[c.id, [a.id]]]),
+      runningByEmployee: new Map(),
+    });
+    assert.ok(actions3.some((d) => d.type === 'dispatch_work_item' && d.workItemId === c.id), '前置 submitted → C 派发（机器验收任务不死等）');
     void snapshot;
   } finally {
     db.close();

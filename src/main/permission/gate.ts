@@ -270,6 +270,8 @@ export function toolCategory(name: string): ToolCategory {
   if (['web', 'fetch', 'http', 'curl', 'send_email', 'http_request', 'git_push', 'publish', 'deploy', 'mcp_call', 'mcp'].includes(n)) return 'external';
   if (['spend', 'purchase', 'subscribe', 'pay'].includes(n)) return 'spend';
   if (['submit_work_item', 'ask_colleague', 'request_review', 'report_progress', 'escalate_to_boss', 'mcp_list', 'tool_search', 'load_skill'].includes(n)) return 'manage';
+  // B3-8/D-31：read_doc 归 read 类（走 SENSITIVE＋pathDeny 检查——.aico/secrets 密钥文件是 .txt）。
+  if (n === 'read_doc') return 'read';
   return 'other';
 }
 

@@ -7,7 +7,7 @@
  * 索引层：根级 *.md/*.txt ＋ `.aico/docs` 树（2 层）成清单进上下文；无文档不注入空段。
  * 纯白名单实现（无 IO 的路径判定可单测；读取在工具 execute 内）。
  */
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 
 
@@ -28,13 +28,24 @@ export function extractReadDocPath(rawPath: string, projectRoot: string): string
   const abs = resolve(projectRoot, raw);
   const rel = relative(projectRoot, abs);
   if (rel.startsWith('..') || isAbsolute(rel)) return null; // 穿越（解析后出根）
-  const ext = abs.slice(abs.lastIndexOf('.')).toLowerCase();
-  if (!abs.includes('.') || !DOC_EXTENSIONS.has(ext)) return null;
-  return abs;
+  // B3b 换方向审查 B-3 修正：解析符号链接/junction——项目根内链接指向根外时可读到外部文件。
+  // 文件存在时才 realpath（不存在的路径没有安全风险，词法检查已够）。
+  let realAbs = abs;
+  if (existsSync(abs)) {
+    try { realAbs = realpathSync(abs); } catch { /* 保持词法路径 */ }
+    const realRel = relative(resolve(projectRoot), realAbs);
+    if (realRel.startsWith('..') || isAbsolute(realRel)) return null; // realpath 后出根
+  }
+  const ext = realAbs.slice(realAbs.lastIndexOf('.')).toLowerCase();
+  if (!realAbs.includes('.') || !DOC_EXTENSIONS.has(ext)) return null;
+  return realAbs;
 }
 
 /** 读取（截断口径）；不存在/读取失败 → null（工具层明说）。 */
 function readDocFile(abs: string): string | null {
+  // B3b 换方向审查 B-2 修正：SENSITIVE 路径拒读（.aico/secrets 密钥文件是 .txt，扩展名白名单挡不住）。
+  const normalized = abs.toLowerCase().replace(/\\/g, '/');
+  if (normalized.includes('.aico/secrets') || normalized.includes('id_rsa') || normalized.includes('.env')) return null;
   try {
     if (!existsSync(abs) || !statSync(abs).isFile()) return null;
     const buf = readFileSync(abs);

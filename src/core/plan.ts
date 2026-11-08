@@ -102,12 +102,15 @@ export function normalizePlanWorkItems(raw: unknown): PlanWorkItemsValidation {
     }
     const brief = typeof rec['brief'] === 'string' && rec['brief'].trim().length > 0 ? rec['brief'].trim() : null;
     const depsRaw = rec['dependsOn'];
-    const deps = Array.isArray(depsRaw)
-      ? [...new Set(depsRaw.filter((d): d is number => typeof d === 'number' && Number.isInteger(d)))]
-      : [];
     if (depsRaw != null && !Array.isArray(depsRaw)) {
       return { ok: false, code: 'invalid_work_items', message: 'dependsOn 必须是数组（1-based 件序号）' };
     }
+    // D4 复核 P3-3 收紧：非整数（浮点/字符串）**响亮拒**——此前静默过滤成无依赖，
+    // 串行意图变并行，违背本模块「不静默丢」哲学。
+    if (Array.isArray(depsRaw) && depsRaw.some((d) => typeof d !== 'number' || !Number.isInteger(d))) {
+      return { ok: false, code: 'invalid_work_items', message: 'dependsOn 必须是正整数数组（1-based 件序号）' };
+    }
+    const deps = Array.isArray(depsRaw) ? [...new Set(depsRaw as number[])] : [];
     items.push({ title, brief, dependsOn: deps, employeeId: typeof rec['employeeId'] === 'number' && Number.isInteger(rec['employeeId']) && rec['employeeId'] > 0 ? rec['employeeId'] : undefined });
   }
   for (const [i, item] of items.entries()) {

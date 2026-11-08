@@ -114,6 +114,21 @@ test('B2-7：链式与包裹形态（&& 链 / bash -c / 前置全局旗标）', 
   assert.equal(detectGitWriteCommand('git -c core.hooksPath=/dev/null commit -m x'), 'git commit');
 });
 
+test('B2-7/D4：绕过面收紧——引号 bin / env·xargs 包裹 / 命令替换内层', () => {
+  // D4 P2-1：bin 名剥引号（此前 `"git" commit` 绕过）
+  assert.equal(detectGitWriteCommand('"git" commit -m x'), 'git commit');
+  assert.equal(detectGitWriteCommand("'git' commit -m x"), 'git commit');
+  // D4 P2-2：包裹型 bin 剥壳递归（此前 `env git commit` / `xargs git commit` 绕过）
+  assert.equal(detectGitWriteCommand('env git commit -m x'), 'git commit');
+  assert.equal(detectGitWriteCommand('env VAR=1 git push origin main'), 'git push');
+  assert.equal(detectGitWriteCommand('nohup git commit -m x'), 'git commit');
+  assert.equal(detectGitWriteCommand('xargs git commit'), 'git commit');
+  assert.equal(detectGitWriteCommand('xargs ls'), null, '非 git 包裹不误伤');
+  // D4 P3-1 收紧：命令替换内层同检（`echo $(git commit -m x)` 此前绕过）
+  assert.equal(detectGitWriteCommand('echo $(git commit -m x)'), 'git commit');
+  assert.equal(detectGitWriteCommand('echo "版本 $(git describe)"'), null, '读替换不误伤');
+});
+
 // ── ② permissionGate 集成：员工会话 deny ─────────────────────────────────
 
 test('B2-7：员工会话 git 写操作一律 deny（人话提示，任何放行档不可翻案）', () => {
@@ -145,6 +160,20 @@ test('B2-7：deny 不可被 grant 翻案（一刀切，无员工级开关）', (
     policy: { grants: [{ rule: 'git_write_deny', toolName: 'bash', grantedAt: 1 }] } as GateContext['policy'],
   };
   assert.equal(bash('git commit -m x', granted).decision, 'deny');
+});
+
+test('B2-7/D4 P1-a：precheck grant 不得短路 git_write_deny（绝对 deny 先于可翻案检查）', () => {
+  // precheck 的 ask 规则获批后直接 allow 会跳过后续检查——git 写检查必须在其之前。
+  const precheckGranted: GateContext = {
+    ...base,
+    employeeSession: true,
+    policy: {
+      grants: [{ rule: 'command_precheck:env_file', toolName: 'bash', grantedAt: 1 }],
+    } as GateContext['policy'],
+  };
+  const res = bash('cat .env && git commit -m bypass', precheckGranted);
+  assert.equal(res.decision, 'deny', `precheck grant 存在时 git 写仍必须 deny，实际：${JSON.stringify(res)}`);
+  assert.equal(res.rule, 'git_write_deny');
 });
 
 test('B2-7：非员工会话（频道助手/引擎）不受本件影响（W1 口径不变）', () => {

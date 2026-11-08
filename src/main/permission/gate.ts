@@ -198,6 +198,9 @@ function gitConditionalWrite(sub: string, rest: string[]): string | null {
 }
 
 /** 单段命令：以 git 开头且首子命令为写族 → 返回「git <子命令>」标签；否则 null。 */
+/** 包裹型二进制（D4 复核 P2-2）：其后仍是完整命令——剥壳递归。`env` 另消费赋值前缀。 */
+const GIT_ENVELOPE_BINS: ReadonlySet<string> = new Set(['env', 'nohup', 'command', 'xargs']);
+
 function gitWriteSubcommandOf(segment: string): string | null {
   // 允许少量 VAR=value 环境变量前缀（保守上限 4 个）
   let tokens = segment.trim().split(/\s+/).filter((t) => t.length > 0);
@@ -205,7 +208,14 @@ function gitWriteSubcommandOf(segment: string): string | null {
     tokens = tokens.slice(1);
   }
   if (tokens.length === 0) return null;
-  const bin = tokens[0].toLowerCase().replace(/\.exe$/, '');
+  // D4 复核 P2-1：bin 名剥引号（`"git" commit` 此前绕过——子命令剥了引号、bin 没剥，口径不一致）
+  const bin = tokens[0].toLowerCase().replace(/\.exe$/, '').replace(/^["']+|["']+$/g, '');
+  // D4 复核 P2-2：`env git commit` / `xargs git commit` 此前绕过——包裹型 bin 剥壳递归
+  if (GIT_ENVELOPE_BINS.has(bin)) {
+    const rest = tokens.slice(1);
+    if (bin === 'env') while (rest.length > 0 && /^[A-Za-z_][A-Za-z0-9_]*=/.test(rest[0])) rest.shift();
+    return rest.length > 0 ? gitWriteSubcommandOf(rest.join(' ')) : null;
+  }
   if (bin !== 'git') return null;
   // 消费全局旗标（-C <path> / -c <n>=<v> / --git-dir、--work-tree 两种形态 / 无值旗标）
   let i = 1;
@@ -237,6 +247,14 @@ export function detectGitWriteCommand(command: string): string | null {
   for (const segment of text.split(/&&|\|\||[;|\n\r]/)) {
     const hit = gitWriteSubcommandOf(segment);
     if (hit) return hit;
+    // D4 复核 P3-1 收紧：命令替换内层同样检测（`echo $(git commit -m x)` 此前绕过——
+    // 分段首词是 echo）。误伤面＝员工会话内 echo 子命令替换，可接受（宁可错拦）。
+    for (const m of segment.matchAll(/\$\(([^)]*)\)/g)) {
+      const inner = m[1];
+      if (inner == null || inner.trim().length === 0) continue;
+      const innerHit = detectGitWriteCommand(inner);
+      if (innerHit) return innerHit;
+    }
   }
   return null;
 }
@@ -389,16 +407,10 @@ export function permissionGate(call: ToolCall, ctx: GateContext): GateResult {
 
   // ③ 命令黑名单 / 危险命令
   if (category === 'command') {
-    // P3：先做命令语义预检（拆 bash -c / python -c / cmd /c 包裹；默认 deny/ask 规则可分发）。
-    const precheck = precheckCommand(call);
-    if (precheck) {
-      if (precheck.decision === 'ask' && precheck.rule && hasGrant(ctx, precheck.rule, call.name)) {
-        return { decision: 'allow', reason: `已授予 ${precheck.rule} 放行`, rule: `grant:${precheck.rule}` };
-      }
-      return precheck;
-    }
-    // B2-7：员工会话 git 写子命令一律 deny（提交收口归宿主）——在 egress **之前**：
-    // deny 强于 ask，员工 `git push` 不应降级为可批准的 ask（D-30 一刀切，不做员工级开关）。
+    // B2-7/D4 修正（P1-a）：员工 git 写检查**先于 precheck**——precheck 的 ask 规则获批后
+    // 直接 allow 会整体短路后续检查，`cat .env && git commit` 带环境类 grant 即可绕过
+    // git_write_deny（D4 独立复核探针实抓）。绝对 deny 必须排在任何「可被 grant 翻案」的
+    // 检查之前（D-30 一刀切承诺）。
     if (ctx.employeeSession === true) {
       const gitWrite = detectGitWriteCommand(rawCommand);
       if (gitWrite) {
@@ -408,6 +420,14 @@ export function permissionGate(call: ToolCall, ctx: GateContext): GateResult {
           rule: 'git_write_deny',
         };
       }
+    }
+    // P3：先做命令语义预检（拆 bash -c / python -c / cmd /c 包裹；默认 deny/ask 规则可分发）。
+    const precheck = precheckCommand(call);
+    if (precheck) {
+      if (precheck.decision === 'ask' && precheck.rule && hasGrant(ctx, precheck.rule, call.name)) {
+        return { decision: 'allow', reason: `已授予 ${precheck.rule} 放行`, rule: `grant:${precheck.rule}` };
+      }
+      return precheck;
     }
     // B0-9：网络外发命令族→ask（在 denylist/consentRules 之前，任何放行档都不自动放行）。
     const egress = detectEgressCommand(rawCommand);

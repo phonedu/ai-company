@@ -163,10 +163,13 @@ export const assistantTriageClassify: Classify = async (): Promise<SemanticSigna
   confidence: 0.51,
 });
 
-/** B2-2：`AICO_TRIAGE` 环境变量解析（缺省/非法 → 'assistant'；大小写宽松）。 */
+/** B2-2：`AICO_TRIAGE` 环境变量解析（缺省/非法 → 'assistant'；大小写宽松；非法响亮告警）。 */
 export function readTriageMode(raw: string | undefined): 'assistant' | 'classifier' {
   const v = (raw ?? '').trim().toLowerCase();
   if (v === 'classifier') return 'classifier';
+  if (v !== '' && v !== 'assistant') {
+    console.warn(`[ipc] AICO_TRIAGE='${raw}' 非法（合法：assistant|classifier）→ 回落 assistant`);
+  }
   return 'assistant';
 }
 

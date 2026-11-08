@@ -29,6 +29,7 @@ import { createTask, insertEmployee, type SqliteDb } from '../src/main/db/index.
 import { SqliteCounterStore } from '../src/main/db/counters.js';
 import { Engine } from '../src/main/engine/index.js';
 import { employeeSessionKey } from '../src/main/agent/employee-runtime.js';
+import { reworkInheritedSessionKey } from '../src/main/agent/employee-executor.js';
 
 function fresh(): SqliteDb {
   const db = openMemoryDatabase();
@@ -98,6 +99,9 @@ test('B2-3: normalizePlanWorkItems —— 2–6 件、非空标题、deps 1-base
     false,
     '二环拒',
   );
+  // D4 复核 P3-3 收紧：浮点/字符串 dependsOn 响亮拒（不静默过滤成无依赖）
+  assert.equal(normalizePlanWorkItems([{ title: 'x' }, { title: 'y', dependsOn: [1.5] }]).ok, false, '浮点 deps 拒');
+  assert.equal(normalizePlanWorkItems([{ title: 'x' }, { title: 'y', dependsOn: ['1'] }]).ok, false, '字符串 deps 拒');
   assert.equal(normalizePlanWorkItems('no').ok, false);
 });
 
@@ -277,11 +281,13 @@ test('B2-3: 返工件带 retry_of；同员工会话键继承源件（员工×任
       now: 2,
     });
     assert.equal(rework.retry_of, src.id, '血缘落库');
-    const inherited = employeeSessionKey({ employeeId: 7, taskId, workItemId: rework.retry_of ?? rework.id });
+    // D4 复核 P1-b：直测 executor 导出的判定纯函数（此前是同义反复——同一纯函数同参自比）
+    const inherited = reworkInheritedSessionKey(src, 7, taskId);
     assert.equal(inherited, employeeSessionKey({ employeeId: 7, taskId, workItemId: src.id }), '同员工继承源件会话键');
-    // 换员工改派：会话键不同（隔离优先）
-    const reassigned = employeeSessionKey({ employeeId: 8, taskId, workItemId: rework.id });
-    assert.notEqual(reassigned, inherited);
+    // 换员工改派：不继承（返回 undefined ⇒ 执行器走新件自己的会话键，隔离优先）
+    assert.equal(reworkInheritedSessionKey(src, 8, taskId), undefined, '换员工不继承');
+    // 无源件（retry_of 为空 / 源件不存在）不继承
+    assert.equal(reworkInheritedSessionKey(undefined, 7, taskId), undefined);
   } finally {
     db.close();
   }

@@ -98,6 +98,20 @@ interface ResolvedWorkItem {
   attempt: number;
 }
 
+/**
+ * B2-3/D-30②（D4 复核 P1-b 提取为可测纯函数）：返工件会话键继承判定——
+ * **同员工**才继承「员工×任务×源件」会话键（前轮现场可见）；换员工改派不继承
+ * （隔离优先，返回 undefined ⇒ 走新件自己的会话键）；无源件（retry_of 为空）同此。
+ */
+export function reworkInheritedSessionKey(
+  src: { id: number; employee_id: number } | null | undefined,
+  employeeId: number,
+  taskId: number,
+): string | undefined {
+  if (src == null || src.employee_id !== employeeId) return undefined;
+  return employeeSessionKey({ employeeId, taskId, workItemId: src.id });
+}
+
 /** 从 `actionKey = <kind>:<subjectKind>:<subjectId>:<revision>` 解析 work_item 派发目标。 */
 export function parseDispatchAction(action: PersistedAction): ResolvedWorkItem | null {
   if (action.kind !== 'dispatch') return null;
@@ -1244,12 +1258,8 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
       };
       // B2-3/D-30②：返工件会话继承——血缘源件存在且同员工 → 沿用「员工×任务×源件」会话键
       // （前轮现场可见，57 P1-7/P2-2）；换员工改派不继承（隔离优先，新会话）。
-      const srcForSession =
-        wi.retry_of != null ? getWorkItem(db as never, wi.retry_of) : undefined;
-      const inheritedSessionKey =
-        srcForSession != null && srcForSession.employee_id === employeeId
-          ? employeeSessionKey({ employeeId, taskId: target.taskId, workItemId: srcForSession.id })
-          : undefined;
+      const srcForSession = wi.retry_of != null ? getWorkItem(db as never, wi.retry_of) : undefined;
+      const inheritedSessionKey = reworkInheritedSessionKey(srcForSession, employeeId, target.taskId);
       const runOne = async (prompt: string): Promise<{ aborted: true } | { aborted: false; result: AgentRunResult }> => {
         const r = await runSessionWithFallback(
           {

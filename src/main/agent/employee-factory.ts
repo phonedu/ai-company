@@ -21,6 +21,7 @@ import { join } from 'node:path';
 
 import { createPiAgentRuntime, registerToolActivationGuard, type PiAgentRuntime } from './pi-runtime.js';
 import { TouchedPathRecorder } from './touched-path-recorder.js';
+import { createReadDocTool } from './read-doc-tool.js';
 import { createCompactionHandoffProvider } from './compaction-handoff.js';
 import { createRepoMapTool } from './repo-map-tool.js';
 import { isRepoMapEnabled } from './repo-map.js';
@@ -123,6 +124,8 @@ export async function createEmployeeRuntime(options: CreateEmployeeRuntimeOption
 
   // RET-1 P3（A/B）：`AICO_REPO_MAP=on` 时注册确定性 repo_map（只读、零 LLM）。
   const repoMapTool = isRepoMapEnabled() ? await createRepoMapTool(options.cwd) : null;
+  // B3-8/D-31：只读文档工具（项目根内 .md/.txt 白名单；读边界由工具层自身把关）。
+  const readDocTool = await createReadDocTool(options.cwd);
 
   // RW-52 同因（2026-11-05）：员工会话同样落盘（persistDir）——注册与守卫共用**同一名单**
   // （名单取自工具对象本身，单一真值）；resume 快照丢新工具的机制与守卫口径见
@@ -143,6 +146,7 @@ export async function createEmployeeRuntime(options: CreateEmployeeRuntimeOption
     writeNote, // K1/RW-22：员工 write_note（当前任务项目的 .aico/notes/ 沉淀）
   ];
   if (repoMapTool) employeeTools.push(repoMapTool); // RET-1 P3：确定性仓库地图（A/B）
+  employeeTools.push(readDocTool); // B3-8/D-31：只读项目文档（白名单 .md/.txt）
 
   const pi: PiAgentRuntime = await createPiAgentRuntime({
     provider: options.provider,

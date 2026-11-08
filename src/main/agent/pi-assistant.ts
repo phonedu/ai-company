@@ -18,6 +18,7 @@ import { createNoteWriteTool, createNoteSearchTool } from './note-tools.js';
 import { createMemorySearchTool } from './memory-search-tool.js';
 import { createBossCardTools } from './boss-card-tools.js';
 import { createAssistantCommandTools, type AssistantEnginePort } from './assistant-command-tools.js';
+import { createReadDocTool } from './read-doc-tool.js';
 import type { EngineEvent } from '../engine/types.js';
 import {
   SessionToolGate,
@@ -113,6 +114,8 @@ export async function createPiAssistantRuntime(options: CreatePiAssistantOptions
   const memorySearch = await createMemorySearchTool(options.db);
   // B2-1（D-30）：幕僚长指挥四工具——create_task/dispatch/steer/list_holds。
   // 回调（createTask/steerEmployee）与引擎读数由 index.ts 注入；工具层不做第二套门。
+  // B3-8/D-31：幕僚长只读项目文档（跟随频道范围项目根；无项目时 cwd 只读根）。
+  const assistantReadDoc = await createReadDocTool(options.cwd ?? process.cwd());
   const commandTools = await createAssistantCommandTools({
     db: options.db,
     engine: options.engine ?? null,
@@ -155,6 +158,7 @@ export async function createPiAssistantRuntime(options: CreatePiAssistantOptions
     noteWrite,
     noteSearch,
     memorySearch,
+    assistantReadDoc,
     // B2-1：指挥四工具（与 RW-52 激活守卫同一名单——守卫自动覆盖新工具）。
     commandTools.createTaskTool,
     commandTools.dispatchTool,

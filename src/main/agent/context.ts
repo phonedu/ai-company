@@ -21,6 +21,7 @@ import { buildTelemetry, capLayer, extendTelemetry, LAYER_TOKEN_CAPS } from './c
 import { latestSetbackText } from './compaction-handoff.js';
 import { isCtxEnabled } from './context-flags.js';
 import { isRepoMapEnabled } from './repo-map.js';
+import { docsIndexLayer } from './read-doc-tool.js';
 import { isDocsCheckAcceptance } from '../docs/contract.js';
 import type { SqliteDb } from '../db/open.js';
 import type { EmployeeContext, EmployeeContextInput } from './types.js';
@@ -304,6 +305,8 @@ export function buildEmployeeContext(db: unknown, input: EmployeeContextInput): 
 
   const projectCtxRead = readProjectContextDetailed(projectRoot);
   const projectCtx = projectCtxRead.text;
+  // B3-8/D-31：文档索引层（根级 *.md/*.txt ＋ .aico/docs 树；无文档不注入空段）。
+  const docsIndex = docsIndexLayer(projectRoot);
   const acceptance = parseJsonText(task?.acceptance);
   // B0-2：验收层带可执行命令（「（机器检查：pnpm test）」）——员工要能对准验收自查，
   // 否则只知道「测试通过」却不知道过关命令是什么。
@@ -510,6 +513,7 @@ ${projectCtxCapped.text.length > 0 ? projectCtxCapped.text : '（未提供）'}`
       ...(input.workItemId != null ? [{ name: 'deliveryDiscipline', text: DELIVERY_DISCIPLINE_LAYER, side: 'system' as const }] : []),
       { name: 'bossText', text: bossCapped.text, side: 'user', truncated: bossCapped.truncated, tokensBeforeCap: bossCapped.tokensBeforeCap },
       { name: 'projectContext', text: projectCtxCapped.text, side: 'user', truncated: projectCtxCapped.truncated, tokensBeforeCap: projectCtxCapped.tokensBeforeCap },
+      ...(docsIndex.length > 0 ? [{ name: 'docsIndex', text: docsIndex, side: 'user' as const }] : []),
       ...(recitation ? [{ name: 'planRecitation', text: recitation, side: 'user' as const, truncated: recitation.includes('【planRecitation 已截断') }] : []),
       ...(answers.length > 0 ? [{ name: 'mailboxAnswers', text: answers.map((a) => `- 来自 员工#${a.from}：${a.answer}`).join('\n'), side: 'user' as const }] : []),
       ...(asks.length > 0 ? [{ name: 'mailboxAsks', text: asks.map((a) => a.question).join('\n'), side: 'user' as const }] : []),

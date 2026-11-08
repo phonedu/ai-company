@@ -14,7 +14,8 @@
 import { createHash } from 'node:crypto';
 
 import { getEmployeeModelPref, getProjectById, getProjectModelPolicy, getTaskById, getWorkItem, insertContextMetric, insertEmployee, insertReport, insertTaskEvent, recordCost, setReportVerdict, updateContextMetricAfterRun } from '../db/index.js';
-import { listUnreadAnswers, markAnswersRead, requestAsk } from '../engine/mailbox.js';
+import { listUnreadAnswers, markAnswersRead, requestAsk, spawnReplyWorkItem } from '../engine/mailbox.js';
+import { formatStructuredAnswer } from './answer-colleague-tool.js';
 import { answerAsk, getAsk, listOpenAsksForEmployee } from '../engine/mailbox.js';
 import { notify } from '../notify/index.js';
 import { redactPayload } from '../notify/redact.js';
@@ -1492,6 +1493,31 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
               },
             });
           }
+          // B2-5/D-30：目标空闲 → 派轻量 reply 件唤醒（busy/exists 如实留痕不静默）。
+          if (rec.delivered) {
+            try {
+              const wake = spawnReplyWorkItem(db as never, {
+                taskId: target.taskId,
+                askDedupeKey: rec.dedupeKey,
+                from: employeeId,
+                to,
+                question,
+                now: now(),
+              });
+              if (wake !== 'spawned') {
+                insertTaskEvent(db as never, {
+                  taskId: target.taskId,
+                  workItemId: target.workItemId,
+                  ts: now(),
+                  kind: 'tool_call',
+                  actor,
+                  payload: { toolName: 'ask_colleague', toolCallId: ask.id, phase: 'end', replyWake: wake, dedupeKey: rec.dedupeKey, scope: 'session_tool' },
+                });
+              }
+            } catch (wakeError) {
+              console.error('[mailbox] reply 件唤醒失败（问题已投递，不阻断）', wakeError);
+            }
+          }
           if (blocking) blockingAskKeys.push(rec.dedupeKey);
         } catch (error) {
           recordToolError('ask_colleague', ask.id, error instanceof Error ? error.message : String(error));
@@ -1501,7 +1527,19 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
       const answered = result.toolCalls.filter((t) => t.name === 'answer_colleague' && t.isError !== true);
       for (const call of answered) {
         const askDedupeKey = String((call.input as { askDedupeKey?: unknown }).askDedupeKey ?? '').trim();
-        const text = String((call.input as { answer?: unknown }).answer ?? '').trim();
+        const rawAnswer = String((call.input as { answer?: unknown }).answer ?? '').trim();
+        // B2-5：结构化答复（结论/依据/产物引用/追问）组装；旧单句原样
+        const text = formatStructuredAnswer({
+          answer: rawAnswer,
+          conclusion: String((call.input as { conclusion?: unknown }).conclusion ?? '').trim() || undefined,
+          evidence: Array.isArray((call.input as { evidence?: unknown }).evidence)
+            ? ((call.input as { evidence?: unknown }).evidence as unknown[]).filter((e): e is string => typeof e === 'string')
+            : undefined,
+          artifacts: Array.isArray((call.input as { artifacts?: unknown }).artifacts)
+            ? ((call.input as { artifacts?: unknown }).artifacts as unknown[]).filter((a): a is string => typeof a === 'string')
+            : undefined,
+          followup: String((call.input as { followup?: unknown }).followup ?? '').trim() || undefined,
+        });
         if (askDedupeKey.length === 0 || text.length === 0) {
           recordToolError('answer_colleague', call.id, '需要 askDedupeKey 与非空 answer');
           continue;

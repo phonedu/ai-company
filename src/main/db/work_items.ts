@@ -33,6 +33,8 @@ export interface InsertWorkItemInput {
   actor?: string;
   /** B2-3：返工血缘（spawnReworkItem）；DAO 不校验任务归属（引擎侧保证同任务）。 */
   retryOf?: number;
+  /** B2-5：附加事件 payload（work_item_created 审计字段，如 reply 件的 askKey）。 */
+  eventExtra?: Record<string, unknown>;
   /** 规划期落定：本次工作项会触碰的路径（相对 `projects.root_dir`）→ 存进 `brief` JSON（M1-2）。 */
   touchedPaths?: string[];
 }
@@ -74,6 +76,7 @@ export function insertWorkItem(db: SqliteDb, input: InsertWorkItemInput): WorkIt
         employeeId: input.employeeId,
         attempt: input.attempt ?? 0,
         ...(input.touchedPaths ? { touchedPaths: input.touchedPaths } : {}),
+        ...(input.eventExtra ?? {}),
       },
     });
     db.exec('COMMIT');

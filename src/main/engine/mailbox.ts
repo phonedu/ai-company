@@ -17,6 +17,7 @@ import {
   markNotificationsRead,
   type NotificationRow,
 } from '../db/notifications.js';
+import { insertWorkItem } from '../db/work_items.js';
 import type { SqliteDb } from '../db/open.js';
 
 export interface ChannelRouteOk {
@@ -92,6 +93,45 @@ export interface AskRecord {
   blocking: boolean;
   /** 本次是否新投递（false = 幂等重放）。 */
   delivered: boolean;
+}
+
+/**
+ * B2-5/D-30：员工唤醒——ask 送达后给**空闲**目标员工派轻量 reply 工作项。
+ *
+ * 口径：目标**忙**（有 running 件，全局员工并发=1）→ 'busy'（问题留在 mailbox，下次会话
+ * 可见——现状不变）；同 askKey 已有 reply 件（任意未结/已结态）→ 'exists'（幂等，重放不重派）；
+ * 否则在**提问方任务**里落 reply 件（成本与聚合归属提问方任务；brief 带问题＋dedupeKey＋
+ * `answer_colleague` 作答指引；`work_item_created` 事件 payload 带 askKey 供审计）。
+ */
+export type ReplySpawnOutcome = 'spawned' | 'busy' | 'exists';
+
+export function spawnReplyWorkItem(
+  db: SqliteDb,
+  input: { taskId: number; askDedupeKey: string; from: number; to: number; question: string; now: number },
+): ReplySpawnOutcome {
+  // 忙：目标员工有 running 件（员工并发=1 硬守卫的同源事实）
+  const busy = db.prepare("SELECT 1 FROM work_items WHERE employee_id = ? AND state = 'running' LIMIT 1").get(input.to);
+  if (busy) return 'busy';
+  // 幂等：同 askKey 的 reply 件已存在（brief JSON 内嵌 askKey）
+  const marker = `"askKey":"${input.askDedupeKey}"`;
+  const exists = db
+    .prepare("SELECT 1 FROM work_items WHERE task_id = ? AND brief LIKE ? LIMIT 1")
+    .get(input.taskId, `%${marker}%`);
+  if (exists) return 'exists';
+  const briefText =
+    `【同事提问回复】员工#${input.from} 问你：${input.question}
+` +
+    `请调用 answer_colleague（askDedupeKey="${input.askDedupeKey}"）作答；作答要点同时用 submit_work_item 提交（summary=答复要点）收口本件。`;
+  insertWorkItem(db, {
+    taskId: input.taskId,
+    employeeId: input.to,
+    title: `回复员工#${input.from} 的提问`,
+    brief: JSON.stringify({ text: briefText, askKey: input.askDedupeKey }),
+    now: input.now,
+    actor: 'system',
+    eventExtra: { askKey: input.askDedupeKey, replyWake: true },
+  });
+  return 'spawned';
 }
 
 /** 员工向同事实体提问：写「消息主体」事件 + 「投递」记录（同一调用内两步，供事务包裹）。 */

@@ -1052,9 +1052,12 @@ export class Engine {
       const created: number[] = [];
       for (const item of planItems) {
         const itemBrief = `${item.brief ?? item.title}\n\n${briefText}`;
+        // B2a 出口 B 供件：件级 employeeId（规划者指定）——在职且非幕僚长才生效，否则回落缺省链。
+        const itemEmployee =
+          item.employeeId != null && this.isEligibleWorker(item.employeeId) ? item.employeeId : employeeId;
         const row = insertWorkItem(this.db, {
           taskId,
-          employeeId,
+          employeeId: itemEmployee,
           title: item.title,
           brief: itemBrief,
           now: this.now(),

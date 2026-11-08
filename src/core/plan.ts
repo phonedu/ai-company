@@ -60,12 +60,19 @@ export interface PlanWorkItemInput {
   title: string;
   brief?: string;
   dependsOn?: number[];
+  /**
+   * B2a 出口 B 供件：每件可指定执行员工（规划者指定＝缺省链第①优先，D-11 口径）。
+   * 正整数才有效；非法/缺省 → 该件回落缺省链（spawn 侧校验，不整体拒绝）。
+   */
+  employeeId?: number;
 }
 
 export interface NormalizedPlanWorkItem {
   title: string;
   brief: string | null;
   dependsOn: number[];
+  /** 正整数＝指定员工；undefined＝回落缺省链（spawn 侧校验在职/非幕僚长）。 */
+  employeeId: number | undefined;
 }
 
 export type PlanWorkItemsValidation =
@@ -101,7 +108,7 @@ export function normalizePlanWorkItems(raw: unknown): PlanWorkItemsValidation {
     if (depsRaw != null && !Array.isArray(depsRaw)) {
       return { ok: false, code: 'invalid_work_items', message: 'dependsOn 必须是数组（1-based 件序号）' };
     }
-    items.push({ title, brief, dependsOn: deps });
+    items.push({ title, brief, dependsOn: deps, employeeId: typeof rec['employeeId'] === 'number' && Number.isInteger(rec['employeeId']) && rec['employeeId'] > 0 ? rec['employeeId'] : undefined });
   }
   for (const [i, item] of items.entries()) {
     for (const d of item.dependsOn) {

@@ -27,6 +27,7 @@ export async function createSubmitPlanTool() {
             title: Type.String({ description: `件标题（必填，≤${PLAN_WORK_ITEM_TITLE_MAX_CHARS} 字；一句话说清这件做什么）` }),
             brief: Type.Optional(Type.String({ description: '件的补充说明（可省；目标/验收已在任务级）' })),
             dependsOn: Type.Optional(Type.Array(Type.Number({ description: '依赖的件序号（1-based）' }), { description: '前置件（可省＝无依赖，可并行）' })),
+            employeeId: Type.Optional(Type.Number({ description: '本件执行员工 id（可省＝按项目编制缺省链；指定在职非幕僚长员工才生效）' })),
           }),
           { description: `结构化工作项（1–${PLAN_WORK_ITEMS_MAX} 件；D-30② 多件 DAG）` },
         ),

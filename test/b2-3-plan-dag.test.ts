@@ -178,8 +178,8 @@ test('B2-3: plan_drafted 带结构化 workItems → 多件落库＋依赖行；�
         steps: ['搭底座', '补测试', '写文档'],
         plannerEmployeeId: 7,
         workItems: [
-          { title: '搭底座' },
-          { title: '补测试', dependsOn: [1] },
+          { title: '搭底座', employeeId: 7 },
+          { title: '补测试', dependsOn: [1], employeeId: 8 },
           { title: '写文档', dependsOn: [1] },
         ],
       },
@@ -192,6 +192,8 @@ test('B2-3: plan_drafted 带结构化 workItems → 多件落库＋依赖行；�
         if (items.length >= 3 || tries > 40) {
           assert.equal(items.length, 3, `应落 3 件（实际 ${items.length}）`);
           const byTitle = new Map(items.map((w) => [w.title, w]));
+          assert.equal(byTitle.get('搭底座')?.employee_id, 7, '件级 employeeId 生效（规划者指定）');
+          assert.equal(byTitle.get('补测试')?.employee_id, 8, '件级 employeeId 生效（规划者指定）');
           const deps = workItemDepsOf(db, byTitle.get('补测试')!.id);
           assert.equal(deps.length, 1, '依赖行落库');
           resolve();

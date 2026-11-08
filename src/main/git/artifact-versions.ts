@@ -48,33 +48,23 @@ export function diffWithPrevious(
   if (dbName === ':memory:') return { changed: false, added: 0, removed: 0, previousSnapshotPath: null };
   const snapshotDir = join(dbName, '..', '.aico', 'versions');
   if (!existsSync(snapshotDir)) return { changed: false, added: 0, removed: 0, previousSnapshotPath: null };
-  // 找同 path 的最近旧版（文件名非当前 artifactId 的，按 mtime 排序取倒数第二个）
   const currentContent = existsSync(currentAbsPath) ? readFileSync(currentAbsPath, 'utf8') : '';
-  // 简化实现：扫 versions 目录找 hash 不同的文件
+  // D4 终验 P1 修正：按 artifactPath 查库找同产物历史快照 id（不看全部目录——跨产物 diff 是错的）。
   try {
-    const files = readdirSortedByMtime(snapshotDir);
-    for (const f of files) {
-      const fp = join(snapshotDir, f);
+    const rows = db.prepare(
+      'SELECT a.id FROM artifacts a WHERE a.path = ? ORDER BY a.id DESC LIMIT 5'
+    ).all(artifactPath) as Array<{ id: number }>;
+    for (const row of rows) {
+      const fp = join(snapshotDir, String(row.id));
+      if (!existsSync(fp)) continue;
       try {
         const oldContent = readFileSync(fp, 'utf8');
         const result = diffSummary(oldContent, currentContent);
-        if (result.changed) {
-          return { ...result, previousSnapshotPath: fp };
-        }
+        if (result.changed) return { ...result, previousSnapshotPath: fp };
       } catch { /* 跳过不可读项 */ }
     }
-  } catch { /* 目录不可读 */ }
+  } catch { /* 查库失败 */ }
   return { changed: false, added: 0, removed: 0, previousSnapshotPath: null };
-}
-
-function readdirSortedByMtime(dir: string): string[] {
-  try {
-    return readdirSync(dir).sort((a: string, b: string) => {
-      try {
-        return statSync(join(dir, b)).mtimeMs - statSync(join(dir, a)).mtimeMs;
-      } catch { return 0; }
-    });
-  } catch { return []; }
 }
 
 /** sha256（产物行扩展用）。 */

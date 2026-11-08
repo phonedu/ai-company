@@ -38,13 +38,16 @@ export class ByoExecutor {
       cwd: options.cwd,
     });
     if (options.onPermissionRequest) {
-      this.client.on('permission_request', async ({ requestId, params }: { requestId: number; params: { toolCall: { title: string; kind: string; arguments?: Record<string, unknown> } } }) => {
-        const allowed = await options.onPermissionRequest!({
-          title: params.toolCall?.title ?? 'unknown',
-          kind: params.toolCall?.kind ?? 'unknown',
-          args: params.toolCall?.arguments,
+      this.client.on('permission_request', (event: { requestId: number; params: { toolCall: { title: string; kind: string; arguments?: Record<string, unknown> }; options?: Array<{ kind: string; name?: string }> } }) => {
+        void options.onPermissionRequest!({
+          title: event.params.toolCall?.title ?? 'unknown',
+          kind: event.params.toolCall?.kind ?? 'unknown',
+          args: event.params.toolCall?.arguments,
+        }).then((allowed) => {
+          // ACP 规范：selected 或 rejected；选第一个 allow 选项的 optionId（如果有）。
+          const allowOption = event.params.options?.find((o) => o.kind === 'allow');
+          this.client.respondPermission(event.requestId, allowed, allowOption?.name);
         });
-        await this.client.respondPermission(requestId, { outcome: allowed ? 'allow' : 'deny' });
       });
     }
     if (options.onUsage) {
@@ -67,9 +70,10 @@ export class ByoExecutor {
     return { ok: true, text, sessionId: this.sessionId };
   }
 
-  /** 恢复会话（外部 agent 重启后续跑——D-31 四验收④）。 */
+  /** 恢复会话（D-31 四验收④）：先停旧进程再重建（PoC 最小实现；真恢复需 session/load）。 */
   async resume(): Promise<void> {
-    await this.start(); // sessionNew 会创建新会话；真恢复需 session/load（PoC 最小实现＝重建）
+    this.stop();
+    await this.start();
   }
 
   stop(): void {

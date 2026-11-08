@@ -204,6 +204,22 @@ export async function createAssistantCommandTools(deps: AssistantCommandDeps) {
       }
       const sessionKey = employeeSessionKey({ employeeId: running.employee_id, taskId: task.id, workItemId: running.id });
       const delivered = deps.steerEmployee?.(sessionKey, message) ?? false;
+      // B2b 出口 E 实抓：chat 裁定（taskId=null）下 task_events 收不了（task_id NOT NULL）
+      // ⇒ 工具调用曾无痕。steer 结果落 action_log 全局审计（幂等键含随机 id；不依赖任务锚）。
+      try {
+        const { registerPendingAction, markActionDone } = await import('../db/action_log.js');
+        const auditKey = `assistant_steer:${task.id}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+        registerPendingAction(db, {
+          actionKey: auditKey,
+          kind: 'assistant_tool',
+          taskId: task.id,
+          payload: { tool: 'steer', taskShortId: task.shortId, delivered, sessionKey, messageChars: message.length },
+          now: Date.now(),
+        });
+        markActionDone(db, auditKey, Date.now());
+      } catch (auditError) {
+        console.error('[assistant-steer] 审计落库失败（投递不回滚，响亮报错）', auditError);
+      }
       if (!delivered) {
         return text(`${label(task)} 的会话未在飞——没送出去（消息已记入任务上下文）；请如实告知老板稍后再试。`);
       }

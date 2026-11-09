@@ -113,6 +113,11 @@ export function ArchiveView({
   renewNotice,
   error = null,
   onRetry,
+  archivedProjects = [],
+  onOpenProject,
+  onRestoreProject,
+  onExportProject,
+  onDeleteProject,
 }: {
   /** **含归档行**的列表（容器进页时已按 `includeArchived` 取）。 */
   tasks: readonly TaskDTO[];
@@ -123,7 +128,14 @@ export function ArchiveView({
   /** 2026-11-03（逐页错误注入）：加载失败显式报错，不伪装成「暂无归档」。 */
   error?: string | null;
   onRetry?: () => void;
+  /** UI-2 S2b：归档项目（恢复/导出/删除的唯一入口在这里；项目页只留任务与归档动作）。 */
+  archivedProjects?: ReadonlyArray<{ projectId: number; name: string; alias: string | null; taskCount: number }>;
+  onOpenProject?: (projectId: number) => void;
+  onRestoreProject?: (projectId: number) => void;
+  onExportProject?: (projectId: number) => void;
+  onDeleteProject?: (projectId: number) => void;
 }): ReactElement {
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [filter, setFilter] = useState<ArchiveFilter>('all');
   const [selected, setSelected] = useState<ReadonlySet<number>>(new Set());
   const archived = filterArchivedTasks(tasks, 'all');
@@ -166,6 +178,49 @@ export function ArchiveView({
           {archived.length} 个任务
         </span>
       </header>
+      {/* UI-2 S2b（2026-11-09）：归档项目的**集中入口**——恢复/导出/删除在这里一律可达；
+          项目页的「已归档」分支仍保留同样三个按钮（你正打开那个项目时的上下文操作），两处同源。 */}
+      {archivedProjects.length > 0 ? (
+        <section className="tlist__archived-projects" data-testid="archive-projects">
+          <h3 className="tlist__subtitle">归档项目（{archivedProjects.length} 个）</h3>
+          {archivedProjects.map((p) => (
+            <div className="tlist__archived-project-row" data-testid="archive-project-row" data-project-id={p.projectId} key={p.projectId}>
+              <button
+                type="button"
+                className="tlist__linklike"
+                data-testid="archive-project-open"
+                onClick={() => onOpenProject?.(p.projectId)}
+                title="打开项目页"
+              >
+                {p.name}
+                {p.alias ? `（${p.alias}）` : ''}
+              </button>
+              <span className="tlist__muted">{p.taskCount} 个任务</span>
+              <button type="button" data-testid="archive-project-restore" onClick={() => onRestoreProject?.(p.projectId)}>
+                恢复
+              </button>
+              <button type="button" data-testid="archive-project-export" onClick={() => onExportProject?.(p.projectId)}>
+                导出
+              </button>
+              {confirmDeleteId === p.projectId ? (
+                <>
+                  <span className="tlist__muted">删除后不可恢复，确定？</span>
+                  <button type="button" data-testid="archive-project-delete-confirm" onClick={() => { setConfirmDeleteId(null); onDeleteProject?.(p.projectId); }}>
+                    确认删除
+                  </button>
+                  <button type="button" data-testid="archive-project-delete-cancel" onClick={() => setConfirmDeleteId(null)}>
+                    取消
+                  </button>
+                </>
+              ) : (
+                <button type="button" data-testid="archive-project-delete" onClick={() => setConfirmDeleteId(p.projectId)}>
+                  删除
+                </button>
+              )}
+            </div>
+          ))}
+        </section>
+      ) : null}
       {error != null && error.length > 0 ? (
         <div className="tlist__error" data-testid="archive-error" role="alert">
           <span>归档加载失败：{error}</span>

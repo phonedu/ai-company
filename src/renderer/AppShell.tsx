@@ -10,6 +10,7 @@ import { CompanyHall } from './components/CompanyHall';
 import { EmployeeView } from './components/EmployeeView';
 import { InboxView } from './components/InboxView';
 import { ProjectsPage } from './components/ProjectsPage';
+import { archivedProjectsFromList } from './components/projectView.js';
 import { SettingsView } from './components/SettingsView';
 import { ArchiveView } from './components/TaskListViews';
 import { OnboardingGate } from './components/OnboardingGate';
@@ -19,7 +20,7 @@ import { TaskDetailView } from './components/TaskDetailView';
 import { RightRail } from './components/RightRail';
 import { ToastHost } from './components/ToastHost';
 import { paletteResults } from './components/paletteModel';
-import { archiveView, inbox, loadAppUpdateStatus, messages, openTaskDetail, openTaskFromLink, readArtifact, renewTaskFromArchive, session, showChannel, showInbox, showHall, tasks, agent, cost, slots, onboarding, loadCostSummary, loadSlots, loadHall, loadOnboarding, loadTasks, restoreSession, subscribeEvents, searchGlobal, subscribeAppUpdateStatus, toasts, dismissToast } from './store';
+import { archiveView, inbox, loadAppUpdateStatus, messages, openTaskDetail, openTaskFromLink, readArtifact, renewTaskFromArchive, session, showChannel, showInbox, showHall, tasks, agent, cost, slots, onboarding, loadCostSummary, loadSlots, loadHall, loadOnboarding, loadTasks, restoreSession, subscribeEvents, searchGlobal, subscribeAppUpdateStatus, toasts, dismissToast, projectActions, restoreProject, exportProject, deleteProject, loadProjectsForOverview, showProject } from './store';
 import type { ToastDTO } from './components/toastModel.js';
 import { attemptMountReport, MOUNT_REPORT_RETRY_MS } from './mountReport';
 import type { GlobalSearchDTO, HumanMessageDTO, TaskDTO } from './types';
@@ -102,6 +103,12 @@ export function AppShell(): ReactElement {
   const [paletteQuery, setPaletteQuery] = useState('');
   const [paletteGlobal, setPaletteGlobal] = useState<GlobalSearchDTO | null>(null);
   const tasksSnap = useSnapshot(tasks);
+  const projectsSnap = useSnapshot(projectActions);
+  // UI-2 S2b：归档项目列表（归档页集中管理恢复/导出/删除）。
+  const archivedProjects = archivedProjectsFromList(
+    projectsSnap.list as unknown as import('./types.js').ProjectDTO[],
+    tasksSnap.list as unknown as TaskDTO[],
+  );
   const messagesSnap = useSnapshot(messages);
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
@@ -320,7 +327,12 @@ export function AppShell(): ReactElement {
             onRenewTask={(taskId) => void renewTaskFromArchive(taskId)}
             renewNotice={archiveView.notice}
             error={tasksSnap.error}
-            onRetry={() => void loadTasks({ includeArchived: true })}
+            onRetry={() => void Promise.all([loadProjectsForOverview(), loadTasks({ includeArchived: true })]).then(() => undefined)}
+            archivedProjects={archivedProjects.map((g) => ({ projectId: g.projectId, name: g.name, alias: g.alias, taskCount: g.taskCount }))}
+            onOpenProject={(projectId) => showProject(projectId)}
+            onRestoreProject={(projectId) => void restoreProject(projectId)}
+            onExportProject={(projectId) => void exportProject(projectId)}
+            onDeleteProject={(projectId) => void deleteProject(projectId)}
           />
         ) : (
           <BossChannel />

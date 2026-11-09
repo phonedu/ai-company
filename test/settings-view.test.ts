@@ -582,3 +582,16 @@ test('UI-2 S2：项目设置 9 组导航在场、默认模型组、卡片带 dat
   const css = readFileSync('src/renderer/styles.css', 'utf8');
   assert.match(css, /data-active-group="model"[^\n]*\[data-group\]:not\(\[data-group="model"\]\)/, 'CSS 过滤规则在场');
 });
+
+// UI-2 S2b（2026-11-09）：归档页集中承载归档项目的恢复/导出/删除（项目页仍保留上下文入口）。
+test('UI-2 S2b：归档页有「归档项目」区；恢复/导出/删除三键＋删除需二次确认', () => {
+  const src = readFileSync('src/renderer/components/TaskListViews.tsx', 'utf8');
+  assert.match(src, /data-testid="archive-projects"/, '归档项目区在场');
+  for (const id of ['archive-project-restore', 'archive-project-export', 'archive-project-delete']) {
+    assert.ok(src.includes(`data-testid="${id}"`), `缺 ${id}`);
+  }
+  assert.match(src, /data-testid="archive-project-delete-confirm"/, '删除需二次确认（不一点就删）');
+  const shell = readFileSync('src/renderer/AppShell.tsx', 'utf8');
+  assert.match(shell, /archivedProjects=\{archivedProjects/, 'AppShell 已把归档项目列表接进归档页');
+  assert.match(shell, /onRestoreProject=\{\(projectId\) => void restoreProject/, '恢复接线');
+});

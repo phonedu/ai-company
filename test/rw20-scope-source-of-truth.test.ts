@@ -31,8 +31,9 @@ test('RW-20① restoreSession 启动回读 channel.scope_project_id', () => {
 });
 
 test('RW-20② setChannelScope／showProject 写库接线仍在（不许退化成只改内存）', () => {
-  const a = functionBody(storeSrc, 'export function setChannelScope', 700);
+  const a = functionBody(storeSrc, 'export function setChannelScope(', 700);
   assert.match(a, /channel\.scope_project_id/);
-  const b = functionBody(storeSrc, 'export function showProject', 700);
+  // 精确到参数括号：store 里有 showProjectTree，前缀匹配会撞到它（并发会话新增后本守卫误红）。
+  const b = functionBody(storeSrc, 'export function showProject(', 700);
   assert.match(b, /channel\.scope_project_id/);
 });

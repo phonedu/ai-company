@@ -34,9 +34,13 @@ test('裁决 7：PNG 尺寸解析 → 1k/2k 档 → 按模型定价', () => {
   assert.deepEqual(pngSize(tinyPng(2048, 2048)), { width: 2048, height: 2048 });
   assert.equal(pngSize(Buffer.from('not-a-png')), null);
   assert.equal(imageTierOf({ width: 1024, height: 1024 }), '1k');
-  assert.equal(imageTierOf({ width: 1792, height: 1024 }), '2k');
+  // 官方按输出像素面积分档（>2,250,000 才 2K）：1792×1024=1,835,008 ⇒ 1k（独立验收 P2-2 更正）
+  assert.equal(imageTierOf({ width: 1792, height: 1024 }), '1k');
+  assert.equal(imageTierOf({ width: 2048, height: 1024 }), '1k', '2,097,152 仍未过 2.25M');
+  assert.equal(imageTierOf({ width: 2048, height: 2048 }), '2k');
   assert.equal(imageTierOf(null), '2k', '判不出尺寸按 2k 保守记');
   assert.deepEqual(imagePriceCny('qwen-image-3.0-pro', { width: 2048, height: 2048 }), { cny: 0.5, tier: '2k', priced: true });
+  assert.deepEqual(imagePriceCny('qwen-image-3.0-pro', { width: 1792, height: 1024 }), { cny: 0.25, tier: '1k', priced: true }, '横版封面按 1k 记（不再多记一倍）');
   assert.deepEqual(imagePriceCny('qwen-image-3.0-pro', { width: 1024, height: 1024 }), { cny: 0.25, tier: '1k', priced: true });
   const unknown = imagePriceCny('some-future-model', null);
   assert.equal(unknown.priced, false, '无价目要标出来（不静默当已知价）');
@@ -60,6 +64,7 @@ test('裁决 7：出图成功 → 工具回调带价（按实际 PNG 尺寸）�
     })) as unknown as { execute: (id: string, p: unknown, s?: unknown, u?: unknown, c?: unknown) => Promise<{ details?: Record<string, unknown> }> };
     await tool.execute('tc', { prompt: 'x' }, undefined, undefined, { cwd: dir });
     assert.equal(calls.length, 1);
+    // tinyPng(2048,2048)=4.19M 像素 ⇒ 2k 档 0.5 元
     assert.deepEqual(calls[0], { model: 'qwen-image-3.0-pro', cny: 0.5, tier: '2k' });
 
     const failTool = (await createImageGenerateTool(dir, {
@@ -113,7 +118,7 @@ test('裁决 8：任务已 done＋件已 done → 重开任务并新增返工件
     const engine = new Engine(db, noopExecutor, { autoSchedule: false, now: () => 10 });
     const res = await engine.refireAfterApproval(taskId);
     assert.equal(res.ok, true, JSON.stringify(res));
-    assert.equal(res.reason, 'rework_spawned');
+    assert.equal(res.reason, 'refired');
     const task = getTaskById(db, taskId)!;
     assert.notEqual(task.state, 'done', '任务被重开');
     const rework = db.prepare('SELECT id, retry_of, state FROM work_items WHERE task_id=? AND retry_of=?').get(taskId, wiId) as { id: number; state: string } | undefined;
@@ -133,7 +138,7 @@ test('裁决 8：件 failed → retry（attempt 递增）；任务不存在 → 
     const engine = new Engine(db, noopExecutor, { autoSchedule: false, now: () => 10 });
     const res = await engine.refireAfterApproval(taskId);
     assert.equal(res.ok, true, JSON.stringify(res));
-    assert.equal(res.reason, 'retried');
+    assert.equal(res.reason, 'refired');
     const wi = db.prepare('SELECT state, attempt FROM work_items WHERE id=?').get(wiId) as { state: string; attempt: number };
     assert.equal(wi.state, 'running', 'retry 直接回 running 并派发');
     assert.equal(wi.attempt, 2, 'attempt 递增（幂等键变化）');
@@ -162,5 +167,81 @@ test('裁决 6：内置 ffmpeg 随包完整（PE 头＋GPL 声明；产物缺失
     closeSync(fd);
   }
   assert.ok(existsSync(join(dir, 'LICENSE.txt')), 'GPL 许可声明随包');
+  // S13（独立验收）：随包必须是**全文** GPL-3.0，不只给 URL。
+  assert.match(readFileSync(join(dir, 'UPSTREAM-LICENSE.txt'), 'utf8'), /GNU GENERAL PUBLIC LICENSE\s+Version 3/, 'GPL-3.0 全文随包');
   assert.match(readFileSync(join(dir, 'LICENSE.txt'), 'utf8'), /GPL-3\.0|General Public License/);
+});
+
+// ── 独立验收补的用例（2026-11-09）──────────────────────────────────────
+
+test('裁决 8（S4）：undo 守卫拒绝（超 7 天窗）→ 不留孤儿返工件、任务仍 done', async () => {
+  const { db, taskId, wiId } = setupRefire();
+  try {
+    db.prepare("UPDATE tasks SET state='done', closed_at=0, state_before_close='executing' WHERE id=?").run(taskId);
+    db.prepare("UPDATE work_items SET state='done' WHERE id=?").run(wiId);
+    db.prepare("INSERT INTO task_events(task_id, work_item_id, ts, kind, actor, payload) VALUES(?,?,1,'permission_requested','employee:7','{}')").run(taskId, wiId);
+    const engine = new Engine(db, noopExecutor, { autoSchedule: false, now: () => 8 * 24 * 3600 * 1000 });
+    const res = await engine.refireAfterApproval(taskId);
+    assert.equal(res.ok, false);
+    assert.match(res.reason, /task_reopen_refused/);
+    const n = (db.prepare('SELECT COUNT(*) AS n FROM work_items WHERE task_id=?').get(taskId) as { n: number }).n;
+    assert.equal(n, 1, '不留孤儿件（先重开再建件的顺序）');
+    assert.equal((getTaskById(db, taskId) as { state: string }).state, 'done', '任务仍在 done');
+  } finally {
+    db.close();
+  }
+});
+
+test('裁决 8（S7）：正常完成路径 state_before_close=verifying → 也能回到可执行并补跑', async () => {
+  const { db, taskId, wiId } = setupRefire();
+  try {
+    db.prepare("UPDATE tasks SET state='done', closed_at=5, state_before_close='verifying' WHERE id=?").run(taskId);
+    db.prepare("UPDATE work_items SET state='done' WHERE id=?").run(wiId);
+    db.prepare("INSERT INTO task_events(task_id, work_item_id, ts, kind, actor, payload) VALUES(?,?,1,'permission_requested','employee:7','{\"toolName\":\"image_generate\",\"rule\":\"consent:spend\"}')").run(taskId, wiId);
+    const engine = new Engine(db, noopExecutor, { autoSchedule: false, now: () => 10 });
+    const res = await engine.refireAfterApproval(taskId);
+    assert.equal(res.ok, true, JSON.stringify(res));
+    const task = getTaskById(db, taskId) as { state: string };
+    assert.notEqual(task.state, 'done');
+    assert.notEqual(task.state, 'verifying', '不再卡在 verifying');
+  } finally {
+    db.close();
+  }
+});
+
+test('裁决 8（S8）：补跑给任务补任务级 grant（返工件新会话也放行）', async () => {
+  const { db, taskId, wiId } = setupRefire();
+  try {
+    db.prepare("UPDATE tasks SET state='done', closed_at=5, state_before_close='executing' WHERE id=?").run(taskId);
+    db.prepare("UPDATE work_items SET state='done' WHERE id=?").run(wiId);
+    db.prepare("INSERT INTO task_events(task_id, work_item_id, ts, kind, actor, payload) VALUES(?,?,1,'permission_requested','employee:7','{\"toolName\":\"image_generate\",\"rule\":\"consent:spend\"}')").run(taskId, wiId);
+    const engine = new Engine(db, noopExecutor, { autoSchedule: false, now: () => 10 });
+    await engine.refireAfterApproval(taskId);
+    const row = db.prepare("SELECT policy FROM permission_policies WHERE scope_type='task' AND scope_id=?").get(taskId) as { policy: string } | undefined;
+    const grants = JSON.parse(row?.policy ?? '{}').grants ?? [];
+    const g = grants.find((x: { rule: string; toolName: string }) => x.rule === 'consent:spend' && x.toolName === 'image_generate');
+    assert.ok(g, '补跑后存在任务级 grant');
+    assert.equal(g.sessionKey, undefined, '任务级（无 sessionKey）→ 返工件新会话也能命中');
+  } finally {
+    db.close();
+  }
+});
+
+test('裁决 8（S5）：公司日预算超线 → 补跑拒绝（批准权限≠豁免预算）', async () => {
+  const { db, taskId, wiId } = setupRefire();
+  try {
+    db.prepare("UPDATE tasks SET state='done', closed_at=5, state_before_close='executing' WHERE id=?").run(taskId);
+    db.prepare("UPDATE work_items SET state='done' WHERE id=?").run(wiId);
+    db.prepare("INSERT INTO task_events(task_id, work_item_id, ts, kind, actor, payload) VALUES(?,?,1,'permission_requested','employee:7','{}')").run(taskId, wiId);
+    // 日预算设 0.01 美元并先记 1 美元花销。
+    db.prepare("INSERT INTO settings(key, value) VALUES('budget.companyDailyUsd','0.01') ON CONFLICT(key) DO UPDATE SET value='0.01'").run();
+    db.prepare("INSERT INTO costs(task_id, model, tokens_in, tokens_out, usd, created_at) VALUES(?,?,0,0,1,?)").run(taskId, 'x', 10);
+    const engine = new Engine(db, noopExecutor, { autoSchedule: false, now: () => 10 });
+    const res = await engine.refireAfterApproval(taskId);
+    assert.equal(res.ok, false);
+    assert.match(res.reason, /budget_hold/);
+    assert.equal((db.prepare('SELECT COUNT(*) AS n FROM work_items WHERE task_id=?').get(taskId) as { n: number }).n, 1, '被预算拦下时不建件');
+  } finally {
+    db.close();
+  }
 });

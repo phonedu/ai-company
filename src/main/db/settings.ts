@@ -47,6 +47,11 @@ export const KNOWN_SETTINGS_KEYS = [
   'ui.theme',
   /** 2026-10-29 P2（P-N05）：开机自启（true＝下次启动写入系统登录项；缺省 false）。 */
   'app.openAtLogin',
+  /**
+   * B4-4/裁决 7（2026-11-09）：人民币→美元汇率（出图按张计费折 USD 入成本表）。
+   * 独立验收指出此前是「死键」（不在白名单 ⇒ 设置页/`settings:set` 改不了）——补进白名单与规格。
+   */
+  'cost.cnyPerUsd',
 ] as const;
 export type KnownSettingKey = (typeof KNOWN_SETTINGS_KEYS)[number];
 
@@ -99,6 +104,8 @@ export const SETTING_SPECS: Record<KnownSettingKey, SettingSpec> = {
   'memory.retrieval': { kind: 'boolean', range: '布尔（缺省开；false＝关闭同项目历史检索）' },
   'ui.theme': { kind: 'string', range: 'light / dark / system', allowed: ['light', 'dark', 'system'] },
   'app.openAtLogin': { kind: 'boolean', range: '布尔（true＝下次启动写入系统登录项）' },
+  // 裁决 7：出图费用折算汇率（元/美元）；缺省 7.2（见 agent/tools/image-cost.ts DEFAULT_CNY_PER_USD）。
+  'cost.cnyPerUsd': { kind: 'number', min: 1, max: 20, range: '数字 1–20（元/美元；缺省 7.2）' },
 };
 
 export type SettingValidation = { ok: true } | { ok: false; reason: string };

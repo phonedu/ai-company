@@ -92,8 +92,12 @@ export interface IpcDeps {
     schedulerSlots?(): { running: number; total: number };
     /** C4：公司日预算 hold 文案（超支时返回原因；未超/未设 → undefined）。 */
     companyDailyBudgetHold?(): string | undefined;
-    /** 裁决 8（2026-11-09）：会话权限批准后的补跑（件已不在跑时重开/重派）。可选：旧装配缺省 → 不补跑。 */
-    refireAfterApproval?(taskId: number): Promise<{ ok: boolean; reason: string; workItemId: number | null }>;
+    /** 裁决 8（2026-11-09）：会话权限批准后的补跑（件已不在跑时重开/重派）。可选：旧装配缺省 → 不补跑。
+     *  第二参＝按审批 id 绑定的件（多张权限卡并存时不补错件）。 */
+    refireAfterApproval?(
+      taskId: number,
+      workItemId?: number | null,
+    ): Promise<{ ok: boolean; reason: string; workItemId: number | null }>;
   };
   /** 幕僚长真实会话（T0.4）；**懒加载后回填**（可为 null：缺 key / 未就绪）。 */
   assistant?: AssistantPort | null;
@@ -2204,20 +2208,33 @@ export async function handleTaskApprove(
   let refire: { ok: boolean; reason: string; workItemId: number | null } | null = null;
   if (taskId != null && deps.engine) {
     const task = deps.repo.getTask(taskId);
-    const mapped = approvalAnswerEvent(task?.state ?? null, input.chosen);
-    if (mapped) {
-      await deps.engine.dispatch({
-        scope: 'task',
-        id: taskId,
-        event: mapped.event,
-        actor: 'boss',
-        payload: { via: 'approval', approvalId: input.approvalId, chosen: input.chosen, ...(mapped.payload ?? {}) },
-      });
-    } else if (input.chosen === 'approve' && isPermissionApproval((approval as { question?: string } | null)?.question ?? '')) {
+    // B4b 独立验收 P2-6（2026-11-09）：**先判权限审批，再看任务态映射**——顺序反了的话，
+    // 一张陈旧的权限卡在 needs_decision/awaiting_approval 时被批准，会误推 decision_made/
+    // plan_approved（把权限批准当成决策/计划批准）。权限审批与任务态无关，必须优先分流。
+    const isPermission = isPermissionApproval((approval as { question?: string } | null)?.question ?? '');
+    // S3（2026-11-09 安全复核 P2）：只在**本次调用真的把这张审批从未决变已决**、且落库结果就是
+    // approve 时才补跑。否则重复点同一张卡（或先 deny 再重放 approve）会每次都重开任务/多建返工件
+    // ——那是纯粹的重复花费通道。判据＝decided_at 恰为本轮时间且 chosen==='approve'。
+    const decidedAt = (approval as { decidedAt?: number | null } | null)?.decidedAt ?? null;
+    const chosenInDb = (approval as { chosen?: string | null } | null)?.chosen ?? null;
+    const decidedByThisCall = decidedAt === at && chosenInDb === 'approve';
+    if (isPermission && decidedByThisCall) {
       // 裁决 8（老板 2026-11-09 批「批准后补跑」）：G1 是「批准后员工**重试**才放行」——员工按纪律
       // 不等、任务已结束时，批准了也没人再去调工具（真机实测：批了不补图）。这里在「件已不在跑」时
       // 把该件重开/重派；件还在跑则 no-op（返回 already_active）。
-      refire = (await deps.engine.refireAfterApproval?.(taskId)) ?? null;
+      const workItemId = deps.repo.permissionRequestWorkItem?.(input.approvalId) ?? null;
+      refire = (await deps.engine.refireAfterApproval?.(taskId, workItemId)) ?? null;
+    } else {
+      const mapped = approvalAnswerEvent(task?.state ?? null, input.chosen);
+      if (mapped) {
+        await deps.engine.dispatch({
+          scope: 'task',
+          id: taskId,
+          event: mapped.event,
+          actor: 'boss',
+          payload: { via: 'approval', approvalId: input.approvalId, chosen: input.chosen, ...(mapped.payload ?? {}) },
+        });
+      }
     }
   }
   deps.onInboxChanged?.();

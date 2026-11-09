@@ -2,6 +2,16 @@
 
 本仓库包含第三方开源代码/依赖。下列内容随软件分发时保留原始版权与许可声明。
 
+## FFmpeg（随包二进制）
+
+- 来源：FFmpeg 6.1.1-essentials_build（Gyan builds，`https://www.gyan.dev/ffmpeg/builds/`），
+  构建时由 `scripts/fetch-ffmpeg.mjs` 取入 `vendor/ffmpeg/ffmpeg.exe`（固定 sha256＋体积双重校验）。
+- 使用方式：**内置**在安装包的 `resources/ffmpeg/ffmpeg.exe`，启动时校验指纹后加入 PATH，
+  供员工做本地音视频转码/裁切；不做网络推流（外发需老板批准）。
+- 许可：**GPL-3.0**（构建含 libx264/libx265 等 GPL 组件）。全文随包：`licenses/ffmpeg-GPL-3.0.txt`；
+  声明与对应源码地址：`licenses/ffmpeg-NOTICE.txt`。
+- 对应源码：`https://github.com/FFmpeg/FFmpeg`（tag n6.1.1）与 `https://github.com/GyanD/codexffmpeg`（构建脚本）。
+
 ## 腾讯官方微信 iLink 传输层（协议移植）
 
 - 来源：`@tencent-weixin/openclaw-weixin` 2.4.10（`github.com/Tencent/openclaw-weixin`）

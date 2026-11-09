@@ -2556,14 +2556,33 @@ if (!gotSingleInstanceLock) {
     // 打包态＝<resources>/ffmpeg；开发态＝仓库 vendor/ffmpeg（scripts/fetch-ffmpeg.mjs 取）。
     // 只是**前置**到 PATH：系统已装 ffmpeg 时两者都能用（前置保证随包版本优先、版本可控）。
     try {
-      const candidates = [
-        join(process.resourcesPath ?? '', 'ffmpeg'),
-        join(process.cwd(), 'vendor', 'ffmpeg'),
-      ];
-      const dir = candidates.find((d) => d.length > 3 && existsSync(join(d, 'ffmpeg.exe')) || (d.length > 3 && existsSync(join(d, 'ffmpeg'))));
-      if (dir != null) {
-        process.env.PATH = `${dir}${pathDelimiter}${process.env.PATH ?? ''}`;
-        console.log(`[app] 内置 ffmpeg 已加入 PATH：${dir}`);
+      // 安全复核 S9（2026-11-09）：PATH **前置**可写目录＝同名程序劫持面（员工可把 ffmpeg.exe
+      // 换成网络客户端，以 `ffmpeg` 名义执行）。加固：①打包态只用 <resources>/ffmpeg，不再回退
+      // 到 cwd；②进 PATH 前**校验二进制指纹**（体积＋sha256，与构建时 pin 的一致），不符就不前置。
+      const candidates = app.isPackaged
+        ? [join(process.resourcesPath ?? '', 'ffmpeg')]
+        : [join(process.resourcesPath ?? '', 'ffmpeg'), join(process.cwd(), 'vendor', 'ffmpeg')];
+      const FFMPEG_EXE_BYTES = 82797568;
+      const FFMPEG_EXE_SHA256 = '04e1307997530f9cf2fe35cba2ca7e8875ca91da02f89d6c7243df819c94ad00';
+      const verified = candidates.find((d) => {
+        const exe = join(d, 'ffmpeg.exe');
+        if (d.length <= 3 || !existsSync(exe)) return false;
+        // 懒校验：只在文件体积对得上时才算 sha（79MB 读一次约 200ms，启动期可接受且只一次）。
+        try {
+          const { statSync, readFileSync } = require('node:fs') as typeof import('node:fs');
+          if (statSync(exe).size !== FFMPEG_EXE_BYTES) return false;
+          const sha = require('node:crypto').createHash('sha256').update(readFileSync(exe)).digest('hex');
+          return sha === FFMPEG_EXE_SHA256;
+        } catch {
+          return false;
+        }
+      });
+      if (verified != null) {
+        process.env.PATH = `${verified}${pathDelimiter}${process.env.PATH ?? ''}`;
+        console.log(`[app] 内置 ffmpeg 已校验指纹并加入 PATH：${verified}`);
+      } else {
+        // 独立验收 P3-10：两个候选都没有时要**响亮**（此前完全静默，等于把「内置没生效」藏起来）。
+        console.warn(`[app] 未找到可信的内置 ffmpeg（已查：${candidates.join('、')}；指纹不符也算未找到）——员工 bash 里 \`ffmpeg\` 可能不可用；\`node scripts/fetch-ffmpeg.mjs\` 可取`);
       }
     } catch (error) {
       console.error(`[app] 内置 ffmpeg 挂载失败（不阻断启动）：${error instanceof Error ? error.message : String(error)}`);

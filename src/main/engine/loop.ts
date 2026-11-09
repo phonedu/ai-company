@@ -12,6 +12,7 @@ import { resolve } from 'node:path';
 import { DEFAULT_SCHEDULER_CONFIG, planScheduling, type SchedulerConfig, type SchedulerInput } from '../../core/scheduler.js';
 import { normalizePlanWorkItems, type NormalizedPlanWorkItem } from '../../core/plan.js';
 import { insertWorkItemDep } from '../db/work_item_deps.js';
+import { issueGrant } from '../permission/grants.js';
 import { SqliteMemoryStore } from '../memory/index.js';
 import type { TaskState, WaitingReason } from '../../core/types.js';
 import { DEFAULT_RATE_LIMITS, describeRateLimit, rateAction, type RateLimits, type RateTier } from './rate-gate.js';
@@ -811,6 +812,30 @@ export class Engine {
    * B10 验证打回：建返工工作项（`brief` = 验证者批注；owner = 实现者；`attempt=0`；`queued`）。
    * 只对 `verdict!=='pass'` 生效（对应迁移行自带守卫）；同源工作项仅生成一个返工项（幂等键）。
    */
+  /**
+   * 补跑时的「让新会话也放行」：为任务补一条**任务级** grant（rule+toolName 取最近一条权限请求）。
+   * 会话级 grant（sessionKey 含 wi:旧件）在返工件的新会话里对不上——不补会形成批准 churn（S8）。
+   * 只写本任务的 policy，不外溢（`issueGrant` 走 task scope，无 sessionKey ⇒ 任务级回落）。
+   */
+  private grantForRework(taskId: number, _notes: string): void {
+    try {
+      const ev = this.db
+        .prepare("SELECT payload FROM task_events WHERE task_id = ? AND kind = 'permission_requested' ORDER BY id DESC LIMIT 1")
+        .get(taskId) as { payload: string } | undefined;
+      if (ev == null) return;
+      let p: { toolName?: string; rule?: string | null } = {};
+      try {
+        p = JSON.parse(ev.payload) as { toolName?: string; rule?: string | null };
+      } catch {
+        return;
+      }
+      if (typeof p.toolName !== 'string' || typeof p.rule !== 'string') return;
+      issueGrant(this.db, { taskId, rule: p.rule, toolName: p.toolName, grantedBy: 'boss(approval_refire)', now: this.now() });
+    } catch (error) {
+      console.error(`[engine] 补跑 grant 写入失败（不阻断补跑）：${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
   private spawnReworkItem(action: PersistedAction): void {
     const payload = action.payload as { workItemId?: unknown; notes?: unknown; employeeId?: unknown };
     const srcWiId = Number(payload.workItemId ?? 0);
@@ -848,26 +873,82 @@ export class Engine {
    *  与签收拒绝同一语义）；其它态（queued/running/blocked）→ `already_active`。
    * 不新造事件 kind（重开/重派本身的既有事件已留痕，payload 带 `via:'approval_refire'`）。
    */
-  async refireAfterApproval(taskId: number): Promise<{ ok: boolean; reason: string; workItemId: number | null }> {
+  async refireAfterApproval(
+    taskId: number,
+    /** 指定要补的件（由调用方按 approvalId 解析；缺省回落「最近一条权限请求的件」）。 */
+    explicitWorkItemId?: number | null,
+  ): Promise<{ ok: boolean; reason: string; workItemId: number | null }> {
     const task = getTaskById(this.db, taskId);
     if (!task) return { ok: false, reason: 'task_not_found', workItemId: null };
-    // 发起该权限请求的件（最近一条 permission_requested 的归属）。
-    const ev = this.db
-      .prepare("SELECT work_item_id FROM task_events WHERE task_id = ? AND kind = 'permission_requested' ORDER BY id DESC LIMIT 1")
-      .get(taskId) as { work_item_id: number | null } | undefined;
-    const workItemId = ev?.work_item_id ?? null;
+    // 发起该权限请求的件：优先用调用方按 approvalId 绑定的件（多张权限卡并存时不会补错件）；
+    // 缺省回落最近一条 permission_requested 的归属。
+    let workItemId = explicitWorkItemId ?? null;
+    if (workItemId == null) {
+      const ev = this.db
+        .prepare("SELECT work_item_id FROM task_events WHERE task_id = ? AND kind = 'permission_requested' ORDER BY id DESC LIMIT 1")
+        .get(taskId) as { work_item_id: number | null } | undefined;
+      workItemId = ev?.work_item_id ?? null;
+    }
     if (workItemId == null) return { ok: false, reason: 'no_work_item', workItemId };
-    const wi = getWorkItem(this.db, workItemId);
+    let wi = getWorkItem(this.db, workItemId);
     if (!wi) return { ok: false, reason: 'work_item_missing', workItemId };
     if (wi.state === 'queued' || wi.state === 'running' || wi.state === 'blocked') {
       return { ok: true, reason: 'already_active', workItemId };
     }
 
-    // 返工件必须**先建、再重开任务**：重开后聚合看到「所有件都已完成」会立刻自动验证完成
-    // （实测：undo_finish→start_task 后紧跟 verification_completed→task_completed），件就没人跑了。
     const notes = '老板已在任务结束后批准该权限：按原目标重试被拦的动作（不要重复已完成的部分）。';
-    let spawned = false;
-    if ((wi.state === 'done' || wi.state === 'submitted') && task.state === 'done') {
+    // S5（2026-11-09 安全复核 P2）：补跑**不豁免预算/日预算闸门**——批准的是权限，不是预算。
+    // 公司日预算已超线时直接拒绝并给原因（任务级 token 预算由调度器 hold 管，这里只管公司级 USD）。
+    const budgetHold = this.companyDailyBudgetHold();
+    if (budgetHold != null) return { ok: false, reason: `budget_hold:${budgetHold}`, workItemId };
+    const terminalTask = task.state === 'done' || task.state === 'failed' || task.state === 'cancelled';
+    if (terminalTask) {
+      // 先重开任务（失败就什么都不改——独立验收指出：先插返工件再 undo 会在守卫拒绝时
+      // 在已结束任务下留孤儿返工件）。返工件在 undo 成功、start 之前建（见下）。
+      const reopenEvent = task.state === 'done' ? 'undo_finish' : task.state === 'failed' ? 'retry' : 'restore';
+      try {
+        await this.dispatch({ scope: 'task', id: taskId, event: reopenEvent, actor: 'boss', payload: { via: 'approval_refire' } });
+      } catch (error) {
+        return { ok: false, reason: `task_reopen_refused:${error instanceof Error ? error.message : String(error)}`, workItemId };
+      }
+    }
+    let after = getTaskById(this.db, taskId);
+    if (after == null) return { ok: false, reason: 'task_not_found', workItemId };
+    // undo_finish 回到 `state_before_close`：**正常完成路径通常是 verifying**（L0 机器验）或
+    // needs_decision（L1/L2 签收）。verifying 没有 start_task 边——机器上唯一「回执行」的边是
+    // verification_completed(verdict≠pass)，它自己会 spawn 返工件（B10 口径）。就用它，不再自己插件
+    // （否则会多出一个件）。needs_decision 得老板先拍板，如实拒绝（S7）。
+    if (after.state === 'verifying') {
+      try {
+        await this.dispatch({
+          scope: 'task',
+          id: taskId,
+          event: 'verification_completed',
+          actor: 'boss',
+          payload: { verdict: 'fail', workItemId, notes, via: 'approval_refire' },
+        });
+        after = getTaskById(this.db, taskId) ?? after;
+      } catch (error) {
+        return { ok: false, reason: `task_state_verifying（回执行失败：${error instanceof Error ? error.message : String(error)}）`, workItemId };
+      }
+      if (after.state !== 'executing' && after.state !== 'planning') {
+        return { ok: false, reason: `task_state_${after.state}`, workItemId };
+      }
+      this.grantForRework(taskId, notes);
+      return { ok: true, reason: 'refired', workItemId };
+    }
+    if (after.state === 'needs_decision') {
+      return { ok: false, reason: 'task_state_needs_decision（需先在任务上拍板）', workItemId };
+    }
+    // undo_finish / retry 的落点是 `ready`（patch readyNow）⇒ 稍后要 start_task；其它态必须已在跑。
+    const needsStart = after.state === 'ready';
+    if (!needsStart && after.state !== 'executing' && after.state !== 'planning') {
+      return { ok: false, reason: `task_state_${after.state}`, workItemId };
+    }
+    // 返工件/重派必须**在 start_task 之前**做：一启动聚合就会看到「所有件都已完成」自动收尾
+    // （2026-11-09 实测：先 start 后建 ⇒ 立刻 verification_completed→task_completed）。
+    wi = getWorkItem(this.db, workItemId) ?? wi;
+    if (wi.state === 'done' || wi.state === 'submitted') {
       insertWorkItem(this.db, {
         taskId,
         employeeId: wi.employee_id,
@@ -878,37 +959,27 @@ export class Engine {
         now: this.now(),
         actor: 'system',
       });
-      spawned = true;
+      // S8（2026-11-09 安全复核 P2）：批准发的 grant 是**会话级**（sessionKey 含 wi:旧件），
+      // 返工件新会话对不上 ⇒ 补跑仍会再弹卡（批准 churn）。这里为返工件补发**任务级** grant
+      // （rule+toolName 从最近一条权限请求取；scope 只到本任务，不扩散到别的任务）。
+      this.grantForRework(taskId, notes);
+    } else if (wi.state === 'failed') {
+      // 只在本件仍 failed 时才发 retry（start_task 的 reconcile 可能已经重派过；重复发会撞非法迁移）。
+      await this.dispatch({ scope: 'work_item', id: workItemId, event: 'retry', actor: 'boss', payload: { via: 'approval_refire' } });
+    } else if (wi.state === 'rejected' || wi.state === 'interrupted') {
+      await this.dispatch({ scope: 'work_item', id: workItemId, event: 'redispatch', actor: 'boss', payload: { via: 'approval_refire' } });
+    } else if (wi.state !== 'queued' && wi.state !== 'running' && wi.state !== 'blocked') {
+      return { ok: false, reason: `work_item_state_${wi.state}`, workItemId };
     }
-
-    if (task.state === 'done') {
-      try {
-        await this.dispatch({ scope: 'task', id: taskId, event: 'undo_finish', actor: 'boss', payload: { via: 'approval_refire' } });
-      } catch (error) {
-        return { ok: false, reason: `undo_finish_refused:${error instanceof Error ? error.message : String(error)}`, workItemId };
-      }
-    }
-    let after = getTaskById(this.db, taskId);
-    if (after == null) return { ok: false, reason: 'task_not_found', workItemId };
-    // undo_finish 的 patch 是 readyNow ⇒ 重开后落在 `ready`（待启动），要先 start_task 才回 executing。
-    if (after.state === 'ready') {
+    if (needsStart) {
       await this.dispatch({ scope: 'task', id: taskId, event: 'start_task', actor: 'system', payload: { via: 'approval_refire' } });
       after = getTaskById(this.db, taskId);
+      if (after == null) return { ok: false, reason: 'task_not_found', workItemId };
     }
-    if (after == null) return { ok: false, reason: 'task_not_found', workItemId };
     if (after.state !== 'executing' && after.state !== 'planning') {
       return { ok: false, reason: `task_state_${after.state}`, workItemId };
     }
-    if (spawned) return { ok: true, reason: 'rework_spawned', workItemId };
-    if (wi.state === 'failed') {
-      await this.dispatch({ scope: 'work_item', id: workItemId, event: 'retry', actor: 'boss', payload: { via: 'approval_refire' } });
-      return { ok: true, reason: 'retried', workItemId };
-    }
-    if (wi.state === 'rejected' || wi.state === 'interrupted') {
-      await this.dispatch({ scope: 'work_item', id: workItemId, event: 'redispatch', actor: 'boss', payload: { via: 'approval_refire' } });
-      return { ok: true, reason: 'redispatched', workItemId };
-    }
-    return { ok: false, reason: `work_item_state_${wi.state}`, workItemId };
+    return { ok: true, reason: 'refired', workItemId };
   }
 
   /**

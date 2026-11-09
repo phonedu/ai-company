@@ -14,7 +14,7 @@ import {
   answerApproval as dbAnswerApproval,
   latestPendingApproval as dbLatestPendingApproval,
 } from '../db/approvals.js';
-import { applyApprovalAsGrant, isGrantingChoice } from '../permission/grants.js';
+import { applyApprovalAsGrant, isGrantingChoice, parsePermissionQuestion } from '../permission/grants.js';
 import { resolveAssistantWriteMode, setAssistantWriteMode } from '../permission/assistant-write.js';
 import type { AssistantWriteMode } from '../permission/gate.js';
 import type { EmployeeDTO } from './hall.js';
@@ -1223,6 +1223,33 @@ export function createSqliteChatRepo(db: SqliteDb): ChatRepo {
         applyApprovalAsGrant(db, input.approvalId, { now: input.now ?? Date.now(), approvedBy: input.decidedBy });
       }
       return toApproval(row);
+    },
+
+    /**
+     * B4b 裁决 8（2026-11-09 独立验收 P3-9）：按**这张**权限审批找到发起它的工作项。
+     * 做法：从审批问题解析 toolName/rule，取同任务下最近一条匹配的 `permission_requested`。
+     * 找不到 → null（调用方回落「最近一条权限请求」）。
+     */
+    permissionRequestWorkItem(approvalId: number): number | null {
+      const row = dbGetApproval(db, approvalId);
+      if (row == null || row.task_id == null) return null;
+      const parsed = parsePermissionQuestion(row.question);
+      if (parsed == null) return null;
+      const rows = db
+        .prepare(
+          "SELECT work_item_id, payload FROM task_events WHERE task_id = ? AND kind = 'permission_requested' ORDER BY id DESC LIMIT 20",
+        )
+        .all(row.task_id) as Array<{ work_item_id: number | null; payload: string }>;
+      for (const e of rows) {
+        let p: { toolName?: string; rule?: string | null } = {};
+        try {
+          p = JSON.parse(e.payload) as { toolName?: string; rule?: string | null };
+        } catch {
+          continue;
+        }
+        if (p.toolName === parsed.toolName && (p.rule ?? null) === (parsed.rule ?? null)) return e.work_item_id ?? null;
+      }
+      return null;
     },
 
     resolvePendingApprovalForTask(taskId, chosen, now) {

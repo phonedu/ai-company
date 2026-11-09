@@ -321,6 +321,8 @@ export interface ChatRepo {
   listReports(opts?: { taskId?: number; state?: string; kind?: string; limit?: number; latest?: boolean }): StoredReport[];
   acknowledgeReport(reportId: number, now?: number): StoredReport | null;
   getApproval(approvalId: number): StoredApproval | null;
+  /** B4b 裁决 8：按权限审批 id 找到发起它的工作项（按 toolName+rule 匹配最近一条 permission_requested）。 */
+  permissionRequestWorkItem?(approvalId: number): number | null;
   answerApproval(input: {
     approvalId: number;
     chosen: string;

@@ -28,6 +28,12 @@ export interface RecordCostInput {
 
 /** 记一笔成本；返回该任务累计 cost_tokens（**公司级 ⇒ null**，不假报 0）。 */
 export function recordCost(db: SqliteDb, input: RecordCostInput): { costTotal: number | null } {
+  // 安全复核 S15（2026-11-09）：usd 非法值不静默入库（负数会冲抵成本、Infinity 存成 NULL）。
+  // 非有限数或负数 → 按 0 记并响亮报错（不阻断会话）。
+  if (input.usd != null && (!Number.isFinite(input.usd) || input.usd < 0)) {
+    console.error(`[costs] 非法 usd（${String(input.usd)}）→ 按 0 记（source=${input.source ?? '-'}）`);
+    input = { ...input, usd: 0 };
+  }
   const tokensIn = input.tokensIn ?? 0;
   const tokensOut = input.tokensOut ?? 0;
   const cacheRead = input.cacheReadTokens ?? 0;

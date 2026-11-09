@@ -38,11 +38,14 @@ extraResources:
     to: licenses/THIRD_PARTY_NOTICES.md
   # 裁决 6（老板 2026-11-09「不大就内置在我们的软件里面」）：ffmpeg 随包——
   # 二进制由 `node scripts/fetch-ffmpeg.mjs` 在构建时取（固定版本＋sha256 校验），仓库不存 79MB；
-  # GPL-3.0 合规：许可证声明随包（licenses/ffmpeg-GPL.txt），对应源码地址写在声明里。
+  # GPL-3.0 合规：全文许可证＋声明随包（licenses/ffmpeg-GPL-3.0.txt、ffmpeg-NOTICE.txt）。
   - from: vendor/ffmpeg/ffmpeg.exe
     to: ffmpeg/ffmpeg.exe
+  # GPL-3.0 合规（独立验收 S13）：随包**全文**许可证（上游 35KB），不只给 URL。
+  - from: vendor/ffmpeg/UPSTREAM-LICENSE.txt
+    to: licenses/ffmpeg-GPL-3.0.txt
   - from: vendor/ffmpeg/LICENSE.txt
-    to: licenses/ffmpeg-GPL.txt
+    to: licenses/ffmpeg-NOTICE.txt
 asar: false
 # ⚠️ asar:false —— 见 §7.4/T0.1 实验：asar 下 main 启动时外部依赖/原生模块解析有坑（静默退出，无日志）；
 # 本次「含全部当前提交的 UI 预览包」先用**非 asar** 保可用（files 已排除 dist/，体积可控）。asar 化排期到 M1。

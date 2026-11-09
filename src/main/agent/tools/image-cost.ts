@@ -31,10 +31,16 @@ export function pngSize(buf: Buffer): { width: number; height: number } | null {
   return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
 }
 
-/** 档位：长边 >1024 记 2k（千问 2k 单价更高）；判不出尺寸按 2k 保守记（宁可多记不少记）。 */
+/**
+ * 档位：官方按**输出像素面积**分档（>2,250,000 像素记 2K；来源：百炼 API 参考/成本优化说明）。
+ * 2026-11-09 独立验收指出此前用「长边 >1024」判 2k —— 会把 1792×1024（1,835,008）多记一倍。
+ * 判不出尺寸按 2k 保守记（宁可多记不少记）。
+ */
+export const TIER_2K_MIN_PIXELS = 2_250_000;
+
 export function imageTierOf(size: { width: number; height: number } | null): '1k' | '2k' {
   if (size == null) return '2k';
-  return Math.max(size.width, size.height) > 1024 ? '2k' : '1k';
+  return size.width * size.height > TIER_2K_MIN_PIXELS ? '2k' : '1k';
 }
 
 /** 单张图人民币价（元）。无该模型价目 → `fallbackCny`（缺省 0.5，且调用方应把它当「未知价」标出）。 */

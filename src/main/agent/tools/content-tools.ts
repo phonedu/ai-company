@@ -8,7 +8,7 @@
  *    源须在项目根/工作目录内），导出文件与源同目录派生，不另收输出路径。
  * 两者都按**会话 cwd**（`sessionCwd(ctx)`）解析——与门禁 `run.cwd` 同源；装配期 cwd 只作兜底。
  */
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { closeSync, existsSync, openSync, readFileSync, readSync, realpathSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 
 import { exportToFile, type ExportFormat } from './export-format-tool.js';
@@ -88,7 +88,15 @@ export async function createImageGenerateTool(
       let costNote = '';
       if (result.ok && result.path && deps.recordImageCost != null) {
         try {
-          const buf = readFileSync(result.path);
+          // 安全复核 S19：只为 24 字节头，不整张读进内存（出图是 MB 级）。
+          const fd = openSync(result.path, 'r');
+          let buf: Buffer;
+          try {
+            buf = Buffer.alloc(24);
+            readSync(fd, buf, 0, 24, 0);
+          } finally {
+            closeSync(fd);
+          }
           const size = pngSize(buf);
           const price = imagePriceCny(channel === 'qwen' ? QWEN_IMAGE_MODEL : 'dall-e-3', size);
           deps.recordImageCost({ model: channel === 'qwen' ? QWEN_IMAGE_MODEL : 'dall-e-3', cny: price.cny, tier: price.tier, priced: price.priced, path: result.path, ctx });

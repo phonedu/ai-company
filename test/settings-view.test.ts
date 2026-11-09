@@ -569,3 +569,17 @@ test('自动更新（关于区）：状态如实显示；检查按钮按 canChec
   assert.match(portable, /免安装版请手动下载新版本/);
   assert.ok(!portable.includes('settings-update-install'));
 });
+
+// UI-2 S2（2026-11-09）：项目页「设置」页签拆 6 组——分段导航 + 只做显示过滤（卡片 DOM 不动），
+// 默认只开「模型」；没有「定时」卡就不摆空组（不造假入口）。源码级守卫（组件渲染依赖 store 上下文）。
+test('UI-2 S2：项目设置 6 组导航在场、默认模型组、卡片带 data-group', () => {
+  const src = readFileSync('src/renderer/components/ProjectOverview.tsx', 'utf8');
+  assert.match(src, /data-testid="project-settings-groupnav"/, '分组导航在场');
+  assert.match(src, /useState<[^>]*'model'[^>]*>\('model'\)/, '默认组＝model');
+  for (const g of ['model', 'staffing', 'permission', 'skills', 'docs', 'advanced']) {
+    assert.ok(src.includes(`data-group="${g}"`), `卡片缺 data-group="${g}"`);
+  }
+  assert.equal(src.includes("'定时'"), false, '没有定时卡就不摆空组（注释里提到不算）');
+  const css = readFileSync('src/renderer/styles.css', 'utf8');
+  assert.match(css, /data-active-group="model"[^\n]*\[data-group\]:not\(\[data-group="model"\]\)/, 'CSS 过滤规则在场');
+});

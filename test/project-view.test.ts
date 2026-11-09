@@ -196,7 +196,9 @@ test('M3-DOC-2：项目概览渲染完整面板（计数/明细/清空/截断）
 test('UI 简化：项目设置折叠，任务树排前（配置卡不再铺满概览）', () => {
   const source = readFileSync('src/renderer/components/ProjectOverview.tsx', 'utf8');
   assert.match(source, /data-testid="project-settings"/);
-  assert.match(source, /项目设置（模型 \/ 分工 \/ 权限 \/ 技能 \/ 文档 \/ 定时）/);
+  // UI-2 S2：外层摘要不再枚举 6 项（分组导航接管），这里锁「折叠块仍在 + 分组导航在场」。
+  assert.match(source, /项目设置（按组查看）/);
+  assert.match(source, /data-testid="project-settings-groupnav"/);
   assert.match(source, /project-tasks-card/);
   const css = readFileSync('src/renderer/styles.css', 'utf8');
   assert.match(css, /\.project-settings\s*\{[^}]*order:\s*2/s);

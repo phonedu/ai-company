@@ -197,7 +197,7 @@ test('UI 简化：项目设置折叠，任务树排前（配置卡不再铺满�
   const source = readFileSync('src/renderer/components/ProjectOverview.tsx', 'utf8');
   assert.match(source, /data-testid="project-settings"/);
   // UI-2 S2：外层摘要不再枚举 6 项（分组导航接管），这里锁「折叠块仍在 + 分组导航在场」。
-  assert.match(source, /项目设置（按组查看）/);
+  assert.match(source, /project-settings__groupnav/);
   assert.match(source, /data-testid="project-settings-groupnav"/);
   assert.match(source, /project-tasks-card/);
   const css = readFileSync('src/renderer/styles.css', 'utf8');

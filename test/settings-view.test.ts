@@ -595,3 +595,36 @@ test('UI-2 S2b：归档页有「归档项目」区；恢复/导出/删除三键�
   assert.match(shell, /archivedProjects=\{archivedProjects/, 'AppShell 已把归档项目列表接进归档页');
   assert.match(shell, /onRestoreProject=\{\(projectId\) => void restoreProject/, '恢复接线');
 });
+
+// UI-2 S2 复核 P1（2026-11-09）：设置页「项目模型」随 S2 退役时把唯一编辑面一起删了，只剩只读摘要＋
+// 指向不存在的入口。真活搬回项目页「设置·模型」：策略/默认模型/允许清单/默认预算/合并目标分支。
+test('UI-2 S2 复核 P1：项目页「设置·模型」有编辑面，且不再指向已退役的设置入口', () => {
+  const src = readFileSync('src/renderer/components/ProjectOverview.tsx', 'utf8');
+  for (const id of [
+    'project-model-edit',
+    'project-model-policy',
+    'project-model-default',
+    'project-model-allowed',
+    'project-budget',
+    'project-budget-save',
+    'project-target-branch',
+    'project-target-branch-save',
+    'project-model-save',
+  ]) {
+    assert.ok(src.includes(`data-testid="${id}"`), `缺 ${id}`);
+  }
+  assert.match(src, /saveProjectModelPolicy\(/, '策略保存走真 IPC 封装');
+  assert.match(src, /saveProjectDefaultBudget\(/, '默认预算保存走真 IPC 封装');
+  assert.match(src, /saveProjectTargetBranch\(/, '合并目标分支保存走真 IPC 封装');
+  assert.ok(!src.includes('设置 → 模型与员工 → 项目模型'), '不再指向已退役的设置入口');
+});
+
+// UI-2 S2b 复核 P2（2026-11-09）：后端只允许删**空**归档项目；UI 对非空项目必须显式禁用并说明，
+// 恢复/导出/删除的失败要显示出来（此前静默写进 projectActions）。
+test('UI-2 S2b 复核 P2：非空归档项目禁删＋动作回执可见', () => {
+  const src = readFileSync('src/renderer/components/TaskListViews.tsx', 'utf8');
+  assert.match(src, /disabled=\{p\.taskCount > 0\}/, '非空项目删除键禁用');
+  assert.match(src, /archive-project-action-error/, '动作失败可见');
+  const shell = readFileSync('src/renderer/AppShell.tsx', 'utf8');
+  assert.match(shell, /actionError=\{projectsSnap\.error\}/, 'AppShell 把 projectActions.error 接进归档页');
+});

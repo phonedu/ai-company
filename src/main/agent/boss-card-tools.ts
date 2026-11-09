@@ -11,7 +11,7 @@
  */
 import type { SqliteDb } from '../db/open.js';
 import { acknowledgeReport as dbAcknowledgeReport } from '../db/reports.js';
-import { answerApproval as dbAnswerApproval } from '../db/approvals.js';
+import { answerApproval as dbAnswerApproval, isPermissionApproval } from '../db/approvals.js';
 import { approvalAnswerEvent } from '../../core/approval-events.js';
 import { applyApprovalAsGrant, isGrantingChoice } from '../permission/grants.js';
 import type { EngineEvent } from '../engine/types.js';
@@ -113,8 +113,8 @@ export async function createBossCardTools(deps: BossCardToolDeps): Promise<{ inb
         return { content: [{ type: 'text', text: `卡#${card.id} 不关联任务，只能 ack 清除，无法选选项。` }], details: { action: 'select', card: card.id, result: 'no_task' } };
       }
       const approval = deps.db
-        .prepare('SELECT id FROM approvals WHERE task_id = ? AND chosen IS NULL ORDER BY id DESC LIMIT 1')
-        .get(card.task_id) as { id: number } | undefined;
+        .prepare('SELECT id, question FROM approvals WHERE task_id = ? AND chosen IS NULL ORDER BY id DESC LIMIT 1')
+        .get(card.task_id) as { id: number; question: string | null } | undefined;
       if (approval == null) {
         return { content: [{ type: 'text', text: `任务 T-${card.task_id} 没有待批审批（可能已处理）。` }], details: { action: 'select', card: card.id, result: 'no_approval' } };
       }
@@ -138,7 +138,11 @@ export async function createBossCardTools(deps: BossCardToolDeps): Promise<{ inb
         deps.onGrant?.(approval.id, chosen);
       }
       const task = deps.db.prepare('SELECT state FROM tasks WHERE id = ?').get(card.task_id) as { state: string } | undefined;
-      const mapped = approvalAnswerEvent(task?.state ?? null, chosen);
+      // 换方向复核 P2-6（2026-11-09）：**权限审批不驱动任务状态机**（与 `task:approve` 同一口径）。
+      // 此前幕僚长这个入口无条件映射，批准/拒绝一张权限卡会顺带推 decision_made/plan_approved。
+      // 权限只影响 grant（`deps.onGrant` 已在上一步处理）；补跑本入口暂不接（如实不假装）。
+      const permissionCard = isPermissionApproval(approval.question ?? '');
+      const mapped = permissionCard ? null : approvalAnswerEvent(task?.state ?? null, chosen);
       if (mapped != null && deps.engine != null) {
         await deps.engine.dispatch({
           scope: 'task',

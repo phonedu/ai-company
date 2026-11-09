@@ -15,6 +15,7 @@ import { createHash } from 'node:crypto';
 import { closeSync, copyFileSync, existsSync, mkdirSync, openSync, readFileSync, readSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { deleteProviderKey, insertArtifact, isKnownSettingKey, isSecretSettingKey, SETTING_REDACTED, upsertProviderKey, validateSettingValue, writeSetting } from '../db/index.js';
 import { isPermissionApproval } from '../db/approvals.js';
+import { parsePermissionQuestion } from '../permission/grants.js';
 import type { ContextMetricRow } from '../db/context_metrics.js';
 import { getEmployeeById, insertEmployee, updateEmployee } from '../db/index.js';
 import { stagedFilePath } from './staged-files.js';
@@ -93,10 +94,11 @@ export interface IpcDeps {
     /** C4：公司日预算 hold 文案（超支时返回原因；未超/未设 → undefined）。 */
     companyDailyBudgetHold?(): string | undefined;
     /** 裁决 8（2026-11-09）：会话权限批准后的补跑（件已不在跑时重开/重派）。可选：旧装配缺省 → 不补跑。
-     *  第二参＝按审批 id 绑定的件（多张权限卡并存时不补错件）。 */
+     *  第二参＝按审批 id 绑定的件；第三参＝老板真批的那条规则（补跑只为它发授权，不猜、不扩面）。 */
     refireAfterApproval?(
       taskId: number,
       workItemId?: number | null,
+      approvedRule?: { rule: string; toolName: string } | null,
     ): Promise<{ ok: boolean; reason: string; workItemId: number | null }>;
   };
   /** 幕僚长真实会话（T0.4）；**懒加载后回填**（可为 null：缺 key / 未就绪）。 */
@@ -2218,12 +2220,25 @@ export async function handleTaskApprove(
     const decidedAt = (approval as { decidedAt?: number | null } | null)?.decidedAt ?? null;
     const chosenInDb = (approval as { chosen?: string | null } | null)?.chosen ?? null;
     const decidedByThisCall = decidedAt === at && chosenInDb === 'approve';
-    if (isPermission && decidedByThisCall) {
-      // 裁决 8（老板 2026-11-09 批「批准后补跑」）：G1 是「批准后员工**重试**才放行」——员工按纪律
-      // 不等、任务已结束时，批准了也没人再去调工具（真机实测：批了不补图）。这里在「件已不在跑」时
-      // 把该件重开/重派；件还在跑则 no-op（返回 already_active）。
-      const workItemId = deps.repo.permissionRequestWorkItem?.(input.approvalId) ?? null;
-      refire = (await deps.engine.refireAfterApproval?.(taskId, workItemId)) ?? null;
+    if (isPermission) {
+      // 换方向复核 P2-1（2026-11-09）：**权限审批永不驱动任务状态机**——连重放/先 deny 后 approve
+      // 也不能（此前只在「本次作答」时短路，重放会落进 else 把权限批准推成 decision_made/
+      // plan_approved）。权限只影响 grant 与补跑。
+      if (decidedByThisCall) {
+        // 裁决 8（老板 2026-11-09 批「批准后补跑」）：G1 是「批准后员工**重试**才放行」——员工按纪律
+        // 不等、任务已结束时，批准了也没人再去调工具（真机实测：批了不补图）。这里在「件已不在跑」时
+        // 把该件重开/重派；件还在跑则 no-op（返回 already_active）。
+        const workItemId = deps.repo.permissionRequestWorkItem?.(input.approvalId) ?? null;
+        // 老板真批的那条规则（按审批问题解析）——补跑只给这条规则发授权，不猜、不扩面。
+        const q = (approval as { question?: string } | null)?.question ?? '';
+        const parsed = q.length > 0 ? parsePermissionQuestion(q) : null;
+        refire =
+          (await deps.engine.refireAfterApproval?.(
+            taskId,
+            workItemId,
+            parsed != null ? { rule: parsed.rule, toolName: parsed.toolName } : null,
+          )) ?? null;
+      }
     } else {
       const mapped = approvalAnswerEvent(task?.state ?? null, input.chosen);
       if (mapped) {

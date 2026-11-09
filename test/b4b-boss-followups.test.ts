@@ -37,6 +37,10 @@ test('裁决 7：PNG 尺寸解析 → 1k/2k 档 → 按模型定价', () => {
   // 官方按输出像素面积分档（>2,250,000 才 2K）：1792×1024=1,835,008 ⇒ 1k（独立验收 P2-2 更正）
   assert.equal(imageTierOf({ width: 1792, height: 1024 }), '1k');
   assert.equal(imageTierOf({ width: 2048, height: 1024 }), '1k', '2,097,152 仍未过 2.25M');
+  // 同向复核 P2-3：DALL-E 按尺寸档（长边 >1024 即 $0.08 档），不能套千问的面积口径。
+  assert.equal(imageTierOf({ width: 1792, height: 1024 }, 'dall-e-3'), '2k');
+  assert.equal(imageTierOf({ width: 1024, height: 1024 }, 'dall-e-3'), '1k');
+  assert.deepEqual(imagePriceCny('dall-e-3', { width: 1792, height: 1024 }), { cny: 0.58, tier: '2k', priced: true });
   assert.equal(imageTierOf({ width: 2048, height: 2048 }), '2k');
   assert.equal(imageTierOf(null), '2k', '判不出尺寸按 2k 保守记');
   assert.deepEqual(imagePriceCny('qwen-image-3.0-pro', { width: 2048, height: 2048 }), { cny: 0.5, tier: '2k', priced: true });
@@ -209,19 +213,23 @@ test('裁决 8（S7）：正常完成路径 state_before_close=verifying → 也
   }
 });
 
-test('裁决 8（S8）：补跑给任务补任务级 grant（返工件新会话也放行）', async () => {
+test('裁决 8（S8 返工后）：补跑只为**本次批准的规则**、只给**新返工件会话**发 grant（不扩面）', async () => {
   const { db, taskId, wiId } = setupRefire();
   try {
     db.prepare("UPDATE tasks SET state='done', closed_at=5, state_before_close='executing' WHERE id=?").run(taskId);
     db.prepare("UPDATE work_items SET state='done' WHERE id=?").run(wiId);
-    db.prepare("INSERT INTO task_events(task_id, work_item_id, ts, kind, actor, payload) VALUES(?,?,1,'permission_requested','employee:7','{\"toolName\":\"image_generate\",\"rule\":\"consent:spend\"}')").run(taskId, wiId);
+    // 任务里另有一条更晚、且老板**没批过**的 spend 卡——补跑绝不能顺手放行它。
+    db.prepare("INSERT INTO task_events(task_id, work_item_id, ts, kind, actor, payload) VALUES(?,?,1,'permission_requested','employee:7','{\"toolName\":\"bash\",\"rule\":\"consent:egress\"}')").run(taskId, wiId);
+    db.prepare("INSERT INTO task_events(task_id, work_item_id, ts, kind, actor, payload) VALUES(?,?,2,'permission_requested','employee:7','{\"toolName\":\"image_generate\",\"rule\":\"consent:spend\"}')").run(taskId, wiId);
     const engine = new Engine(db, noopExecutor, { autoSchedule: false, now: () => 10 });
-    await engine.refireAfterApproval(taskId);
+    await engine.refireAfterApproval(taskId, wiId, { rule: 'consent:egress', toolName: 'bash' });
     const row = db.prepare("SELECT policy FROM permission_policies WHERE scope_type='task' AND scope_id=?").get(taskId) as { policy: string } | undefined;
-    const grants = JSON.parse(row?.policy ?? '{}').grants ?? [];
-    const g = grants.find((x: { rule: string; toolName: string }) => x.rule === 'consent:spend' && x.toolName === 'image_generate');
-    assert.ok(g, '补跑后存在任务级 grant');
-    assert.equal(g.sessionKey, undefined, '任务级（无 sessionKey）→ 返工件新会话也能命中');
+    const grants = (JSON.parse(row?.policy ?? '{}').grants ?? []) as Array<{ rule: string; toolName: string; sessionKey?: string }>;
+    const ok = grants.find((x) => x.rule === 'consent:egress' && x.toolName === 'bash');
+    assert.ok(ok, '只给本次批准的规则发 grant');
+    const rework = db.prepare('SELECT id FROM work_items WHERE task_id=? AND retry_of=?').get(taskId, wiId) as { id: number };
+    assert.equal(ok.sessionKey, `employee:7:task:${taskId}:wi:${rework.id}`, '绑到新返工件的会话键（不外溢到同任务其它件）');
+    assert.equal(grants.some((x) => x.rule === 'consent:spend'), false, '没批过的 spend 规则不得被补跑放行');
   } finally {
     db.close();
   }

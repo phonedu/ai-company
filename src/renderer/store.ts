@@ -557,6 +557,20 @@ export async function cardIntent(intent: GenUiIntent, card?: ReportDTO): Promise
   await loadChannel();
 }
 
+/**
+ * 补跑失败原因 → 人话（裁决 8 / 换方向复核 P2-5）。未知原因原样透出（不吞、不美化）。
+ */
+export function refireReasonText(reason: string): string {
+  if (reason.startsWith('task_reopen_refused') && reason.includes('7 天')) return '任务结束已超过 7 天，不能再撤销完成去补跑；需要的话请续办任务。';
+  if (reason.startsWith('task_reopen_refused') && reason.includes('归档')) return '任务已归档，不能补跑；需要的话请先恢复任务。';
+  if (reason.startsWith('budget_hold')) return `公司当日预算已到线，暂不补跑（${reason.replace('budget_hold:', '')}）。`;
+  if (reason === 'already_active') return '该工作项还在跑，员工会自己重试，无需补跑。';
+  if (reason.startsWith('task_state_needs_decision')) return '任务在等你拍板，先处理那张决策卡再补跑。';
+  if (reason.startsWith('task_state_cancelled')) return '任务已取消，不能补跑；需要的话请续办。';
+  if (reason.startsWith('verifying_refire_noop')) return '该件此前已有返工记录，系统没能再建返工件。';
+  return reason;
+}
+
 /** 卡片主操作（决策卡选项）：**一次点击 = 恰好一条 `task:approve` IPC**。 */
 export async function answerCard(card: ReportDTO, chosen: string): Promise<{ ok: boolean; error?: string }> {
   const api = getApi();
@@ -566,12 +580,21 @@ export async function answerCard(card: ReportDTO, chosen: string): Promise<{ ok:
       taskId: card.taskId,
       approvalId: card.approvalId ?? null,
       chosen,
-    })) as { ok?: boolean; message?: string } | undefined;
+    })) as {
+      ok?: boolean;
+      message?: string;
+      refire?: { ok: boolean; reason: string; workItemId: number | null } | null;
+    } | undefined;
     // P0/V1（S13-E 对抗审查）：作答失败不得静默——失败不推进已读游标、不动卡，并回执人话。
     if (res && res.ok === false) {
       const message = res.message ?? '作答失败（原因未提供）';
       pushToast({ title: '作答失败', text: message });
       return { ok: false, error: message };
+    }
+    // 裁决 8（换方向复核 P2-5）：批准成功但**没补跑成**时必须告诉老板原因——
+    // 此前只看 ok 字段，超窗/预算/需拍板全静默，老板会以为已经补跑了。
+    if (res?.refire != null && res.refire.ok !== true) {
+      pushToast({ title: '已批准，但没能补跑', text: refireReasonText(res.refire.reason ?? '') });
     }
     // source='action'：老板实际处理了这张卡（不是“打开列表”），同事务口径由主进程再兜底一次。
     await markInboxRead(card.id, 'action');

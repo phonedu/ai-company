@@ -32,14 +32,22 @@ export function pngSize(buf: Buffer): { width: number; height: number } | null {
 }
 
 /**
- * 档位：官方按**输出像素面积**分档（>2,250,000 像素记 2K；来源：百炼 API 参考/成本优化说明）。
- * 2026-11-09 独立验收指出此前用「长边 >1024」判 2k —— 会把 1792×1024（1,835,008）多记一倍。
+ * 档位：**按模型各自的定价口径**判（同向复核 P2-3 实抓：一刀切面积口径会让 DALL-E 少记一半）。
+ *  - 千问（qwen-image-*）：百炼按**输出像素面积**分档（>2,250,000 记 2K）；
+ *  - DALL-E 3：OpenAI 按**尺寸档**定价（1792×1024／1024×1792 是 $0.08 档），与面积无关。
  * 判不出尺寸按 2k 保守记（宁可多记不少记）。
  */
 export const TIER_2K_MIN_PIXELS = 2_250_000;
 
-export function imageTierOf(size: { width: number; height: number } | null): '1k' | '2k' {
+export function imageTierOf(
+  size: { width: number; height: number } | null,
+  model = 'qwen-image-3.0-pro',
+): '1k' | '2k' {
   if (size == null) return '2k';
+  if (model.startsWith('dall-e')) {
+    // DALL-E 3：长边 >1024 即 $0.08 档（1024x1024 为 $0.04）。
+    return Math.max(size.width, size.height) > 1024 ? '2k' : '1k';
+  }
   return size.width * size.height > TIER_2K_MIN_PIXELS ? '2k' : '1k';
 }
 
@@ -49,7 +57,7 @@ export function imagePriceCny(
   size: { width: number; height: number } | null,
   fallbackCny = 0.5,
 ): { cny: number; tier: '1k' | '2k'; priced: boolean } {
-  const tier = imageTierOf(size);
+  const tier = imageTierOf(size, model);
   const table = IMAGE_PRICE_CNY[model];
   if (table == null) return { cny: fallbackCny, tier, priced: false };
   return { cny: table[tier], tier, priced: true };

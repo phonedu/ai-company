@@ -19,6 +19,9 @@ export const PROVIDERS = [
   { id: 'xiaomi', label: 'Xiaomi MiMo', envVar: 'XIAOMI_API_KEY' },
   { id: 'anthropic', label: 'Anthropic', envVar: 'ANTHROPIC_API_KEY' },
   { id: 'openai', label: 'OpenAI', envVar: 'OPENAI_API_KEY' },
+  // B4b/裁决5（2026-11-09 老板拍板走 qwen-image API）：阿里云百炼——出图（qwen-image）用。
+  // 槽位先行：Key 落密文/环境变量同其它四家；image_generate 的 qwen 通道随后接。
+  { id: 'dashscope', label: '阿里云百炼（Qwen 出图）', envVar: 'DASHSCOPE_API_KEY' },
 ] as const;
 
 /** 本机加密编解码器（Electron safeStorage 注入；测试可注入 fake）。 */

@@ -996,7 +996,7 @@ export function ProjectOverview(): ReactElement {
               </div>
               {modelEditing ? (
                 <div className="project-view__staffing-form" data-testid="project-model-form">
-                  <label className="project-view__staffing-field">
+                  <label className="project-view__staffing-field project-view__staffing-field--wide">
                     策略
                     <select
                       data-testid="project-model-policy"
@@ -1016,7 +1016,7 @@ export function ProjectOverview(): ReactElement {
                       <option value="assistant">幕僚长调度（允许清单内按任务选）</option>
                     </select>
                   </label>
-                  <label className="project-view__staffing-field">
+                  <label className="project-view__staffing-field project-view__staffing-field--wide">
                     默认模型
                     <input
                       data-testid="project-model-default"

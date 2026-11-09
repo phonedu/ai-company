@@ -147,7 +147,9 @@ const EGRESS_COMMAND_PATTERNS: Array<{ re: RegExp; label: string }> = [
   // 已知边界（如实）：`node app.js` 里自己写 fetch 的脚本，静态词表看不见——这类靠沙箱/审计兜底。
   // `-e`/`-p`/`-pe` 与长选项 `--eval`/`--print`（含 `--eval=…` 紧凑写法）都要覆盖——
   // 第三轮复核 P1 实抓：改成 `-[a-z]*[ep]` 后把 `--eval/--print` 漏了（旧版能拦、新版 allow）。
-  { re: /\bnode\b[^\n]*?\s-{1,2}[a-z]*[ep][a-z]*\b\s*[^\n]*?(?:\bfetch\b|\bwebsocket\b|\.request\s*\(|\.get\s*\(|\.post\s*\(|createsocket|\bdgram\b|\bundici\b|\baxios\b|\bnet\.|\btls\b)/i, label: 'node 网络请求（内联代码）' },
+  // 第四轮复核 P3（B-14 SEC-EGRESS-6）：显式枚举求值选项，别用「含字母 e」的宽松形态——
+  // 否则 `node --test test/fetch.test.js` 这类（--test 含 e + 路径含 fetch）会被误判为外发。
+  { re: /\bnode\b[^\n]*?(?:\s-(?:e|p|pe|ep)\b|\s--(?:eval|print)\b)\s*[^\n]*?(?:\bfetch\b|\bwebsocket\b|\.request\s*\(|\.get\s*\(|\.post\s*\(|\.connect\s*\(|createsocket|\bdgram\b|\bundici\b|\baxios\b|\bnet\.|\btls\b)/i, label: 'node 网络请求（内联代码）' },
   { re: /require\(\s*['"]https?['"]\s*\)/, label: 'node 网络请求（require http/https）' },
   { re: /\b(deno|bun)\b[^\n]*?(?:\s-[a-z]*e[a-z]*\s*|--eval\b|\beval\b|\brun\b)[^\n]*?(?:\bfetch\b|\bwebsocket\b|\bconnect\b)/i, label: 'deno/bun 网络请求' },
   {

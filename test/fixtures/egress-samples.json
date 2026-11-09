@@ -252,6 +252,18 @@
     {
       "cmd": "git -C repo clone https://example.invalid/x.git",
       "expected": "git 远程读写"
+    },
+    {
+      "cmd": "node --test test/fetch.test.js",
+      "expected": null
+    },
+    {
+      "cmd": "node --test dist/test/a.test.js",
+      "expected": null
+    },
+    {
+      "cmd": "node -e \"require('net').connect(80,h)\"",
+      "expected": "node 网络请求（内联代码）"
     }
   ]
 }

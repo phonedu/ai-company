@@ -1246,6 +1246,14 @@ export function createSqliteChatRepo(db: SqliteDb): ChatRepo {
         const wiId = Number(last);
         if (belongs(wiId)) return wiId;
       }
+      // 引擎动作级权限卡（B-14 SEC-EGRESS-5，2026-11-09）：问题是
+      // `[权限] <kind>（<actionKey>）`，而 actionKey 形如 `<kind>:<subjectKind>:<subjectId>:<rev>`
+      // ——件归属本来就在里面（subjectKind==='work_item' 时第 3 段就是 workItemId），此前没解析。
+      const actionParts = (parsed.rule ?? '').split(':');
+      if (actionParts.length >= 3 && actionParts[1] === 'work_item') {
+        const wiId = Number(actionParts[2]);
+        if (Number.isInteger(wiId) && belongs(wiId)) return wiId;
+      }
       const rows = db
         .prepare(
           "SELECT work_item_id, payload FROM task_events WHERE task_id = ? AND kind = 'permission_requested' ORDER BY id DESC LIMIT 50",

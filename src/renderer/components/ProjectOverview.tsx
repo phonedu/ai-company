@@ -829,7 +829,7 @@ export function ProjectOverview(): ReactElement {
           <section className="project-pane__card" data-testid="project-settings-panel">
           {/* D-22：项目模型策略——概览只读摘要；编辑面在设置·模型与员工（避免项目页再长出一套表单）。 */}
           {project ? (
-            <details className="project-settings" data-testid="project-settings">
+            <details className="project-settings" data-testid="project-settings" open>
               <summary className="project-settings__summary">项目设置（模型 / 分工 / 权限 / 技能 / 文档 / 定时）</summary>
             <div className="project-settings__body" data-active-group={settingsGroup}>
             {/* UI-2 S2：7 组配置——分段导航只**过滤显示**（卡片不动），默认只开「模型」。 */}

@@ -135,6 +135,34 @@ export function issueGrant(db: SqliteDb, input: IssueGrantInput): { granted: boo
   return { granted: true, alreadyPresent: false };
 }
 
+/**
+ * B4b 安全批（2026-11-09 审查 F2）：spend grant **用后即焚**——「批准一次」语义落地。
+ * 会话闸门放行一次花钱调用后消费之；同会话再次调用重新弹卡（gate 文案「逐次批准」自此成立）。
+ * 纯 DB 操作；无匹配 grant 时幂等返回 false。external 类 grant 不在此列（对外放行保持会话内有效）。
+ */
+export function consumeSpendGrant(db: SqliteDb, taskId: number, toolName: string, sessionKey?: string | null): boolean {
+  const row = getPermissionPolicy(db, 'task', taskId);
+  if (!row) return false;
+  let policy: PermissionPolicy;
+  try {
+    policy = JSON.parse(row.policy) as PermissionPolicy;
+  } catch {
+    return false;
+  }
+  const grants = policy.grants ?? [];
+  // 消费「可能放行了这次调用」的全部 spend grant：同会话的会话级 grant＋任务级（无 sessionKey）
+  // grant——会话闸门两者都认（session-tool-gate grants 过滤），只消精确匹配会漏掉任务级（永不焚）。
+  // 两者并存时一并消费＝下次重新问（fail-closed 方向）。
+  const rest = grants.filter(
+    (g) =>
+      !(g.rule === 'consent:spend' && g.toolName === toolName && (!g.sessionKey || g.sessionKey === (sessionKey ?? null))),
+  );
+  if (rest.length === grants.length) return false;
+  policy.grants = rest;
+  setPermissionPolicy(db, { scopeType: 'task', scopeId: taskId, tier: row.tier, policy });
+  return true;
+}
+
 export interface ApplyApprovalResult {
   applied: boolean;
   reason: string;

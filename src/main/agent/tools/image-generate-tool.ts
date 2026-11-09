@@ -40,13 +40,14 @@ export async function imageGenerate(opts: {
   const size = opts.size ?? '1024x1024';
   const timeout = opts.timeoutMs ?? 60_000;
 
-  mkdirSync(opts.outputDir, { recursive: true });
   const fileName = `image-${Date.now()}.png`;
   const outputPath = join(opts.outputDir, fileName);
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeout);
 
   try {
+    // B4b 安全审查 F10：目录创建进 try——失败给模型人话错误而非裸异常（含绝对路径）。
+    mkdirSync(opts.outputDir, { recursive: true });
     const fetchImpl = opts.fetchImpl ?? fetch;
     const resp = await fetchImpl('https://api.openai.com/v1/images/generations', {
       method: 'POST',

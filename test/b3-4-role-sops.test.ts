@@ -17,7 +17,7 @@ test('B3-4: 预设角色 SOP——三段齐、每段实质内容（≥5 条/段�
     assert.ok(sop!.method.split('\n').length >= 5, `${role} 工作方法 ≥5 条`);
     assert.ok(sop!.outputSpec.split('\n').length >= 4, `${role} 输出规范 ≥4 条`);
     assert.ok(sop!.checklist.split('\n').filter((l) => l.includes('□')).length >= 5, `${role} 自检清单 ≥5 条`);
-    // 内容量：三段合计 ≥1200 字（≈500+ token 中文口径）
+    // 内容量：三段合计 ≥700 字（≈500+ token 中文保守口径）
     const total = sop!.method.length + sop!.outputSpec.length + sop!.checklist.length;
     assert.ok(total >= 700, `${role} SOP 总字数 ${total} ≥700（500+ token 中文保守口径）`);
   }

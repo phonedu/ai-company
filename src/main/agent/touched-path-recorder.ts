@@ -12,6 +12,7 @@
  */
 import { isReadOnlyBashCommand } from '../permission/readonly-bash.js';
 import { extractSessionId } from './session-tool-gate.js';
+import { exportPathFor, type ExportFormat } from './tools/export-format-tool.js';
 
 /** 从一次工具调用提取「本件实际触碰的路径」（`'.'`=整树）。纯函数，可测。 */
 export function extractTouchedPathsFromTool(
@@ -31,6 +32,19 @@ export function extractTouchedPathsFromTool(
     return ['.'];
   }
   if (name === 'mcp_call' || name === 'mcp') return ['.'];
+  // B4b 接线审查 F2（2026-11-09）：内容工具固定产出目录/派生文件认领（并行隔离不再对这些盲区）。
+  if (name === 'image_generate') return ['assets/images'];
+  if (name === 'screenshot') return ['.aico/screenshots'];
+  if (name === 'write_note') return ['.aico/notes'];
+  if (name === 'export_format') {
+    const path = (event.input as { path?: unknown } | undefined)?.path;
+    const format = (event.input as { format?: unknown } | undefined)?.format;
+    if (typeof path === 'string' && path.trim().length > 0) {
+      const out = typeof format === 'string' ? exportPathFor(path, format as ExportFormat) : null;
+      return out != null ? [path, out] : [path];
+    }
+    return [];
+  }
   if (name === 'read' || name === 'write' || name === 'edit' || name === 'ls' || name === 'grep' || name === 'find') {
     const args = event.input ?? {};
     for (const key of ['path', 'file', 'filePath', 'file_path', 'dir']) {

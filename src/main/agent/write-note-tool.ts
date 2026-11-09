@@ -6,6 +6,7 @@
  */
 import type { SqliteDb } from '../db/open.js';
 import { writeNote, safeNoteName } from './notes.js';
+import { sessionCwd } from './tools/session-cwd.js';
 
 export async function createWriteNoteTool(db: SqliteDb) {
   const [{ defineTool }, { Type }] = await Promise.all([
@@ -22,7 +23,7 @@ export async function createWriteNoteTool(db: SqliteDb) {
       name: Type.String({ description: '笔记文件名（不含 .md，如 deploy-runbook）' }),
       content: Type.String({ description: '笔记内容（Markdown）' }),
     }),
-    async execute(_toolCallId, params) {
+    async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       const safe = safeNoteName(params.name);
       if (safe == null) {
         return {
@@ -30,12 +31,19 @@ export async function createWriteNoteTool(db: SqliteDb) {
           details: { ok: false, path: '', error: '' },
         };
       }
-      // 从 db 取当前任务的项目根目录
-      const task = db
-        .prepare(
-          'SELECT p.root_dir FROM tasks t JOIN projects p ON p.id = t.project_id WHERE t.id = (SELECT MAX(task_id) FROM task_events WHERE kind = ? ORDER BY id DESC LIMIT 1)',
-        )
-        .get('task_started') as { root_dir: string } | undefined;
+      // B4b 接线审查 F1（2026-11-09）：项目根优先取**本会话 cwd**（与门禁/其它工具同源）——
+      // 旧逻辑取「全局最近一次 task_started 的任务」，多项目并发时会把笔记写进**别人的项目**。
+      // ctx 缺失（旧调用方/单测）回落旧查询，行为不变。
+      let rootDir: string | undefined = sessionCwd(ctx, '') || undefined;
+      if (rootDir == null) {
+        const task = db
+          .prepare(
+            'SELECT p.root_dir FROM tasks t JOIN projects p ON p.id = t.project_id WHERE t.id = (SELECT MAX(task_id) FROM task_events WHERE kind = ? ORDER BY id DESC LIMIT 1)',
+          )
+          .get('task_started') as { root_dir: string } | undefined;
+        rootDir = task?.root_dir;
+      }
+      const task = { root_dir: rootDir };
       if (task?.root_dir == null) {
         return {
           content: [{ type: 'text', text: '无法确定当前项目（没有活跃任务）——笔记需要项目上下文。' }],

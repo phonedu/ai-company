@@ -84,7 +84,7 @@ export interface ReportDTO {
     /** 多选＋自定义作答（老板 2026-10-28 指令）：'multi'＝选项可勾选、统一提交（chosen=k1+k2）；缺省＝单选即点。 */
     selection?: string;
     /** 权限卡结构化读法（卡片可读性批）：who/action/project 三行人话＋折叠 session；缺省回落 question 原串。 */
-    permissionDetail?: { who: string; action: string; project: string; session?: string | null };
+    permissionDetail?: { who: string; action: string; project: string; session?: string | null; params?: string };
     defaultAction?: string | null;
     timeoutAt?: number | null;
     summary?: string;

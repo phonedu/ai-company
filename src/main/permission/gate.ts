@@ -356,6 +356,9 @@ function hasGrant(ctx: GateContext, rule: string, toolName?: string): boolean {
       g.rule === rule &&
       (g.expiresAt == null || g.expiresAt > now) &&
       // 最小范围：有 toolName 的 grant 只放行同名工具（批准 mcp_call 不得顺带放行 web/git_push）。
+      // B4b 安全审查 F7（2026-11-09）：缺 toolName 的 grant＝通配——生产写入口（issueGrant/
+      // issueChannelGrant）恒带 toolName 不可达；「旧库兼容」为 permission-grant-scope.test
+      // 钉死的有意决策，收窄需落 D-xx（待裁项，2026-11-09 已呈老板）。
       (toolName == null || g.toolName == null || g.toolName === toolName),
   );
 }

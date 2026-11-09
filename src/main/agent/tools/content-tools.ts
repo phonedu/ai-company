@@ -8,6 +8,7 @@
  *    源须在项目根/工作目录内），导出文件与源同目录派生，不另收输出路径。
  * 两者都按**会话 cwd**（`sessionCwd(ctx)`）解析——与门禁 `run.cwd` 同源；装配期 cwd 只作兜底。
  */
+import { existsSync, realpathSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 
 import { exportToFile, type ExportFormat } from './export-format-tool.js';
@@ -81,18 +82,45 @@ export async function createExportFormatTool(fallbackCwd: string) {
       const cwd = sessionCwd(ctx, fallbackCwd);
       const raw = String(params.path ?? '');
       const abs = isAbsolute(raw) ? raw : resolve(cwd, raw);
-      const result = exportToFile(abs, params.format as ExportFormat);
+      // B4b 安全审查 F4（2026-11-09）：符号链接/junction 解析——项目内链接指向项目外/敏感文件时拒。
+      // 门禁路径层是词面判定（看 `path` 原文），链接绕过只能在工具层堵（与 read-doc-tool 同款）。
+      // 同时补敏感目标检查（gate 的 SENSITIVE 词面只看参数原文，看不到链接指向的真身）。
+      let target = abs;
+      if (existsSync(abs)) {
+        try {
+          target = realpathSync(abs);
+        } catch {
+          /* 解析失败保持词法路径 */
+        }
+      }
+      const rel = relative(cwd, target);
+      if (rel.startsWith('..') || isAbsolute(rel)) {
+        const details: { outcome: string; path: string | null } = { outcome: 'error', path: null };
+        return {
+          content: [{ type: 'text' as const, text: '导出被拒：路径解析后越出项目目录（可能经过符号链接/junction）。' }],
+          details,
+        };
+      }
+      const low = target.toLowerCase().replace(/\\/g, '/');
+      if (low.includes('.aico/secrets') || low.includes('id_rsa') || low.includes('.env')) {
+        const details: { outcome: string; path: string | null } = { outcome: 'error', path: null };
+        return {
+          content: [{ type: 'text' as const, text: '导出被拒：敏感文件（密钥/环境配置）不导出。' }],
+          details,
+        };
+      }
+      const result = exportToFile(target, params.format as ExportFormat);
       if (!result.ok) {
         const details: { outcome: string; path: string | null } = { outcome: 'error', path: null };
         return { content: [{ type: 'text' as const, text: `导出失败：${result.error}` }], details };
       }
-      const rel = toRel(cwd, result.outputPath);
+      const outRel = toRel(cwd, result.outputPath);
       const preview = result.content.length > EXPORT_PREVIEW_CHARS
         ? `${result.content.slice(0, EXPORT_PREVIEW_CHARS)}…（共 ${result.content.length} 字符，全文见导出文件）`
         : result.content;
-      const details: { outcome: string; path: string | null } = { outcome: 'ok', path: rel };
+      const details: { outcome: string; path: string | null } = { outcome: 'ok', path: outRel };
       return {
-        content: [{ type: 'text' as const, text: `已导出：${rel}（交付时填进 artifacts）\n预览：\n${preview}` }],
+        content: [{ type: 'text' as const, text: `已导出：${outRel}（交付时填进 artifacts）\n预览：\n${preview}` }],
         details,
       };
     },

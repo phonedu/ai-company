@@ -31,6 +31,8 @@ export interface PermissionDetail {
   action: string;
   project: string;
   session?: string | null;
+  /** B4b 安全批：工具入参摘要（已脱敏）——审批卡正面可见，不再盲批。 */
+  params?: string | null;
 }
 
 /**
@@ -49,5 +51,6 @@ export function permissionDetailLines(payload: { permissionDetail?: unknown }): 
     action: d.action.trim(),
     project: d.project.trim(),
     session: typeof d.session === 'string' && d.session.length > 0 ? d.session : null,
+    params: typeof d.params === 'string' && d.params.length > 0 ? d.params : null,
   };
 }

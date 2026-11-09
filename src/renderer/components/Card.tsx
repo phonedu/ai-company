@@ -193,6 +193,8 @@ export function Card({ card, initialCollapsed = false }: { card: ReportDTO; init
             <strong>{permDetail.who}</strong> 申请：{permDetail.action}
           </div>
           <div>项目：{permDetail.project}</div>
+          {/* B4b 安全批（2026-11-09 审查 F1）：入参摘要上卡面——花钱/对外不再盲批。 */}
+          {permDetail.params ? <div data-testid="card-permission-params">内容：{permDetail.params}</div> : null}
           <details className="card__permission-raw">
             <summary>技术细节</summary>
             {permDetail.session ? <div>会话：{permDetail.session}</div> : null}

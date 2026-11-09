@@ -27,6 +27,8 @@ import type { EngineEvent } from '../../src/main/engine/types.js';
 import { createPiAgentRuntime } from '../../src/main/agent/pi-runtime.js';
 import { createReportProgressTool } from '../../src/main/agent/report-progress-tool.js';
 import { createSubmitWorkItemTool } from '../../src/main/agent/submit-work-item-tool.js';
+import { createExportFormatTool, createImageGenerateTool } from '../../src/main/agent/tools/content-tools.js';
+import { createScreenshotTool, createWebFetchTool } from '../../src/main/agent/tools/web-tools.js';
 import { EmployeeSessionRuntime, createEmployeeExecutor } from '../../src/main/agent/index.js';
 
 const dir = mkdtempSync(join(tmpdir(), 'aico-emp-e2e-'));
@@ -61,6 +63,11 @@ try {
         const api = pi as { registerTool(t: unknown): void };
         void createReportProgressTool().then((t) => api.registerTool(t));
         void createSubmitWorkItemTool().then((t) => api.registerTool(t));
+        // B4b 接线审查 F3：行为级激活验证——四个内容工具走真注册链（声明给模型即真激活）。
+        void createWebFetchTool().then((t) => api.registerTool(t));
+        void createScreenshotTool(dir).then((t) => api.registerTool(t));
+        void createImageGenerateTool(dir).then((t) => api.registerTool(t));
+        void createExportFormatTool(dir).then((t) => api.registerTool(t));
       },
     ],
   });

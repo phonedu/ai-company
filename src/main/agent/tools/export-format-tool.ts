@@ -63,16 +63,23 @@ function mdToWechatHtml(md: string): string {
       continue;
     }
     if (line.trim() === '') { out.push('<br>'); continue; }
-    // 链接先在原文上切出来（转义前），地址校验后再分别转义——不在已转义文本上做属性拼接。
+    // 链接/图片先在原文上切出来（转义前），地址校验后再分别转义——不在已转义文本上做属性拼接。
     const parts: string[] = [];
     let last = 0;
-    for (const m of line.matchAll(/\[([^\]]+)\]\(([^)]+)\)/g)) {
+    for (const m of line.matchAll(/(!?)\[([^\]]+)\]\(([^)]+)\)/g)) {
       parts.push(inline(line.slice(last, m.index)));
-      const [, text, href] = m;
+      const [, bang, text, href] = m;
+      const safe = isSafeHref(href!.trim());
+      const src = escapeHtml(href!.trim());
+      const label = inline(text!);
       parts.push(
-        isSafeHref(href!)
-          ? `<a href="${escapeHtml(href!.trim())}" style="color:#576b95;">${inline(text!)}</a>`
-          : inline(text!),
+        bang === '!'
+          ? safe
+            ? `<img src="${src}" alt="${label}" style="max-width:100%;" />`
+            : label // 不安全协议的图片 → 只留 alt 文本
+          : safe
+            ? `<a href="${src}" style="color:#576b95;">${label}</a>`
+            : label,
       );
       last = m.index! + m[0].length;
     }
@@ -83,7 +90,7 @@ function mdToWechatHtml(md: string): string {
   return out.join('\n');
 }
 
-/** 行内：转义后再套粗体。 */
+/** 行内：转义后再套粗体（图片/链接已在行级切出）。 */
 function inline(s: string): string {
   return escapeHtml(s).replace(/\*\*(.+?)\*\*/g, '<strong style="color:#1a1a1a;">$1</strong>');
 }
@@ -122,9 +129,15 @@ export function exportToFile(
   sourcePath: string,
   format: ExportFormat,
 ): { ok: true; content: string; outputPath: string } | { ok: false; error: string } {
+  const outputPath = exportPathFor(sourcePath, format);
+  // B4b 安全审查 F5（2026-11-09）：导出目标已存在 → 拒绝（不静默覆盖）。
+  // 「导出」语义是新增产物；要重导先删旧文件。write 类工具/bash 本可覆盖项目内文件，
+  // 但那是在收了明确写指令时；这里的输出路径是**派生**的，覆盖不能默认。
+  if (existsSync(outputPath)) {
+    return { ok: false, error: `导出目标已存在（不覆盖）：${outputPath}。要重新导出请先删除旧文件或改源文件名。` };
+  }
   const converted = exportFromFile(sourcePath, format);
   if (!converted.ok) return converted;
-  const outputPath = exportPathFor(sourcePath, format);
   try {
     writeFileSync(outputPath, converted.content, 'utf8');
   } catch (error) {

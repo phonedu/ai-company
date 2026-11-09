@@ -26,7 +26,7 @@ import {
   type GateResult,
   type ToolCall,
 } from '../permission/gate.js';
-import { formatChannelPermissionQuestion } from '../permission/grants.js';
+import { formatChannelPermissionQuestion, consumeSpendGrant } from '../permission/grants.js';
 import { insertTaskEvent } from '../db/task_events.js';
 import { insertApproval, linkApprovalReport, PERMISSION_QUESTION_PREFIX } from '../db/approvals.js';
 import { markActionDone, registerPendingAction } from '../db/action_log.js';
@@ -71,8 +71,27 @@ export interface GateDecisionInfo {
   reason: string;
   rule?: string;
   toolName: string;
+  /** B4b 安全批（审查 F1）：工具入参原文——审批卡/审计要带「到底要干什么」（展示侧再脱敏截断）。 */
+  input?: Record<string, unknown>;
   run: RunGateContext | null;
   sessionId: string | null;
+}
+
+/**
+ * B4b 安全批（2026-11-09 审查 F1）：工具入参摘要——审批卡上让老板看到「到底要把什么发出去」
+ * （image_generate 的 prompt、web_fetch 的 URL、export_format 的路径、bash 的命令）。
+ * 文本参数平铺；超长截断（卡面可读）；**调用方再过 redactPayload**（本函数不做脱敏）。
+ */
+export function toolInputSummary(input: Record<string, unknown> | undefined, maxChars = 300): string {
+  const a = input ?? {};
+  const parts: string[] = [];
+  for (const [k, v] of Object.entries(a)) {
+    if (v == null) continue;
+    if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') parts.push(`${k}=${String(v)}`);
+  }
+  const joined = parts.join('；');
+  if (joined.length === 0) return '（无文本参数）';
+  return joined.length > maxChars ? `${joined.slice(0, maxChars)}…（截断）` : joined;
 }
 
 export interface SessionToolGateDeps {
@@ -151,10 +170,16 @@ export class SessionToolGate {
       reason: result.reason,
       rule: result.rule,
       toolName: event.toolName,
+      input: event.input,
       run,
       sessionId,
     };
     if (result.decision === 'allow') {
+      // B4b 安全批（审查 F2）：spend grant 用后即焚——「批准一次」＝真一次，下次同工具再弹卡。
+      // external 类不消费（对外放行保持会话内有效，既有 UX 不变）。
+      if (result.rule === 'grant:consent:spend' && run.taskId != null) {
+        consumeSpendGrant(this.deps.db, run.taskId, event.toolName, run.sessionKey ?? null);
+      }
       // D-19 P1：只给显式接线的装配层（频道助手）审计放行；既有调用方不接＝行为不变。
       this.deps.onAllow?.(info);
       return {};
@@ -194,7 +219,15 @@ export function persistSessionGateDecision(db: SqliteDb, info: GateDecisionInfo,
     ts: now,
     kind: info.decision === 'deny' ? 'permission_decision' : 'permission_requested',
     actor: `employee:${info.run.employeeId}`,
-    payload: { scope: 'session_tool', toolName: info.toolName, decision: info.decision, reason: info.reason, rule: info.rule ?? null },
+    payload: {
+      scope: 'session_tool',
+      toolName: info.toolName,
+      decision: info.decision,
+      reason: info.reason,
+      rule: info.rule ?? null,
+      // B4b 安全批（审查 F1）：入参摘要随事件/卡落库（脱敏后）——审批不再盲批。
+      params: String(redactPayload(toolInputSummary(info.input))),
+    },
   });
   if (info.decision === 'ask') {
     // BRK10（挂载 2，2026-10-15）：会话工具权限请求**可见化**——此前只建 approvals 行 ⇒「待我处理」看不到。
@@ -353,13 +386,14 @@ function sessionPermissionDetail(
   db: SqliteDb,
   info: GateDecisionInfo,
   actionPrefix: string,
-): { who: string; action: string; project: string; session: string | null } {
+): { who: string; action: string; project: string; session: string | null; params: string } {
   const run = info.run;
   return {
     who: employeeDisplayName(db, run?.employeeId),
     action: `${actionPrefix} ${info.toolName}（规则 ${info.rule ?? info.toolName}）`,
     project: projectNameOf(db, { taskId: run?.taskId ?? null }),
     session: run?.sessionKey ?? null,
+    params: String(redactPayload(toolInputSummary(info.input))),
   };
 }
 
@@ -369,6 +403,7 @@ function channelPermissionDetail(db: SqliteDb, info: GateDecisionInfo): {
   action: string;
   project: string;
   session: string | null;
+  params: string;
 } {
   const run = info.run;
   return {
@@ -376,6 +411,7 @@ function channelPermissionDetail(db: SqliteDb, info: GateDecisionInfo): {
     action: `频道写操作 ${info.toolName}（规则 ${info.rule ?? info.toolName}）`,
     project: projectNameOf(db, { projectId: run?.projectId ?? null }),
     session: run?.sessionKey ?? null,
+    params: String(redactPayload(toolInputSummary(info.input))),
   };
 }
 

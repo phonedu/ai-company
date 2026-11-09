@@ -80,77 +80,77 @@ try {
   insertTask.run(3, 'T-2003', 2, '已归档的终态任务', '配方种子', 'done', 1, AT + 2, AT + 2);
   db.close();
 
-  pid = start();
-  let page = null;
-  for (let i = 0; i < 80 && !page; i += 1) {
-    try {
-      const list = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
-      const pages = list.filter((t) => t.type === 'page' && t.webSocketDebuggerUrl);
-      page = pages.find((t) => String(t.url ?? '').includes('index.html')) ?? pages[0] ?? null;
-    } catch {
-      /* not ready */
+  // 连接 CDP（冷启动复验要杀进程再起一次，所以封装成函数；每次新 ws/新 pending）。
+  let send;
+  let evalIn;
+  let waitFor;
+  const connect = async () => {
+    let page = null;
+    for (let i = 0; i < 120 && !page; i += 1) {
+      try {
+        const list = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
+        const pages = list.filter((t) => t.type === 'page' && t.webSocketDebuggerUrl);
+        page = pages.find((t) => String(t.url ?? '').includes('index.html')) ?? pages[0] ?? null;
+      } catch {
+        /* not ready */
+      }
+      if (!page) await sleep(500);
     }
-    if (!page) await sleep(500);
-  }
-  if (!page) throw new Error('no page target');
-  const ws = new WebSocket(page.webSocketDebuggerUrl);
-  await new Promise((res, rej) => {
-    const t = setTimeout(() => rej(new Error('CDP ws 连接超时（15s）')), 15000);
-    ws.onopen = () => {
-      clearTimeout(t);
-      res();
-    };
-    ws.onerror = (e) => {
-      clearTimeout(t);
-      rej(e);
-    };
-  });
-  let seq = 0;
-  const pending = new Map();
-  ws.onmessage = (e) => {
-    const m = JSON.parse(e.data);
-    const cb = pending.get(m.id);
-    if (cb) {
-      pending.delete(m.id);
-      cb(m);
-    }
-  };
-  const send = (method, params = {}) =>
-    new Promise((res) => {
-      const id = ++seq;
-      const t = setTimeout(() => {
-        pending.delete(id);
-        res({});
-      }, 20000);
-      pending.set(id, (m) => {
+    if (!page) throw new Error('no page target');
+    const ws = new WebSocket(page.webSocketDebuggerUrl);
+    await new Promise((res, rej) => {
+      const t = setTimeout(() => rej(new Error('CDP ws 连接超时（15s）')), 15000);
+      ws.onopen = () => {
         clearTimeout(t);
-        res(m);
-      });
-      ws.send(JSON.stringify({ id, method, params }));
+        res();
+      };
+      ws.onerror = (e) => {
+        clearTimeout(t);
+        rej(e);
+      };
     });
-  const evalIn = async (expression) => {
-    const r = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
-    if (r?.result?.exceptionDetails) {
-      const d = r.result.exceptionDetails;
-      throw new Error(`CDP 注入失败：${d.exception?.description ?? d.text ?? 'Uncaught'}`);
-    }
-    return r?.result?.result?.value;
+    let seq = 0;
+    const pending = new Map();
+    ws.onmessage = (e) => {
+      const m = JSON.parse(e.data);
+      const cb = pending.get(m.id);
+      if (cb) {
+        pending.delete(m.id);
+        cb(m);
+      }
+    };
+    send = (method, params = {}) =>
+      new Promise((res) => {
+        const id = ++seq;
+        const t = setTimeout(() => {
+          pending.delete(id);
+          res({});
+        }, 20000);
+        pending.set(id, (m) => {
+          clearTimeout(t);
+          res(m);
+        });
+        ws.send(JSON.stringify({ id, method, params }));
+      });
+    evalIn = async (expression) => {
+      const r = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
+      if (r?.result?.exceptionDetails) {
+        const d = r.result.exceptionDetails;
+        throw new Error(`CDP 注入失败：${d.exception?.description ?? d.text ?? 'Uncaught'}`);
+      }
+      return r?.result?.result?.value;
+    };
+    waitFor = async (expression, label, tries = 80) => {
+      for (let i = 0; i < tries; i += 1) {
+        if ((await evalIn(expression)) === true) return;
+        await sleep(250);
+      }
+      throw new Error(`等待超时：${label}`);
+    };
+    return ws;
   };
-  const waitFor = async (expression, label, tries = 80) => {
-    for (let i = 0; i < tries; i += 1) {
-      if ((await evalIn(expression)) === true) return;
-      await sleep(250);
-    }
-    throw new Error(`等待超时：${label}`);
-  };
-  const shot = async (name) => {
-    const r = await send('Page.captureScreenshot', { format: 'png' });
-    const data = r?.result?.data;
-    if (!data) throw new Error(`截图失败：${name}`);
-    const file = join(EVIDENCE, name);
-    writeFileSync(file, Buffer.from(data, 'base64'));
-    findings.shots.push(file);
-  };
+  pid = start();
+  await connect();
   // React 受控组件：走原生 setter + input/change 事件（直接改 value 不触发 onChange）。
   const HELPERS = `
     window.__setVal = function (sel, v) {
@@ -167,6 +167,14 @@ try {
   `;
   await waitFor("!!(window.api && document.querySelector('[data-testid=leftrail-projects]'))", '页面就绪');
   await evalIn(HELPERS);
+  const shot = async (name) => {
+    const r = await send('Page.captureScreenshot', { format: 'png' });
+    const data = r?.result?.data;
+    if (!data) throw new Error(`截图失败：${name}`);
+    const file = join(EVIDENCE, name);
+    writeFileSync(file, Buffer.from(data, 'base64'));
+    findings.shots.push(file);
+  };
 
   // ── ① 项目页「设置·模型」编辑面 ────────────────────────────────────────────
   await evalIn("window.__click('[data-testid=leftrail-projects]')");
@@ -200,6 +208,10 @@ try {
   await waitFor("!document.querySelector('[data-testid=project-model-form]')", '保存后表单单收起');
   const after = await evalIn("window.__text('[data-testid=project-model-summary]')");
   findings.steps.push({ step: '保存后摘要', value: after });
+  findings.steps.push({
+    step: '摘要字号',
+    value: await evalIn("getComputedStyle(document.querySelector('[data-testid=project-model-summary] .project-view__model-summary')).fontSize"),
+  });
   await shot('ui2-s2-model-summary.png');
 
   // ── ② 归档页「归档项目」区 ────────────────────────────────────────────────
@@ -214,6 +226,14 @@ try {
     });
   })()`);
   findings.steps.push({ step: '归档项目行（含删除键状态）', value: arch });
+  findings.steps.push({
+    step: '归档项目名样式',
+    value: await evalIn(`(() => {
+      var el = document.querySelector('.tlist__archived-project-row .tlist__linklike');
+      var cs = getComputedStyle(el);
+      return { fontSize: cs.fontSize, fontWeight: cs.fontWeight, background: cs.backgroundColor };
+    })()`),
+  });
   await shot('ui2-s2-archive-projects.png');
 
   // 恢复非空项目（id=2）→ 行应从归档区消失
@@ -227,14 +247,23 @@ try {
   await waitFor("document.querySelectorAll('[data-testid=archive-project-row]').length === 1", '恢复后归档区只剩 1 行');
   findings.steps.push({ step: '恢复后归档项目数', value: await evalIn("document.querySelectorAll('[data-testid=archive-project-row]').length") });
 
-  // 冷启动恢复路径（独立终验员 P1 实抓）：上次视图=archive 时重新加载页面，项目区与归档任务行都必须有真数据。
-  await evalIn(`localStorage.setItem('aico.session.view', JSON.stringify({view:'archive',selectedTaskId:null,selectedProjectId:null,selectedEmployeeId:null})); location.reload(); true`);
-  await waitFor("!!document.querySelector('[data-testid=archive-project-row]')", '冷启动归档项目行', 120);
+  // 冷启动恢复路径（终验员 P1 实抓）：上次视图=archive → **进程级重启**（不是 location.reload——
+  // 旧 DOM 里已有 archive-project-row，等它会立即返回，第二轮终验员实抓断言其实发生在 reload 前）。
+  // ⚠️ 必须优雅关窗：taskkill /F 会丢 localStorage 的异步落盘（实抓：强制杀后重启 cursor=null，
+  // 视图回落 channel，冷启动步骤永远等不到归档行）。
+  await evalIn(`localStorage.setItem('aico.session.view', JSON.stringify({view:'archive',selectedTaskId:null,selectedProjectId:null,selectedEmployeeId:null})); window.close(); true`);
+  await sleep(3000);
+  killTree(pid);
+  await sleep(1200);
+  pid = start();
+  await connect();
+  await waitFor("!!(window.api && document.querySelector('[data-testid=archive-project-row]'))", '冷启动归档项目行', 160);
   const cold = await evalIn(`(() => ({
     rows: document.querySelectorAll('[data-testid=archive-project-row]').length,
     tasks: document.querySelectorAll('[data-testid=archive-list] [data-testid=tlist-row]').length,
     view: document.querySelector('[data-testid=center]')?.dataset.view ?? null,
     emptyText: document.querySelector('[data-testid=archive-view]')?.textContent?.includes('暂无归档任务') ?? null,
+    restoreNoticeGone: !(document.body.textContent || '').includes('已恢复项目'),
   }))()`);
   findings.steps.push({ step: '冷启动归档页', value: cold });
   await shot('ui2-s2-archive-coldstart.png');
@@ -274,6 +303,10 @@ try {
     (findings.steps.find((s) => s.step === '归档项目行（含删除键状态）')?.value ?? []).some((r) => r.name?.includes('归档非空样例') && r.deleteDisabled === true) &&
     (findings.steps.find((s) => s.step === '归档项目行（含删除键状态）')?.value ?? []).some((r) => r.name?.includes('归档空样例') && r.deleteDisabled === false) &&
     findings.steps.find((s) => s.step === '恢复后归档项目数')?.value === 1 &&
+    findings.steps.find((s) => s.step === '摘要字号')?.value === '15px' &&
+    findings.steps.find((s) => s.step === '归档项目名样式')?.value?.fontSize === '15px' &&
+    findings.steps.find((s) => s.step === '归档项目名样式')?.value?.background === 'rgba(0, 0, 0, 0)' &&
+    findings.steps.find((s) => s.step === '冷启动归档页')?.value?.restoreNoticeGone === true &&
     findings.steps.find((s) => s.step === '冷启动归档页')?.value?.rows === 1 &&
     (findings.steps.find((s) => s.step === '冷启动归档页')?.value?.tasks ?? 0) >= 1 &&
     findings.steps.find((s) => s.step === '冷启动归档页')?.value?.emptyText === false;

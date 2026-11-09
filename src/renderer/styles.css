@@ -1092,6 +1092,11 @@ textarea:focus {
   font-size: var(--text-body);
   font-weight: 600;
   text-align: left;
+  /* 复核 P2（2026-11-10）：动作按钮的 :not() 不再重置名字按钮，全局按钮底色漏进来变成灰胶囊——
+     名字就是纯文本链接，显式清掉。 */
+  background: transparent;
+  border: 0;
+  padding: 0;
 }
 
 .tlist__linklike {
@@ -3874,8 +3879,10 @@ textarea:focus {
   gap: 8px;
 }
 
-/* 复核 P2（2026-11-10）：摘要行是主读数，别比同排的「设置」按钮还小（12 灰 vs 15）。 */
-.project-view__model-summary {
+/* 复核 P2（2026-11-10）：摘要行是主读数，别比同排的「设置」按钮还小（12 灰 vs 15）。
+   注意：这条与 .project-view__docs-text 同优先级时会被文件后段规则压回去（终验员实测仍 12px），
+   所以带上父级 .project-view__docs-row 提到 0,2,0。 */
+.project-view__docs-row .project-view__model-summary {
   font-size: var(--text-body);
   color: var(--text);
 }

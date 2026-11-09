@@ -530,7 +530,10 @@ export function KnowledgePage(): ReactElement {
       // 左列：列表
       createElement('div', {
         'data-testid': 'knowledge-list',
-        style: { flex: selected ? '0 0 340px' : '1', overflowY: 'auto', borderRight: selected ? '.5px solid var(--separator)' : 'none', padding: '4px 0' },
+        // 2026-11-09 老板真机同款修（SplitLayout 侧栏撑满）：选中态原写 `flex: 0 0 340px`——
+        // 旧横排下是**宽度**，但侧栏改成纵向 flex 后它变成**固定高 340px**，竖分隔线半途断掉。
+        // 宽度由 SplitLayout 的 sideWidth 管（aside 上），这里只负责「撑满侧栏并内部滚动」。
+        style: { flex: '1 1 auto', minHeight: 0, overflowY: 'auto', borderRight: selected ? '.5px solid var(--separator)' : 'none', padding: '4px 0' },
       },
         notesSnap.loading && items.length === 0 ? createElement('p', {
           'data-testid': 'knowledge-loading',

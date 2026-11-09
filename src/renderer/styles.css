@@ -6735,6 +6735,15 @@ select option {
 .project-tab:hover{color:var(--text)}
 .project-tab[aria-selected="true"]{background:var(--panel);color:var(--text);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.14),0 0 0 .5px rgba(0,0,0,.04)}
 .project-tab__count{color:var(--text-dim);font-weight:400;margin-left:4px}
+/* UI-2 S2：项目设置 7 组——导航只做**显示过滤**（卡片 DOM 不动，读写口径不变）。
+   未选中的组整体隐藏；首屏只剩「模型」组，避免 6 张卡一次铺满。 */
+.project-settings__groupnav{margin:0 0 8px}
+.project-settings__body[data-active-group="model"] [data-group]:not([data-group="model"]),
+.project-settings__body[data-active-group="staffing"] [data-group]:not([data-group="staffing"]),
+.project-settings__body[data-active-group="permission"] [data-group]:not([data-group="permission"]),
+.project-settings__body[data-active-group="skills"] [data-group]:not([data-group="skills"]),
+.project-settings__body[data-active-group="docs"] [data-group]:not([data-group="docs"]),
+.project-settings__body[data-active-group="advanced"] [data-group]:not([data-group="advanced"]){display:none}
 .project-tab[aria-selected="true"] .project-tab__count{color:var(--text-dim)}
 .project-tasks__toolbar{padding:4px 0 8px}
 .project-tasks__search{width:100%;max-width:320px;font:inherit;font-size:13px;padding:6px 10px;border:.5px solid var(--separator);border-radius:var(--radius-sm);background:var(--panel-2);color:var(--text)}

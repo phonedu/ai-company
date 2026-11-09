@@ -154,6 +154,8 @@ export function ProjectOverview(): ReactElement {
   const [createNotice, setCreateNotice] = useState('');
   // UI-2 S1：页签容器（任务/设置；产物/运行/记忆随 S3 接入）＋任务搜索＋行下展开（store 承载，深链可写）。
   const [tab, setTab] = useState<'tasks' | 'settings'>('tasks');
+  // UI-2 S2：项目设置的组（默认「模型」；只做显示过滤，卡片与读写口径不动）。
+  const [settingsGroup, setSettingsGroup] = useState<'model' | 'staffing' | 'permission' | 'skills' | 'docs' | 'advanced'>('model');
   const [taskQuery, setTaskQuery] = useState('');
   const projectPageSnap = useSnapshot(projectPage);
   const expandedTaskId = projectPageSnap.expandedTaskId;
@@ -829,8 +831,30 @@ export function ProjectOverview(): ReactElement {
           {project ? (
             <details className="project-settings" data-testid="project-settings">
               <summary className="project-settings__summary">项目设置（模型 / 分工 / 权限 / 技能 / 文档 / 定时）</summary>
-            <div className="project-settings__body">
-            <section className="project-pane__card" data-testid="project-model-card">
+            <div className="project-settings__body" data-active-group={settingsGroup}>
+            {/* UI-2 S2：7 组配置——分段导航只**过滤显示**（卡片不动），默认只开「模型」。 */}
+            <nav className="project-tabs project-settings__groupnav" data-testid="project-settings-groupnav">
+              {([
+                ['model', '模型'],
+                ['staffing', '分工'],
+                ['permission', '权限'],
+                ['skills', '技能'],
+                ['docs', '文档'],
+                ['advanced', '高级'],
+              ] as const).map(([gid, label]) => (
+                <button
+                  key={gid}
+                  type="button"
+                  className="project-tab"
+                  data-testid={`project-settings-groupnav-${gid}`}
+                  aria-selected={settingsGroup === gid}
+                  onClick={() => setSettingsGroup(gid)}
+                >
+                  {label}
+                </button>
+              ))}
+            </nav>
+            <section className="project-pane__card" data-group="model" data-testid="project-model-card">
               <h3 className="project-view__state-title">模型</h3>
               <div className="project-view__docs-row" data-testid="project-model-summary">
                 <span className="project-view__docs-text">
@@ -850,7 +874,7 @@ export function ProjectOverview(): ReactElement {
 
           {/* 项目分工 v1（D-11）：项目三项缺省（负责人／建任务后派给谁／默认档）——只读摘要＋就地编辑。
               未设置＝显式「未设置——按缺省链」（不臆造人名/档）；保存＝`project:staffing-set`，**只影响之后派发的工作项；已派发不变**。 */}
-          <section className="project-pane__card" data-testid="project-staffing">
+          <section className="project-pane__card" data-group="staffing" data-testid="project-staffing">
             <h3 className="project-view__state-title">项目分工</h3>
             <div className="project-view__docs-row">
               <button
@@ -952,7 +976,7 @@ export function ProjectOverview(): ReactElement {
           </section>
 
           {/* D-19 P1：频道助手项目写权限（project-only 硬边界不变；项目内三态）。 */}
-          <section className="project-pane__card" data-testid="project-assistant-write-mode">
+          <section className="project-pane__card" data-group="permission" data-testid="project-assistant-write-mode">
             <h3 className="project-view__state-title">频道助手写权限</h3>
             <p className="project-view__docs-text">
               频道助手只能写本项目根；越界仍拒绝。<strong>只读</strong>不写文件；<strong>写前确认</strong>
@@ -1001,7 +1025,7 @@ export function ProjectOverview(): ReactElement {
           <ProjectMemory projectId={sessionSnap.selectedProjectId} />
 
           {/* B3（M3-N-3）：项目默认技能集（员工勾选 ∪ 项目默认；只影响该项目下新会话装配）。 */}
-          <section className="project-pane__card" data-testid="project-default-skills">
+          <section className="project-pane__card" data-group="skills" data-testid="project-default-skills">
             <h3 className="project-view__state-title">项目默认技能</h3>
             <p className="project-view__docs-text">
               该项目下的任务自动附加（与员工勾选取并集）；不重复给每个员工配。
@@ -1071,7 +1095,7 @@ export function ProjectOverview(): ReactElement {
           </section>
 
           {/* GAP9（M3-N-5）：公司配置版本化——文件随仓库走；预览 diff 后应用；apply 前备份可回滚。 */}
-          <section className="project-pane__card" data-testid="company-config">
+          <section className="project-pane__card" data-group="advanced" data-testid="company-config">
             <h3 className="project-view__state-title">公司配置版本化</h3>
             <p className="project-view__docs-text">
               员工（角色/人设/模型/思考/能力档/技能/MCP）＋公司级模型与调度设置 → <code>.aico/company.json</code>，
@@ -1165,7 +1189,7 @@ export function ProjectOverview(): ReactElement {
           </section>
 
           {/* M2 §7 序 4 / M3-DOC-2：文档健康面板（只读结构检查；无树/失败/未检查都如实，不显假 0）。 */}
-          <section className="project-pane__card" data-testid="docs-health">
+          <section className="project-pane__card" data-group="docs" data-testid="docs-health">
             <h3 className="project-view__state-title">文档健康</h3>
             <label className="project-view__docs-check">
               <input

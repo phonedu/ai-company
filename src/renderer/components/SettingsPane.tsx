@@ -114,7 +114,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDef[] = [
   { id: 'general', label: '外观', implemented: true },
   { id: 'models', label: '模型与预算', implemented: true },
   { id: 'providers', label: '供应商', implemented: true },
-  { id: 'project-model', label: '项目模型', implemented: true },
   { id: 'employees', label: '员工', implemented: true },
   { id: 'projects', label: '项目', implemented: true },
   { id: 'permissions', label: '权限', implemented: true },
@@ -144,7 +143,7 @@ export interface SettingsGroupDef {
 export const SETTINGS_GROUPS: readonly SettingsGroupDef[] = [
   { id: 'look', label: '外观', sections: ['general'] },
   { id: 'notify', label: '通知', sections: ['notify'] },
-  { id: 'model', label: '供应商与模型', sections: ['providers', 'models', 'project-model'] },
+  { id: 'model', label: '供应商与模型', sections: ['providers', 'models'] },
   { id: 'employees', label: '员工', sections: ['employees'] },
   { id: 'projects', label: '项目', sections: ['projects'] },
   { id: 'integrations', label: '通道与技能', sections: ['im', 'skills', 'mcp'] },
@@ -154,6 +153,7 @@ export const SETTINGS_GROUPS: readonly SettingsGroupDef[] = [
 
 /** 旧组 id → 新直达组（外部深链兜底；2026-10-23 的 4 组已拍平退役）。 */
 const LEGACY_GROUP_ALIAS: Readonly<Record<string, SettingsGroupId>> = {
+  'project-model': 'model',
   common: 'look',
   'model-staff': 'model',
   'project-integration': 'integrations',
@@ -1197,16 +1197,7 @@ export function SettingsPane(props: SettingsPaneProps): ReactElement {
             </>) : null}
             {/* D-22：项目模型策略（项目定边界与默认；员工偏好只是允许清单内的建议）。 */}
             </>) : null}
-            {has('project-model') ? (
-              <div className="settings-block" data-testid="settings-project-model">
-                <h4 style={{ margin: 0 }}>项目模型</h4>
-                {/* UI-2 S2（2026-11-09）：项目模型**配置唯一归宿**＝项目页「设置」页签；
-                    设置页只留指针（深链兜底），不再摆第二套编辑面。 */}
-                <p style={MUTED} data-testid="settings-project-model-moved">
-                  项目模型已迁到「项目树 → 选中项目 → 设置」页签——项目配置只在项目页改，避免两处口径。
-                </p>
-              </div>
-            ) : null}
+
             {has('providers') ? (<>
             <details className="settings-advanced" data-testid="settings-model-catalog">
               <summary className="settings-advanced__summary" data-testid="settings-model-catalog-summary">

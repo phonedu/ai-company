@@ -118,7 +118,7 @@ test('2026-11-03 老板拍板「细分直达」：设置导航＝8 直达项；1
     assert.equal(countTestId(html, `settings-group-${g.id}`), 1, `${g.label} 导航入口唯一`);
   }
   assert.equal((html.match(/data-testid="settings-group-/g) ?? []).length, 8, '导航恰 8 个直达项');
-  assert.equal(SETTINGS_SECTIONS.length, 14, '14 个分区面板不丢');
+  assert.equal(SETTINGS_SECTIONS.length, 13, '13 个分区面板（项目模型随 S2 退役，原 14）');
   for (const sec of SETTINGS_SECTIONS) {
     assert.ok(settingsGroupOf(sec.id) != null, `${sec.id} 必须归属某个直达组`);
   }
@@ -131,10 +131,10 @@ test('2026-11-03 老板拍板「细分直达」：设置导航＝8 直达项；1
   assert.equal(SETTINGS_SECTIONS.find((s) => s.id === 'permissions')?.implemented, true, '权限分区已实现');
 });
 
-test('细分直达：点「供应商与模型」一页铺开连接/预算/项目模型；点「外观」即见主题开关', () => {
+test('细分直达：点「供应商与模型」一页铺开连接与模型；点「外观」即见主题开关', () => {
   const model = render({ section: 'model' });
   assert.match(model, /data-testid="settings-providers"/, '供应商连接直接在场（无需再点「更改」）');
-  assert.match(model, /data-testid="settings-project-model"/, '项目模型直接在场');
+  assert.equal(countTestId(model, 'settings-project-model'), 0, '项目模型分区已退役（S2）');
   assert.match(model, /供应商与模型/, '组标题');
   assert.equal(countTestId(model, 'settings-employees'), 0, '员工面板不混进供应商与模型页（角色映射属模型面板，允许出现）');
 
@@ -156,21 +156,11 @@ test('细分直达：点「供应商与模型」一页铺开连接/预算/项目
   assert.match(data, /data-testid="settings-about"/);
 });
 
-test('UI-2 S2：设置·项目模型已退役——只剩指针（编辑面唯一归宿＝项目页设置页签）', () => {
-  const html = render({
-    section: 'project-model',
-    defaultProjectId: 11,
-    projects: [project({ id: 11, name: '记账系统' })],
-    onSaveProjectModelPolicy: async () => ({ ok: true }),
-  });
-  assert.equal(countTestId(html, 'settings-project-model'), 1, '指针块在场（深链落点）');
-  assert.equal(countTestId(html, 'settings-project-model-moved'), 1, '迁移说明在案');
-  assert.match(html, /项目页/, '明确指向项目页设置页签');
-  // 编辑面必须真的不在（不是藏起来）：这四件套是旧编辑控件。
-  for (const id of ['settings-project-model-project', 'settings-project-model-policy', 'settings-project-model-default', 'settings-project-model-allowed']) {
-    assert.equal(countTestId(html, id), 0, `编辑控件应已退役：${id}`);
-  }
-  assert.equal(countTestId(html, 'settings-project-model-save'), 0, '保存键应已退役');
+test('UI-2 S2：设置页不再有「项目模型」分区（指针也不留）——旧深链落到供应商与模型组', () => {
+  const html = render({ section: 'project-model', defaultProjectId: 11, projects: [project({ id: 11 })] });
+  assert.equal(countTestId(html, 'settings-project-model'), 0, '指针块也不留（老板：没用且增加疑惑）');
+  assert.match(html, /data-testid="settings-providers"/, '旧深链 project-model → 供应商与模型组');
+  assert.equal(SETTINGS_SECTIONS.some((x) => x.id === 'project-model'), false, '分区目录已退役');
 });
 
 test('D-22 配套 模型目录：真读数（上下文/能力/单价/Key 来源）；空态与错误不伪装', () => {

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 import { useSnapshot } from 'valtio';
 
-import { appUpdate, bindIm, checkAppUpdate, downloadAppUpdate, clearProviderKey, imView, installAppUpdate, installSkillFolder, installSkillUrl, loadImStatus, loadMcpServers, loadModelCatalog, loadSettingsEmployees, loadSettingsView, loadSkills, loadWorkstation, mcpLibrary, modelCatalog, removeCustomProvider, removeMcpServer, removeSkill, saveCustomProvider, saveProjectDefaultBudget, saveProjectTargetBranch, testCustomProvider, saveFallbackChainSetting, saveMcpServer, saveProjectModelPolicy, saveProviderKey, saveRoleMapSetting, saveSetting, openAppDataDir, sendTestNotification, settingsEmployees, settingsView, skillsLibrary, submitImVerifyCode, toggleMcpServer, toggleSkill, showHall, unbindIm, updateEmployee, workstation } from '../store';
+import { appUpdate, bindIm, checkAppUpdate, downloadAppUpdate, clearProviderKey, imView, installAppUpdate, installSkillFolder, installSkillUrl, loadImStatus, loadMcpServers, loadModelCatalog, loadSettingsEmployees, loadSettingsView, loadSkills, loadWorkstation, mcpLibrary, modelCatalog, removeCustomProvider, removeMcpServer, removeSkill, saveCustomProvider, testCustomProvider, saveFallbackChainSetting, saveMcpServer, saveProviderKey, saveRoleMapSetting, saveSetting, openAppDataDir, sendTestNotification, settingsEmployees, settingsView, skillsLibrary, submitImVerifyCode, toggleMcpServer, toggleSkill, showHall, unbindIm, updateEmployee, workstation } from '../store';
 import { COMPANY_DAILY_BUDGET_KEY, DEFAULT_PROJECT_SETTING_KEY, MODEL_SETTING_KEY, SettingsPane, settingsGroupOf } from './SettingsPane';
 import { RecruitDialog } from './RecruitDialog';
 import { MaintenancePanel } from './MaintenancePanel';
@@ -195,7 +195,6 @@ export function SettingsView({ initialSection }: { initialSection?: string } = {
       defaultProjectId={snap.defaultProjectId}
       projects={snap.projects}
       onSetDefaultProject={(id) => void saveSetting(DEFAULT_PROJECT_SETTING_KEY, id)}
-      onSaveProjectDefaultBudget={(projectId, budgetTokens) => saveProjectDefaultBudget(projectId, budgetTokens)}
       openAtLogin={snap.openAtLogin}
       onToggleOpenAtLogin={(enabled) => void saveSetting('app.openAtLogin', enabled)}
       appInfo={snap.appInfo}
@@ -205,15 +204,6 @@ export function SettingsView({ initialSection }: { initialSection?: string } = {
       onInstallUpdate={() => void installAppUpdate()}
       onOpenDataDir={() => void openAppDataDir()}
       onRetryLoad={() => void loadSettingsView()}
-      onSaveProjectTargetBranch={(projectId, branch) => saveProjectTargetBranch(projectId, branch)}
-      onSaveProjectModelPolicy={(input) =>
-        saveProjectModelPolicy({
-          projectId: input.projectId,
-          policy: input.policy,
-          defaultModel: input.defaultModel,
-          allowedModels: input.allowedModels,
-        })
-      }
       modelCatalog={catalogSnap.models}
       modelCatalogLoading={catalogSnap.loading}
       modelCatalogError={catalogSnap.error}

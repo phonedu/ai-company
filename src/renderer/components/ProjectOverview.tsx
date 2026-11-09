@@ -38,9 +38,12 @@ import {
   restoreProject,
   saveProjectAlias,
   saveProjectAssistantWriteMode,
+  saveProjectDefaultBudget,
   saveProjectDefaultSkills,
   saveProjectDocsCheck,
+  saveProjectModelPolicy,
   saveProjectStaffing,
+  saveProjectTargetBranch,
   session,
   skillsLibrary,
   staffingDefaults,
@@ -156,6 +159,17 @@ export function ProjectOverview(): ReactElement {
   const [tab, setTab] = useState<'tasks' | 'settings'>('tasks');
   // UI-2 S2：项目设置的组（默认「模型」；只做显示过滤，卡片与读写口径不动）。
   const [settingsGroup, setSettingsGroup] = useState<'model' | 'staffing' | 'permission' | 'skills' | 'docs' | 'time' | 'memory' | 'advanced'>('model');
+  // UI-2 S2 复核 P1（2026-11-09）：项目模型策略／默认预算／合并目标分支的**编辑面**随设置页「项目模型」
+  // 被 5d54615 一起删掉了（只剩只读摘要 + 指向已不存在的入口）。编辑搬回「设置·模型」卡，读写口径不变。
+  const [modelEditing, setModelEditing] = useState(false);
+  const [modelPolicyDraft, setModelPolicyDraft] = useState<'fixed' | 'employee_first' | 'assistant'>('employee_first');
+  const [modelDefaultDraft, setModelDefaultDraft] = useState('');
+  const [modelAllowedDraft, setModelAllowedDraft] = useState('');
+  const [modelBudgetDraft, setModelBudgetDraft] = useState('');
+  const [modelBranchDraft, setModelBranchDraft] = useState('');
+  const [modelSaving, setModelSaving] = useState(false);
+  const [modelNotice, setModelNotice] = useState('');
+  const [modelError, setModelError] = useState('');
   const [taskQuery, setTaskQuery] = useState('');
   const projectPageSnap = useSnapshot(projectPage);
   const expandedTaskId = projectPageSnap.expandedTaskId;
@@ -297,6 +311,81 @@ export function ProjectOverview(): ReactElement {
   }
 
   /** 项目分工 v1（D-11）：保存三项缺省（成功退出编辑；失败块内红字，不静默）。 */
+  /** UI-2 S2 复核 P1：项目模型策略（策略/默认模型/允许清单整体写；口径同设置页旧实现）。 */
+  async function submitModelPolicy(): Promise<void> {
+    const projectId = sessionSnap.selectedProjectId;
+    if (projectId == null || modelSaving) return;
+    const allowedModels = [
+      ...new Set(
+        modelAllowedDraft
+          .split(/[\n,]+/)
+          .map((m) => m.trim())
+          .filter((m) => m.length > 0),
+      ),
+    ];
+    setModelSaving(true);
+    setModelNotice('');
+    setModelError('');
+    const res = await saveProjectModelPolicy({
+      projectId,
+      policy: modelPolicyDraft,
+      defaultModel: modelDefaultDraft.trim().length > 0 ? modelDefaultDraft.trim() : null,
+      allowedModels,
+    });
+    setModelSaving(false);
+    if (!res.ok) {
+      setModelError(res.error ?? '保存失败');
+      return;
+    }
+    setModelNotice('项目模型策略已保存（只影响之后的员工会话）');
+    setModelEditing(false);
+  }
+
+  /** v19：项目默认任务预算（空＝不限；只影响之后新建且未填预算的任务）。 */
+  async function submitModelBudget(): Promise<void> {
+    const projectId = sessionSnap.selectedProjectId;
+    if (projectId == null || modelSaving) return;
+    const raw = modelBudgetDraft.trim();
+    const parsed = raw.length === 0 ? null : Number(raw);
+    if (parsed !== null && (!Number.isInteger(parsed) || parsed <= 0)) {
+      setModelNotice('');
+      setModelError('默认预算需为正整数 token，或留空（不限）');
+      return;
+    }
+    setModelSaving(true);
+    setModelNotice('');
+    setModelError('');
+    const res = await saveProjectDefaultBudget(projectId, parsed);
+    setModelSaving(false);
+    if (!res.ok) {
+      setModelError(res.error ?? '保存失败');
+      return;
+    }
+    setModelNotice('项目默认任务预算已保存（只影响之后新建且未填预算的任务）');
+  }
+
+  /** S13-G/D-N06：合并目标分支（空＝沿用 main/master）。 */
+  async function submitModelBranch(): Promise<void> {
+    const projectId = sessionSnap.selectedProjectId;
+    if (projectId == null || modelSaving) return;
+    const raw = modelBranchDraft.trim();
+    if (raw.length > 0 && !/^[A-Za-z0-9._/-]+$/.test(raw)) {
+      setModelNotice('');
+      setModelError('分支名只允许字母/数字/./_/-');
+      return;
+    }
+    setModelSaving(true);
+    setModelNotice('');
+    setModelError('');
+    const res = await saveProjectTargetBranch(projectId, raw.length > 0 ? raw : null);
+    setModelSaving(false);
+    if (!res.ok) {
+      setModelError(res.error ?? '保存失败');
+      return;
+    }
+    setModelNotice(raw.length > 0 ? `合并目标分支已设为 ${raw}` : '合并目标分支已清空（沿用 main/master）');
+  }
+
   async function submitStaffing(): Promise<void> {
     if (!staffingDraft || sessionSnap.selectedProjectId == null) return;
     setStaffingSaving(true);
@@ -827,10 +916,10 @@ export function ProjectOverview(): ReactElement {
           </section>
           ) : (
           <section className="project-pane__card" data-testid="project-settings-panel">
-          {/* D-22：项目模型策略——概览只读摘要；编辑面在设置·模型与员工（避免项目页再长出一套表单）。 */}
+          {/* D-22：项目模型策略——摘要＋就地编辑都在本卡（UI-2 S2 复核 P1：设置页「项目模型」随 S2 退役，编辑面搬到这里）。 */}
           {project ? (
             <details className="project-settings" data-testid="project-settings" open>
-              <summary className="project-settings__summary">项目设置（模型 / 分工 / 权限 / 技能 / 文档 / 定时）</summary>
+              <summary className="project-settings__summary">项目设置</summary>
             <div className="project-settings__body" data-active-group={settingsGroup}>
             {/* UI-2 S2：7 组配置——分段导航只**过滤显示**（卡片不动），默认只开「模型」。 */}
             <nav className="project-tabs project-settings__groupnav" data-testid="project-settings-groupnav">
@@ -859,6 +948,36 @@ export function ProjectOverview(): ReactElement {
             <section className="project-pane__card" data-group="model" data-testid="project-model-card">
               <h3 className="project-view__state-title">模型</h3>
               <div className="project-view__docs-row" data-testid="project-model-summary">
+                <button
+                  type="button"
+                  data-testid="project-model-edit"
+                  disabled={modelSaving}
+                  onClick={() => {
+                    if (modelEditing) {
+                      setModelEditing(false);
+                      setModelError('');
+                      return;
+                    }
+                    setModelPolicyDraft(
+                      project.modelPolicy === 'fixed'
+                        ? 'fixed'
+                        : project.modelPolicy === 'assistant'
+                          ? 'assistant'
+                          : 'employee_first',
+                    );
+                    setModelDefaultDraft(project.defaultModel ?? '');
+                    setModelAllowedDraft(project.allowedModels.join('\n'));
+                    setModelBudgetDraft(
+                      typeof project.defaultBudgetTokens === 'number' ? String(project.defaultBudgetTokens) : '',
+                    );
+                    setModelBranchDraft(project.targetBranch ?? '');
+                    setModelNotice('');
+                    setModelError('');
+                    setModelEditing(true);
+                  }}
+                >
+                  {modelEditing ? '取消' : '设置'}
+                </button>
                 <span className="project-view__docs-text">
                   {project.defaultModel ?? '公司默认'}
                   {' · '}
@@ -869,9 +988,108 @@ export function ProjectOverview(): ReactElement {
                       : '员工优先'}
                   {' · '}
                   允许 {project.allowedModels.length === 0 ? '不限' : `${project.allowedModels.length} 个`}
+                  {' · '}
+                  默认预算 {project.defaultBudgetTokens == null ? '不限' : `${project.defaultBudgetTokens} tokens`}
+                  {' · '}
+                  合并目标 {project.targetBranch ?? 'main/master'}
                 </span>
               </div>
-              <p className="project-view__docs-text">在「设置 → 模型与员工 → 项目模型」里改；只影响之后的员工会话。</p>
+              {modelEditing ? (
+                <div className="project-view__staffing-form" data-testid="project-model-form">
+                  <label className="project-view__staffing-field">
+                    策略
+                    <select
+                      data-testid="project-model-policy"
+                      value={modelPolicyDraft}
+                      onChange={(e) =>
+                        setModelPolicyDraft(
+                          e.target.value === 'fixed'
+                            ? 'fixed'
+                            : e.target.value === 'assistant'
+                              ? 'assistant'
+                              : 'employee_first',
+                        )
+                      }
+                    >
+                      <option value="employee_first">员工优先（默认）</option>
+                      <option value="fixed">固定模型（压平员工偏好）</option>
+                      <option value="assistant">幕僚长调度（允许清单内按任务选）</option>
+                    </select>
+                  </label>
+                  <label className="project-view__staffing-field">
+                    默认模型
+                    <input
+                      data-testid="project-model-default"
+                      placeholder="未设置（回落公司默认；fixed 必填）"
+                      value={modelDefaultDraft}
+                      onChange={(e) => setModelDefaultDraft(e.target.value)}
+                    />
+                  </label>
+                  <label className="project-view__staffing-field project-view__staffing-field--wide">
+                    允许模型（每行一个 provider/model；留空＝不额外限制）
+                    <textarea
+                      data-testid="project-model-allowed"
+                      rows={2}
+                      value={modelAllowedDraft}
+                      onChange={(e) => setModelAllowedDraft(e.target.value)}
+                    />
+                  </label>
+                  <label className="project-view__staffing-field">
+                    默认任务预算
+                    <input
+                      data-testid="project-budget"
+                      placeholder="留空＝不限"
+                      inputMode="numeric"
+                      value={modelBudgetDraft}
+                      onChange={(e) => setModelBudgetDraft(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      data-testid="project-budget-save"
+                      disabled={modelSaving}
+                      onClick={() => void submitModelBudget()}
+                    >
+                      保存预算
+                    </button>
+                  </label>
+                  <label className="project-view__staffing-field">
+                    合并目标分支
+                    <input
+                      data-testid="project-target-branch"
+                      placeholder="留空＝沿用 main/master"
+                      value={modelBranchDraft}
+                      onChange={(e) => setModelBranchDraft(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      data-testid="project-target-branch-save"
+                      disabled={modelSaving}
+                      onClick={() => void submitModelBranch()}
+                    >
+                      保存分支
+                    </button>
+                  </label>
+                  <button
+                    type="button"
+                    data-testid="project-model-save"
+                    disabled={modelSaving}
+                    onClick={() => void submitModelPolicy()}
+                  >
+                    {modelSaving ? '保存中…' : '保存'}
+                  </button>
+                  <span className="project-view__docs-text">只影响之后的员工会话；预算只影响之后新建且未填预算的任务。</span>
+                </div>
+              ) : null}
+              {modelNotice.length > 0 ? (
+                <p className="project-view__docs-text" data-testid="project-model-notice">
+                  {modelNotice}
+                </p>
+              ) : null}
+              {modelError.length > 0 ? (
+                <p className="project-view__error" data-testid="project-model-error" role="alert">
+                  {modelError}
+                </p>
+              ) : null}
             </section>
 
           {/* 项目分工 v1（D-11）：项目三项缺省（负责人／建任务后派给谁／默认档）——只读摘要＋就地编辑。

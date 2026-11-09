@@ -298,17 +298,6 @@ export interface SettingsPaneProps {
   /** **只读最小视图**（valtio 快照是 DeepReadonly——props 按只读声明，避免深只读→可变的赋值错）。 */
   projects: readonly ProjectView[];
   onSetDefaultProject: (id: number) => void;
-  /** D-22：保存项目模型策略（策略/默认模型/允许清单整体写）；缺省 → 保存键 disabled。 */
-  onSaveProjectModelPolicy?: (input: {
-    projectId: number;
-    policy: 'fixed' | 'employee_first' | 'assistant';
-    defaultModel: string | null;
-    allowedModels: string[];
-  }) => Promise<{ ok: boolean; error?: string }> | void;
-  /** v19：保存项目默认任务预算（null＝不限）；缺省 → 保存键 disabled。 */
-  onSaveProjectDefaultBudget?: (projectId: number, budgetTokens: number | null) => Promise<{ ok: boolean; error?: string }> | void;
-  /** S13-G/D-N06：保存合并目标分支（null/空串 ⇒ 回到 main/master）。 */
-  onSaveProjectTargetBranch?: (projectId: number, branch: string | null) => Promise<{ ok: boolean; error?: string }> | void;
   /** D-22 配套：只读模型目录（null/缺省＝未加载；空数组＝真的没有）。 */
   modelCatalog?: readonly ModelCatalogEntryDTO[] | null;
   modelCatalogLoading?: boolean;
@@ -396,18 +385,6 @@ export function SettingsPane(props: SettingsPaneProps): ReactElement {
   const [mcpExternal, setMcpExternal] = useState(false);
   const [mcpSaving, setMcpSaving] = useState(false);
   const [mcpFormError, setMcpFormError] = useState('');
-  // D-22：项目模型策略（项目选择＋三字段草稿；编辑面只在设置里，项目概览只读）。
-  const [projectModelId, setProjectModelId] = useState<number | null>(null);
-  const [policyDraft, setPolicyDraft] = useState<'fixed' | 'employee_first' | 'assistant'>('employee_first');
-  const [defaultModelDraft, setDefaultModelDraft] = useState('');
-  const [allowedModelsDraft, setAllowedModelsDraft] = useState('');
-  const [defaultBudgetDraft, setDefaultBudgetDraft] = useState('');
-  const [targetBranchDraft, setTargetBranchDraft] = useState('');
-  const [targetBranchSaving, setTargetBranchSaving] = useState(false);
-  const [projectModelSaving, setProjectModelSaving] = useState(false);
-  const [projectBudgetSaving, setProjectBudgetSaving] = useState(false);
-  const [projectModelNotice, setProjectModelNotice] = useState<string | null>(null);
-  const [projectModelError, setProjectModelError] = useState<string | null>(null);
   // D-22 配套：添加供应商（先从 SDK 已有目录里选；自定义 Base URL 另列未实施）。
   const [addProviderOpen, setAddProviderOpen] = useState(false);
   const [addProviderId, setAddProviderId] = useState('');
@@ -519,118 +496,6 @@ export function SettingsPane(props: SettingsPaneProps): ReactElement {
       setAddProviderSaving(false);
     }
   }
-  const projectForModel =
-    props.projects.find((p) => p.id === projectModelId) ??
-    props.projects.find((p) => p.id === props.defaultProjectId) ??
-    props.projects[0] ??
-    null;
-  useEffect(() => {
-    if (!projectForModel) return;
-    setPolicyDraft(
-      projectForModel.modelPolicy === 'fixed'
-        ? 'fixed'
-        : projectForModel.modelPolicy === 'assistant'
-          ? 'assistant'
-          : 'employee_first',
-    );
-    setDefaultModelDraft(projectForModel.defaultModel ?? '');
-    setAllowedModelsDraft((projectForModel.allowedModels ?? []).join('\n'));
-    setDefaultBudgetDraft(
-      typeof projectForModel.defaultBudgetTokens === 'number' ? String(projectForModel.defaultBudgetTokens) : '',
-    );
-    setTargetBranchDraft(projectForModel.targetBranch ?? '');
-    setProjectModelNotice(null);
-    setProjectModelError(null);
-  }, [
-    projectForModel?.id,
-    projectForModel?.modelPolicy,
-    projectForModel?.defaultModel,
-    projectForModel?.allowedModels?.join('\u0000'),
-    projectForModel?.defaultBudgetTokens,
-    projectForModel?.targetBranch,
-  ]);
-
-  async function submitProjectModel(): Promise<void> {
-    if (!props.onSaveProjectModelPolicy || !projectForModel || projectModelSaving) return;
-    const allowedModels = [
-      ...new Set(
-        allowedModelsDraft
-          .split(/[\n,]+/)
-          .map((m) => m.trim())
-          .filter((m) => m.length > 0),
-      ),
-    ];
-    setProjectModelSaving(true);
-    setProjectModelNotice(null);
-    setProjectModelError(null);
-    try {
-      const res = await props.onSaveProjectModelPolicy({
-        projectId: projectForModel.id,
-        policy: policyDraft,
-        defaultModel: defaultModelDraft.trim().length > 0 ? defaultModelDraft.trim() : null,
-        allowedModels,
-      });
-      if (res && res.ok === false) {
-        setProjectModelError(res.error ?? '保存失败');
-        return;
-      }
-      setProjectModelNotice('项目模型策略已保存（只影响之后的员工会话）');
-    } catch (error) {
-      setProjectModelError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setProjectModelSaving(false);
-    }
-  }
-
-  async function submitTargetBranch(): Promise<void> {
-    if (!props.onSaveProjectTargetBranch || !projectForModel || targetBranchSaving) return;
-    const raw = targetBranchDraft.trim();
-    if (raw.length > 0 && !/^[A-Za-z0-9._/-]+$/.test(raw)) {
-      setProjectModelError('分支名只允许字母/数字/./_/-');
-      return;
-    }
-    setTargetBranchSaving(true);
-    setProjectModelNotice(null);
-    setProjectModelError(null);
-    try {
-      const res = await props.onSaveProjectTargetBranch(projectForModel.id, raw.length > 0 ? raw : null);
-      if (res && res.ok === false) {
-        setProjectModelError(res.error ?? '保存失败');
-        return;
-      }
-      setProjectModelNotice(raw.length > 0 ? `合并目标分支已设为 ${raw}` : '合并目标分支已清空（沿用 main/master）');
-    } catch (error) {
-      setProjectModelError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setTargetBranchSaving(false);
-    }
-  }
-
-  async function submitProjectBudget(): Promise<void> {
-    if (!props.onSaveProjectDefaultBudget || !projectForModel || projectBudgetSaving) return;
-    const raw = defaultBudgetDraft.trim();
-    const parsed = raw.length === 0 ? null : Number(raw);
-    if (parsed !== null && (!Number.isInteger(parsed) || parsed <= 0)) {
-      setProjectModelError('默认预算需为正整数 token，或留空（不限）');
-      return;
-    }
-    setProjectBudgetSaving(true);
-    setProjectModelNotice(null);
-    setProjectModelError(null);
-    try {
-      const res = await props.onSaveProjectDefaultBudget(projectForModel.id, parsed);
-      if (res && res.ok === false) {
-        setProjectModelError(res.error ?? '保存失败');
-        return;
-      }
-      setProjectModelNotice('项目默认任务预算已保存（只影响之后新建且未填预算的任务）');
-    } catch (error) {
-      setProjectModelError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setProjectBudgetSaving(false);
-    }
-  }
-
 
   async function submitMcp(): Promise<void> {
     if (!props.onSaveMcpServer || mcpSaving) return;
@@ -805,7 +670,7 @@ export function SettingsPane(props: SettingsPaneProps): ReactElement {
           </section>
         ) : null}
 
-        {(has('providers') || has('models') || has('project-model')) ? (
+        {(has('providers') || has('models')) ? (
           <section data-testid="settings-models">
             <h3>供应商与模型</h3>
             {/* 供应商连接区（2026-10-16 设置批；2026-10-20 更新）：Key 可填/清除（本机 secrets）；
@@ -1373,7 +1238,7 @@ export function SettingsPane(props: SettingsPaneProps): ReactElement {
           <section data-testid="settings-projects">
             <h3>项目</h3>
             <p style={MUTED}>
-              「设为默认」＝新任务未指定项目时的落点（resolver 真读者）——本分区只留**全局默认**；项目级操作（归档项目）在**项目概览**（左栏点项目名，D-5 ③）。接入模式 / 放行档 / 别名等未实现。
+              「设为默认」＝新任务未指定项目时的落点（resolver 真读者）——本分区只留**全局默认**；项目级操作（归档）在**项目概览**（左栏点项目名，D-5 ③），**已归档项目**的恢复/导出/删除在**归档**页。接入模式 / 放行档 / 别名等未实现。
             </p>
             {props.projects.length === 0 ? (
               <p data-testid="settings-projects-empty" style={MUTED}>

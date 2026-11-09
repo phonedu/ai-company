@@ -1197,145 +1197,16 @@ export function SettingsPane(props: SettingsPaneProps): ReactElement {
             </>) : null}
             {/* D-22：项目模型策略（项目定边界与默认；员工偏好只是允许清单内的建议）。 */}
             </>) : null}
-            {has('project-model') ? (<>
-            <div className="settings-block" data-testid="settings-project-model">
-              <h4 style={{ margin: 0 }}>项目模型</h4>
-              <p style={MUTED}>项目定边界与默认；员工偏好只在允许清单内生效。只影响之后的员工会话。</p>
-              {projectForModel ? (
-                <>
-                  <div style={{ ...ROW, alignSelf: 'stretch' }}>
-                    <span style={{ minWidth: 88 }}>项目</span>
-                    <select
-                      className="settings-view__input"
-                      data-testid="settings-project-model-project"
-                      value={projectForModel.id}
-                      onChange={(e) => setProjectModelId(Number(e.target.value))}
-                    >
-                      {props.projects.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                          {p.archived === 1 ? '（已归档）' : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div style={{ ...ROW, alignSelf: 'stretch' }}>
-                    <span style={{ minWidth: 88 }}>策略</span>
-                    <select
-                      className="settings-view__input"
-                      data-testid="settings-project-model-policy"
-                      value={policyDraft}
-                      onChange={(e) =>
-                        setPolicyDraft(
-                          e.target.value === 'fixed'
-                            ? 'fixed'
-                            : e.target.value === 'assistant'
-                              ? 'assistant'
-                              : 'employee_first',
-                        )
-                      }
-                    >
-                      <option value="employee_first">员工优先（默认）</option>
-                      <option value="fixed">固定模型（压平员工偏好）</option>
-                      <option value="assistant">幕僚长调度（允许清单内按任务选）</option>
-                    </select>
-                  </div>
-                  <div style={{ ...ROW, alignSelf: 'stretch' }}>
-                    <span style={{ minWidth: 88 }}>默认模型</span>
-                    <input
-                      className="settings-view__input"
-                      data-testid="settings-project-model-default"
-                      placeholder="未设置（回落公司默认；fixed 必填）"
-                      value={defaultModelDraft}
-                      onChange={(e) => setDefaultModelDraft(e.target.value)}
-                      style={{ flex: 1 }}
-                    />
-                  </div>
-                  <div style={{ ...ROW, alignSelf: 'stretch' }}>
-                    <span style={{ minWidth: 88 }}>允许模型</span>
-                    <textarea
-                      className="settings-view__input"
-                      data-testid="settings-project-model-allowed"
-                      placeholder={'每行一个（provider/model）；留空＝不额外限制\n例：deepseek/deepseek-v4-pro'}
-                      value={allowedModelsDraft}
-                      onChange={(e) => setAllowedModelsDraft(e.target.value)}
-                      rows={3}
-                      style={{ flex: 1, fontFamily: 'monospace' }}
-                    />
-                  </div>
-                  <div style={{ ...ROW, alignSelf: 'stretch' }}>
-                    <span style={{ minWidth: 88 }}>默认任务预算</span>
-                    <input
-                      className="settings-view__input"
-                      data-testid="settings-project-budget"
-                      placeholder="留空＝不限；只影响之后新建且未填预算的任务"
-                      inputMode="numeric"
-                      value={defaultBudgetDraft}
-                      onChange={(e) => setDefaultBudgetDraft(e.target.value)}
-                      style={{ flex: 1 }}
-                    />
-                    <button
-                      type="button"
-                      data-testid="settings-project-budget-save"
-                      disabled={!props.onSaveProjectDefaultBudget || projectBudgetSaving}
-                      onClick={() => void submitProjectBudget()}
-                    >
-                      {projectBudgetSaving ? '保存中…' : '保存预算'}
-                    </button>
-                  </div>
-                  <div style={{ ...ROW, alignSelf: 'stretch' }}>
-                    <span style={{ minWidth: 88 }}>合并目标分支</span>
-                    <input
-                      className="settings-view__input"
-                      data-testid="settings-project-target-branch"
-                      placeholder="留空＝沿用 main/master（例：trunk）"
-                      value={targetBranchDraft}
-                      onChange={(e) => setTargetBranchDraft(e.target.value)}
-                      style={{ flex: 1, fontFamily: 'monospace' }}
-                    />
-                    <button
-                      type="button"
-                      data-testid="settings-project-target-branch-save"
-                      disabled={!props.onSaveProjectTargetBranch || targetBranchSaving}
-                      onClick={() => void submitTargetBranch()}
-                    >
-                      {targetBranchSaving ? '保存中…' : '保存分支'}
-                    </button>
-                  </div>
-                  <div style={ROW}>
-                    <button
-                      type="button"
-                      data-testid="settings-project-model-save"
-                      disabled={!props.onSaveProjectModelPolicy || projectModelSaving}
-                      onClick={() => void submitProjectModel()}
-                    >
-                      {projectModelSaving ? '保存中…' : '保存'}
-                    </button>
-                    <span style={MUTED}>
-                      {policyDraft === 'assistant'
-                        ? '幕僚长只在允许清单内选（至少填一个）；默认模型作为没有可用目录项时的回落落点。'
-                        : '固定模型必须填默认；设了允许清单就必须有默认，且默认在清单内。'}
-                    </span>
-                  </div>
-                  {projectModelNotice ? (
-                    <p style={MUTED} data-testid="settings-project-model-notice">
-                      {projectModelNotice}
-                    </p>
-                  ) : null}
-                  {projectModelError ? (
-                    <p style={ERR} data-testid="settings-project-model-error" role="alert">
-                      {projectModelError}
-                    </p>
-                  ) : null}
-                </>
-              ) : (
-                <p style={MUTED} data-testid="settings-project-model-empty">
-                  还没有项目；先新建项目或从老板频道建任务。
+            {has('project-model') ? (
+              <div className="settings-block" data-testid="settings-project-model">
+                <h4 style={{ margin: 0 }}>项目模型</h4>
+                {/* UI-2 S2（2026-11-09）：项目模型**配置唯一归宿**＝项目页「设置」页签；
+                    设置页只留指针（深链兜底），不再摆第二套编辑面。 */}
+                <p style={MUTED} data-testid="settings-project-model-moved">
+                  项目模型已迁到「项目树 → 选中项目 → 设置」页签——项目配置只在项目页改，避免两处口径。
                 </p>
-              )}
-            </div>
-            {/* D-22 配套：只读模型目录（价格 / 上下文 / 能力 / Key 状态）。默认折叠，避免把设置页铺满。 */}
-            </>) : null}
+              </div>
+            ) : null}
             {has('providers') ? (<>
             <details className="settings-advanced" data-testid="settings-model-catalog">
               <summary className="settings-advanced__summary" data-testid="settings-model-catalog-summary">

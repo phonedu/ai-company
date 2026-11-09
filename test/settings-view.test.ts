@@ -156,35 +156,21 @@ test('细分直达：点「供应商与模型」一页铺开连接/预算/项目
   assert.match(data, /data-testid="settings-about"/);
 });
 
-test('D-22 设置·项目模型：项目/策略/默认/允许清单在场；assistant 明确 disabled；保存键随接线启用', () => {
+test('UI-2 S2：设置·项目模型已退役——只剩指针（编辑面唯一归宿＝项目页设置页签）', () => {
   const html = render({
     section: 'project-model',
     defaultProjectId: 11,
-    projects: [
-      project({
-        id: 11,
-        name: '记账系统',
-        defaultModel: 'deepseek/deepseek-v4-pro',
-        allowedModels: ['deepseek/deepseek-v4-pro', 'xiaomi/mimo-v2.6-flash'],
-        modelPolicy: 'employee_first',
-      }),
-    ],
+    projects: [project({ id: 11, name: '记账系统' })],
     onSaveProjectModelPolicy: async () => ({ ok: true }),
   });
-  for (const id of ['settings-project-model', 'settings-project-model-project', 'settings-project-model-policy', 'settings-project-model-default', 'settings-project-model-allowed']) {
-    assert.equal(countTestId(html, id), 1, `缺 ${id}`);
+  assert.equal(countTestId(html, 'settings-project-model'), 1, '指针块在场（深链落点）');
+  assert.equal(countTestId(html, 'settings-project-model-moved'), 1, '迁移说明在案');
+  assert.match(html, /项目页/, '明确指向项目页设置页签');
+  // 编辑面必须真的不在（不是藏起来）：这四件套是旧编辑控件。
+  for (const id of ['settings-project-model-project', 'settings-project-model-policy', 'settings-project-model-default', 'settings-project-model-allowed']) {
+    assert.equal(countTestId(html, id), 0, `编辑控件应已退役：${id}`);
   }
-  assert.match(html, /员工优先（默认）/);
-  assert.match(html, /固定模型（压平员工偏好）/);
-  assert.match(html, /幕僚长调度（允许清单内按任务选）/);
-  const assistantOption = html.match(/<option[^>]*value="assistant"[^>]*>/)?.[0] ?? '';
-  assert.doesNotMatch(assistantOption, /disabled/, '目录已就绪 → assistant 可选');
-  assert.doesNotMatch(openTag(html, 'settings-project-model-save'), /disabled/, '接线在场 → 保存可点');
-
-  const inert = render({ section: 'project-model', defaultProjectId: 11, projects: [project({ id: 11 })] });
-  assert.match(openTag(inert, 'settings-project-model-save'), /disabled/, '缺接线 ⇒ 保存 disabled（不假装可点）');
-  const empty = render({ section: 'project-model', projects: [] });
-  assert.match(empty, /data-testid="settings-project-model-empty"/);
+  assert.equal(countTestId(html, 'settings-project-model-save'), 0, '保存键应已退役');
 });
 
 test('D-22 配套 模型目录：真读数（上下文/能力/单价/Key 来源）；空态与错误不伪装', () => {

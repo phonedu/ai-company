@@ -10,6 +10,7 @@
 import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 
+import { sessionCwd } from './tools/session-cwd.js';
 
 /** 白名单扩展名（只读文档类）。 */
 const DOC_EXTENSIONS = new Set(['.md', '.txt', '.markdown']);
@@ -58,7 +59,12 @@ function readDocFile(abs: string): string | null {
   }
 }
 
-/** 幕僚长/员工通用的 `read_doc` 工具工厂（`projectRoot` 由装配层按项目解析注入）。 */
+/**
+ * 幕僚长/员工通用的 `read_doc` 工具工厂。
+ * 根目录按**会话 cwd**（`sessionCwd(ctx)`）逐次解析：员工运行时全局共享、装配期 `projectRoot`
+ * 在生产是应用进程目录——绑死它会把项目文档读成应用目录里的文件（门禁按 run.cwd 判、工具按别处读）。
+ * `projectRoot` 只作兜底（单测/无上下文）。
+ */
 export async function createReadDocTool(projectRoot: string) {
   const [{ defineTool }, { Type }] = await Promise.all([
     import('@earendil-works/pi-coding-agent'),
@@ -73,8 +79,8 @@ export async function createReadDocTool(projectRoot: string) {
     parameters: Type.Object({
       path: Type.String({ description: '文档相对路径（项目根内；.md/.txt）' }),
     }),
-    async execute(_toolCallId, params) {
-      const abs = extractReadDocPath(String(params.path ?? ''), projectRoot);
+    async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+      const abs = extractReadDocPath(String(params.path ?? ''), sessionCwd(ctx, projectRoot));
       if (abs == null) {
         return {
           content: [

@@ -151,7 +151,7 @@ export async function createEmployeeRuntime(options: CreateEmployeeRuntimeOption
   employeeTools.push(readDocTool); // B3-8/D-31：只读项目文档（白名单 .md/.txt）
   // B4-1/B4-2/D-29：网络访问＋屏幕截图工具（external 类——每次弹卡批准）。
   employeeTools.push(await createWebFetchTool());
-  employeeTools.push(await createScreenshotTool(join(options.cwd, '.aico', 'screenshots')));
+  employeeTools.push(await createScreenshotTool(options.cwd)); // 截图目录按会话 cwd 逐次解析
   // B4-4/B4-6/D-29：图像生成（spend 闸）＋导出适配器（write 闸＋路径层）。
   employeeTools.push(await createImageGenerateTool(options.cwd));
   employeeTools.push(await createExportFormatTool(options.cwd));

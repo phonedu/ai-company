@@ -5,10 +5,13 @@
  *  - `web_fetch`：HTTP GET 读网页正文（external 类——每次弹卡批准）；
  *  - `screenshot`：全屏截图（external 类——每次弹卡批准）；
  *  两个工具走 permissionGate external 类自动弹卡；不需要手动接线审批。
+ *  截图目录按**会话 cwd** 解析（`<会话 cwd>/.aico/screenshots`）——装配期 cwd 在生产是应用进程目录。
  */
 import { mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { captureScreenshot } from './screenshot-tool.js';
+import { sessionCwd } from './session-cwd.js';
 import { webFetch } from './web-fetch-tool.js';
 
 export async function createWebFetchTool() {
@@ -34,12 +37,15 @@ export async function createWebFetchTool() {
   });
 }
 
-export async function createScreenshotTool(outputDir: string) {
+/** 截图落盘子目录（相对会话 cwd）。 */
+export const SCREENSHOT_SUBDIR = join('.aico', 'screenshots');
+
+export async function createScreenshotTool(fallbackCwd: string, deps: { capture?: typeof captureScreenshot } = {}) {
+  const capture = deps.capture ?? captureScreenshot;
   const [{ defineTool }, { Type }] = await Promise.all([
     import('@earendil-works/pi-coding-agent'),
     import('@earendil-works/pi-ai'),
   ]);
-  mkdirSync(outputDir, { recursive: true });
   return defineTool({
     name: 'screenshot',
     label: 'Screenshot',
@@ -47,8 +53,10 @@ export async function createScreenshotTool(outputDir: string) {
       '全屏截图（PNG），截图落盘并返回文件路径。走 external 审批（每次弹卡批准）。' +
       '截图可用于视觉验证（给 vision 模型分析）或记录当前状态。',
     parameters: Type.Object({}),
-    execute: async () => {
-      const result = captureScreenshot(outputDir);
+    execute: async (_toolCallId, _params, _signal, _onUpdate, ctx) => {
+      const outputDir = join(sessionCwd(ctx, fallbackCwd), SCREENSHOT_SUBDIR);
+      mkdirSync(outputDir, { recursive: true });
+      const result = capture(outputDir);
       const details: { outcome: string; path: string | null } = result.ok
         ? { outcome: 'ok', path: result.path ?? null }
         : { outcome: 'error', path: null };

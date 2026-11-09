@@ -6,11 +6,13 @@
  *    输出目录宿主固定 `assets/images/`（不收路径参数），返回相对路径供员工填进 artifacts；
  *  - `export_format`：write 类（走门禁路径层：参数名就叫 `path`——`pathArg` 首个检查的键；
  *    源须在项目根/工作目录内），导出文件与源同目录派生，不另收输出路径。
+ * 两者都按**会话 cwd**（`sessionCwd(ctx)`）解析——与门禁 `run.cwd` 同源；装配期 cwd 只作兜底。
  */
 import { isAbsolute, join, relative, resolve } from 'node:path';
 
 import { exportToFile, type ExportFormat } from './export-format-tool.js';
 import { IMAGE_OUTPUT_SUBDIR, imageGenerate } from './image-generate-tool.js';
+import { sessionCwd } from './session-cwd.js';
 
 /** 导出结果回给模型的预览长度（全文在导出文件里，不整篇灌进上下文）。 */
 const EXPORT_PREVIEW_CHARS = 400;
@@ -19,7 +21,8 @@ function toRel(cwd: string, abs: string): string {
   return relative(cwd, abs).replace(/\\/g, '/');
 }
 
-export async function createImageGenerateTool(cwd: string) {
+export async function createImageGenerateTool(fallbackCwd: string, deps: { generate?: typeof imageGenerate } = {}) {
+  const generate = deps.generate ?? imageGenerate;
   const [{ defineTool }, { Type }] = await Promise.all([
     import('@earendil-works/pi-coding-agent'),
     import('@earendil-works/pi-ai'),
@@ -39,8 +42,9 @@ export async function createImageGenerateTool(cwd: string) {
         }),
       ),
     }),
-    execute: async (_toolCallId, params) => {
-      const result = await imageGenerate({
+    execute: async (_toolCallId, params, _signal, _onUpdate, ctx) => {
+      const cwd = sessionCwd(ctx, fallbackCwd);
+      const result = await generate({
         prompt: String(params.prompt ?? ''),
         size: params.size,
         outputDir: join(cwd, IMAGE_OUTPUT_SUBDIR),
@@ -55,7 +59,7 @@ export async function createImageGenerateTool(cwd: string) {
   });
 }
 
-export async function createExportFormatTool(cwd: string) {
+export async function createExportFormatTool(fallbackCwd: string) {
   const [{ defineTool }, { Type }] = await Promise.all([
     import('@earendil-works/pi-coding-agent'),
     import('@earendil-works/pi-ai'),
@@ -73,7 +77,8 @@ export async function createExportFormatTool(cwd: string) {
         description: '目标格式：wechat_html | markdown | plain_text',
       }),
     }),
-    execute: async (_toolCallId, params) => {
+    execute: async (_toolCallId, params, _signal, _onUpdate, ctx) => {
+      const cwd = sessionCwd(ctx, fallbackCwd);
       const raw = String(params.path ?? '');
       const abs = isAbsolute(raw) ? raw : resolve(cwd, raw);
       const result = exportToFile(abs, params.format as ExportFormat);

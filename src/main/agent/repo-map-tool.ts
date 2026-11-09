@@ -1,18 +1,25 @@
 /**
  * RET-1 P3 · `repo_map` customTool：确定性文件/符号索引查询（只读、零 LLM）。
  * 口径：返回小答案（≤ maxChars），不返回整张图；查询为空只给文件索引。
+ * 索引根按**会话 cwd**（`sessionCwd(ctx)`）解析、按根分别缓存——员工运行时全局共享，
+ * 装配期 `root` 在生产是应用进程目录，只作兜底。
  */
 import { buildRepoMap, renderRepoMap, type RepoMap } from './repo-map.js';
+import { sessionCwd } from './tools/session-cwd.js';
 
 export async function createRepoMapTool(root: string) {
   const [{ defineTool }, { Type }] = await Promise.all([
     import('@earendil-works/pi-coding-agent'),
     import('@earendil-works/pi-ai'),
   ]);
-  let cached: RepoMap | null = null;
-  const get = (): RepoMap => {
-    cached ??= buildRepoMap(root);
-    return cached;
+  const cache = new Map<string, RepoMap>();
+  const get = (r: string): RepoMap => {
+    let map = cache.get(r);
+    if (!map) {
+      map = buildRepoMap(r);
+      cache.set(r, map);
+    }
+    return map;
   };
   return defineTool({
     name: 'repo_map',
@@ -25,8 +32,8 @@ export async function createRepoMapTool(root: string) {
       pathPrefix: Type.Optional(Type.String({ description: '只查某个目录/文件前缀（项目根相对）' })),
       maxChars: Type.Optional(Type.Number({ description: '返回文本上限（缺省 4000）' })),
     }),
-    async execute(_toolCallId, params) {
-      const map = get();
+    async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+      const map = get(sessionCwd(ctx, root));
       const result = renderRepoMap(map, {
         ...(params.query ? { query: params.query } : {}),
         ...(params.pathPrefix ? { pathPrefix: params.pathPrefix } : {}),

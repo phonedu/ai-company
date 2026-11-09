@@ -6545,6 +6545,30 @@ button[data-testid$='-save']:disabled {
   border-right: 0;
 }
 
+/* ── 2026-11-09 老板真机（项目树/公司大厅）：「竖线没贯穿、下面像和上面贴在一起」──
+   病灶：SplitLayout（2026-11-04 接入）把各页左列从 `.projects-page`／`.hall-page`
+   （flex 行）的子项挪进了**普通块容器** `.split__side`。容器本身靠 flex stretch 撑满，
+   但里层 `__list` 失去 stretch ⇒ 高度退化为内容高：白底与右分隔线在半途断掉，
+   下方 --bg 灰与上方白块直接相接（视觉上就是「合并」）。
+   修法：side 容器改纵向 flex，里层列表 flex:1 撑满＋内部滚动（与旧两栏行为一致）；
+   同时以更高特异性覆盖各页 __list 遗留的 `flex: 0 0 300px`（纵向 flex 下会变成固定高 300px）。 */
+.split__side,
+.split--solo .split__main {
+  display: flex;
+  flex-direction: column;
+}
+
+.split__side > .projects-page__list,
+.split__side > .hall-page__list,
+.split__side > .settings-view__nav,
+.split__side > [data-testid='knowledge-list'],
+.split--solo .split__main > .projects-page__list,
+.split--solo .split__main > .hall-page__list,
+.split--solo .split__main > [data-testid='knowledge-list'] {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .project-view__task-open,
 .project-view__task-archive {
   flex: 0 0 auto;

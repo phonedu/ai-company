@@ -144,3 +144,21 @@ test('SplitLayout 抽屉：展开态挂 Esc 关闭；收起/宽窗不挂', () =>
   assert.match(component, /if \(!stacked \|\| collapsed\) return;/, 'Esc 监听只在「窄窗且展开」挂');
   assert.match(component, /event\.key === 'Escape'/, 'Esc 关抽屉');
 });
+
+// 2026-11-09 老板真机：「竖线没贯穿，下面的都快和上面的合并了」——SplitLayout 接管分栏后，
+// 各页 __list 从 `.projects-page/.hall-page`（flex 行）的子项挪进普通块容器 `.split__side`，
+// 失去 stretch ⇒ 高度退化为内容高（CDP 实测：侧栏 826px，里层列表 367px），
+// 白底与右分隔线半途断掉、下方 --bg 灰与上方白块直接相接。
+// 守卫：side 容器纵向 flex＋里层列表 flex:1（宽窗/窄窗同一口径，列表内部滚动）。
+test('SplitLayout 侧栏撑满：side 纵向 flex，各页列表 flex:1（2026-11-09 老板真机修）', () => {
+  const css = readFileSync('src/renderer/styles.css', 'utf8');
+  assert.match(
+    css,
+    /\.split__side,\s*\n\.split--solo \.split__main \{\s*\n\s*display: flex;\s*\n\s*flex-direction: column;/,
+    'side 容器必须纵向 flex（否则里层列表无 stretch 可继承）',
+  );
+  for (const sel of ['.projects-page__list', '.hall-page__list', '.settings-view__nav', "[data-testid='knowledge-list']"]) {
+    assert.ok(css.includes(`.split__side > ${sel}`), `${sel} 在 .split__side 下必须 flex:1 撑满`);
+  }
+  assert.match(css, /\.split__side > \.projects-page__list[\s\S]{0,400}?flex: 1 1 auto;/, '里层列表 flex:1 撑满');
+});

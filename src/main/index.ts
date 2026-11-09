@@ -5,7 +5,7 @@ import { app, BrowserWindow, Menu, Tray, Notification, ipcMain, nativeImage, dia
 import type { MenuItemConstructorOptions, NativeImage } from 'electron';
 import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, delimiter as pathDelimiter } from 'node:path';
 
 import {
   acknowledgePendingAsksIfTaskSettled,
@@ -2552,6 +2552,22 @@ if (!gotSingleInstanceLock) {
   app.whenReady().then(() => {
     appReadyAt = Date.now();
     console.log('[app] ready');
+    // 裁决 6（2026-11-09）：内置 ffmpeg 进 PATH——员工 bash 直接 `ffmpeg ...` 即可用。
+    // 打包态＝<resources>/ffmpeg；开发态＝仓库 vendor/ffmpeg（scripts/fetch-ffmpeg.mjs 取）。
+    // 只是**前置**到 PATH：系统已装 ffmpeg 时两者都能用（前置保证随包版本优先、版本可控）。
+    try {
+      const candidates = [
+        join(process.resourcesPath ?? '', 'ffmpeg'),
+        join(process.cwd(), 'vendor', 'ffmpeg'),
+      ];
+      const dir = candidates.find((d) => d.length > 3 && existsSync(join(d, 'ffmpeg.exe')) || (d.length > 3 && existsSync(join(d, 'ffmpeg'))));
+      if (dir != null) {
+        process.env.PATH = `${dir}${pathDelimiter}${process.env.PATH ?? ''}`;
+        console.log(`[app] 内置 ffmpeg 已加入 PATH：${dir}`);
+      }
+    } catch (error) {
+      console.error(`[app] 内置 ffmpeg 挂载失败（不阻断启动）：${error instanceof Error ? error.message : String(error)}`);
+    }
     // B0-9：先接系统密钥环，再开库/引擎（供应商 Key 解析在会话装配时发生）。
     // B0-9 事故修复：隔离 profile（AICO_USER_DATA_DIR）下 OSCrypt 密钥随临时目录消失 ⇒ 禁用加密。
     // 仅显式允许（自动化 Key 加密配方）才视为稳定。

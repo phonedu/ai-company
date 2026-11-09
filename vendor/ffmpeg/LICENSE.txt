@@ -1,0 +1,10 @@
+ffmpeg (bundled binary)
+=======================
+
+Binary: ffmpeg.exe (FFmpeg 6.1.1-essentials_build, Gyan builds — https://www.gyan.dev/ffmpeg/builds/)
+License: GNU General Public License v3 (GPL-3.0)
+Full license text: https://www.gnu.org/licenses/gpl-3.0.txt
+Corresponding source: https://github.com/FFmpeg/FFmpeg (tag n6.1.1) and https://github.com/GyanD/codexffmpeg (build scripts)
+
+This product includes software developed by the FFmpeg project (https://ffmpeg.org/).
+Licensees may obtain the complete corresponding source code from the URLs above.

@@ -136,6 +136,22 @@ const EGRESS_COMMAND_PATTERNS: Array<{ re: RegExp; label: string }> = [
   { re: /\bscp\b|\bsftp\b/i, label: 'scp/sftp' },
   { re: /\bssh\b/i, label: 'ssh' },
   { re: /\bsend-mailmessage\b/i, label: 'send mail' },
+  // B4b 安全审查 F3（2026-11-09，存量洞补齐）：**脚本语言/系统工具外发**——此前只认 curl/wget 等
+  // 命令行工具，`node -e "fetch(...)"`、`python -c "requests.post(...)"`、PowerShell 的
+  // `.NET WebClient/HttpClient`、`certutil -urlcache`、`bitsadmin /transfer`、`nc`/`telnet` 全部零弹卡
+  // （安全审查实测：配了 Key 后可绕开 spend 闸直接花钱/外发）。这里按「运行时 + 网络 API 特征」识别。
+  { re: /\bnode\b[^\n]*\b(fetch|https?\.(?:request|get)|net\.(?:connect|Socket)|axios)\b/i, label: 'node 网络请求' },
+  { re: /\b(deno|bun)\b[^\n]*\b(fetch|connect)\b/i, label: 'deno/bun 网络请求' },
+  {
+    re: /\b(?:python|python3|py)\b[^\n]*\b(?:requests|httpx|urllib|socket|aiohttp|http\.client|ftplib|smtplib)\b/i,
+    label: 'python 网络请求',
+  },
+  { re: /(?:^|[\s.(])net\.(webclient|httpclient|webrequest|tcpclient|udpclient)\b/i, label: '.NET 网络请求' },
+  { re: /certutil[^\n]*-urlcache/i, label: 'certutil 下载' },
+  { re: /bitsadmin[^\n]*\/transfer/i, label: 'bitsadmin 传输' },
+  { re: /\b(?:^|\s)(?:nc|ncat|netcat|telnet|ftp)\s/i, label: 'nc/telnet/ftp' },
+  { re: /\bopenssl\s+s_client\b|\bsocat\b/i, label: 'openssl/socat' },
+  { re: /\/dev\/tcp\/|\/dev\/udp\//, label: 'bash /dev/tcp' },
 ];
 
 /** 返回命中的外发命令族标签；无 → null（纯函数，可测）。 */

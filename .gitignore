@@ -10,3 +10,7 @@ release-assets/
 .env.*
 !.env.example
 test-results/
+
+# 构建时取的内置工具（scripts/fetch-ffmpeg.mjs；79MB 不进版本库）
+vendor/ffmpeg/*.exe
+vendor/ffmpeg/*.gz

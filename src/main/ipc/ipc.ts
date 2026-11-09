@@ -14,6 +14,7 @@ import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } 
 import { createHash } from 'node:crypto';
 import { closeSync, copyFileSync, existsSync, mkdirSync, openSync, readFileSync, readSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { deleteProviderKey, insertArtifact, isKnownSettingKey, isSecretSettingKey, SETTING_REDACTED, upsertProviderKey, validateSettingValue, writeSetting } from '../db/index.js';
+import { isPermissionApproval } from '../db/approvals.js';
 import type { ContextMetricRow } from '../db/context_metrics.js';
 import { getEmployeeById, insertEmployee, updateEmployee } from '../db/index.js';
 import { stagedFilePath } from './staged-files.js';
@@ -91,6 +92,8 @@ export interface IpcDeps {
     schedulerSlots?(): { running: number; total: number };
     /** C4：公司日预算 hold 文案（超支时返回原因；未超/未设 → undefined）。 */
     companyDailyBudgetHold?(): string | undefined;
+    /** 裁决 8（2026-11-09）：会话权限批准后的补跑（件已不在跑时重开/重派）。可选：旧装配缺省 → 不补跑。 */
+    refireAfterApproval?(taskId: number): Promise<{ ok: boolean; reason: string; workItemId: number | null }>;
   };
   /** 幕僚长真实会话（T0.4）；**懒加载后回填**（可为 null：缺 key / 未就绪）。 */
   assistant?: AssistantPort | null;
@@ -2198,6 +2201,7 @@ export async function handleTaskApprove(
   });
   // D2：作答后**推状态机**（此前只写台账/授权 ⇒ 老板点了批准任务也不动）。未知选项 → 不猜（不推）。
   const taskId = (approval as { taskId?: number | null } | null)?.taskId ?? null;
+  let refire: { ok: boolean; reason: string; workItemId: number | null } | null = null;
   if (taskId != null && deps.engine) {
     const task = deps.repo.getTask(taskId);
     const mapped = approvalAnswerEvent(task?.state ?? null, input.chosen);
@@ -2209,12 +2213,17 @@ export async function handleTaskApprove(
         actor: 'boss',
         payload: { via: 'approval', approvalId: input.approvalId, chosen: input.chosen, ...(mapped.payload ?? {}) },
       });
+    } else if (input.chosen === 'approve' && isPermissionApproval((approval as { question?: string } | null)?.question ?? '')) {
+      // 裁决 8（老板 2026-11-09 批「批准后补跑」）：G1 是「批准后员工**重试**才放行」——员工按纪律
+      // 不等、任务已结束时，批准了也没人再去调工具（真机实测：批了不补图）。这里在「件已不在跑」时
+      // 把该件重开/重派；件还在跑则 no-op（返回 already_active）。
+      refire = (await deps.engine.refireAfterApproval?.(taskId)) ?? null;
     }
   }
   deps.onInboxChanged?.();
   const reportId = (approval as { reportId?: number | null } | null)?.reportId ?? null;
   markCardActionRead(deps, reportId, at);
-  return { ok: true, approval };
+  return { ok: true, approval, ...(refire != null ? { refire } : {}) };
 }
 
 /**

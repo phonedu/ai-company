@@ -837,6 +837,81 @@ export class Engine {
   }
 
   /**
+   * 裁决 8（老板 2026-11-09 批「批准后补跑就补上」）：**会话权限批准后的补跑**。
+   *
+   * 背景：G1 口径是「拦截→出卡→批准后工具**重试**才放行」——员工不等（按纪律不重试）任务照常
+   * 结束时，那张卡完成后才批，就没有人再去调工具了（真机实测：批了也不会补生成封面）。
+   *
+   * 口径：件还在跑/排队 → 什么都不做（`already_active`，员工会自己重试）；
+   * 任务已完结且在 7 天撤销窗内 → `undo_finish` 重开 → 按件的状态：
+   *  `failed`→`retry`、`rejected`/`interrupted`→`redispatch`、`done`/`submitted`→**新返工件**（retry_of 血缘，
+   *  与签收拒绝同一语义）；其它态（queued/running/blocked）→ `already_active`。
+   * 不新造事件 kind（重开/重派本身的既有事件已留痕，payload 带 `via:'approval_refire'`）。
+   */
+  async refireAfterApproval(taskId: number): Promise<{ ok: boolean; reason: string; workItemId: number | null }> {
+    const task = getTaskById(this.db, taskId);
+    if (!task) return { ok: false, reason: 'task_not_found', workItemId: null };
+    // 发起该权限请求的件（最近一条 permission_requested 的归属）。
+    const ev = this.db
+      .prepare("SELECT work_item_id FROM task_events WHERE task_id = ? AND kind = 'permission_requested' ORDER BY id DESC LIMIT 1")
+      .get(taskId) as { work_item_id: number | null } | undefined;
+    const workItemId = ev?.work_item_id ?? null;
+    if (workItemId == null) return { ok: false, reason: 'no_work_item', workItemId };
+    const wi = getWorkItem(this.db, workItemId);
+    if (!wi) return { ok: false, reason: 'work_item_missing', workItemId };
+    if (wi.state === 'queued' || wi.state === 'running' || wi.state === 'blocked') {
+      return { ok: true, reason: 'already_active', workItemId };
+    }
+
+    // 返工件必须**先建、再重开任务**：重开后聚合看到「所有件都已完成」会立刻自动验证完成
+    // （实测：undo_finish→start_task 后紧跟 verification_completed→task_completed），件就没人跑了。
+    const notes = '老板已在任务结束后批准该权限：按原目标重试被拦的动作（不要重复已完成的部分）。';
+    let spawned = false;
+    if ((wi.state === 'done' || wi.state === 'submitted') && task.state === 'done') {
+      insertWorkItem(this.db, {
+        taskId,
+        employeeId: wi.employee_id,
+        title: `返工：${wi.title}`,
+        brief: notes,
+        touchedPaths: parseTouchedPaths(wi.brief) ?? undefined,
+        retryOf: wi.id,
+        now: this.now(),
+        actor: 'system',
+      });
+      spawned = true;
+    }
+
+    if (task.state === 'done') {
+      try {
+        await this.dispatch({ scope: 'task', id: taskId, event: 'undo_finish', actor: 'boss', payload: { via: 'approval_refire' } });
+      } catch (error) {
+        return { ok: false, reason: `undo_finish_refused:${error instanceof Error ? error.message : String(error)}`, workItemId };
+      }
+    }
+    let after = getTaskById(this.db, taskId);
+    if (after == null) return { ok: false, reason: 'task_not_found', workItemId };
+    // undo_finish 的 patch 是 readyNow ⇒ 重开后落在 `ready`（待启动），要先 start_task 才回 executing。
+    if (after.state === 'ready') {
+      await this.dispatch({ scope: 'task', id: taskId, event: 'start_task', actor: 'system', payload: { via: 'approval_refire' } });
+      after = getTaskById(this.db, taskId);
+    }
+    if (after == null) return { ok: false, reason: 'task_not_found', workItemId };
+    if (after.state !== 'executing' && after.state !== 'planning') {
+      return { ok: false, reason: `task_state_${after.state}`, workItemId };
+    }
+    if (spawned) return { ok: true, reason: 'rework_spawned', workItemId };
+    if (wi.state === 'failed') {
+      await this.dispatch({ scope: 'work_item', id: workItemId, event: 'retry', actor: 'boss', payload: { via: 'approval_refire' } });
+      return { ok: true, reason: 'retried', workItemId };
+    }
+    if (wi.state === 'rejected' || wi.state === 'interrupted') {
+      await this.dispatch({ scope: 'work_item', id: workItemId, event: 'redispatch', actor: 'boss', payload: { via: 'approval_refire' } });
+      return { ok: true, reason: 'redispatched', workItemId };
+    }
+    return { ok: false, reason: `work_item_state_${wi.state}`, workItemId };
+  }
+
+  /**
    * C2（真拆派）：**规划产出工作项**（`FLOWS §3.1.2` 首行口径；D-6 缺省链）。
    *
    * v1 口径：**1 任务 = 1 工作项**（整个任务一件；"拆多件/并行 DAG"留后续）；`brief` = 结构化工作简报

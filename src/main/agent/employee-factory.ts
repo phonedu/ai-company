@@ -24,6 +24,10 @@ import { TouchedPathRecorder } from './touched-path-recorder.js';
 import { createReadDocTool } from './read-doc-tool.js';
 import { createScreenshotTool, createWebFetchTool } from './tools/web-tools.js';
 import { createExportFormatTool, createImageGenerateTool } from './tools/content-tools.js';
+import { cnyToUsd } from './tools/image-cost.js';
+import { extractSessionId } from './session-tool-gate.js';
+import { readSetting } from '../db/settings.js';
+import { recordCost } from '../db/costs.js';
 import { createCompactionHandoffProvider } from './compaction-handoff.js';
 import { createRepoMapTool } from './repo-map-tool.js';
 import { isRepoMapEnabled } from './repo-map.js';
@@ -153,7 +157,29 @@ export async function createEmployeeRuntime(options: CreateEmployeeRuntimeOption
   employeeTools.push(await createWebFetchTool());
   employeeTools.push(await createScreenshotTool(options.cwd)); // 截图目录按会话 cwd 逐次解析
   // B4-4/B4-6/D-29：图像生成（spend 闸）＋导出适配器（write 闸＋路径层）。
-  employeeTools.push(await createImageGenerateTool(options.cwd));
+  // 裁决 7（2026-11-09 老板批「图片费用补上」）：出图成功按张入账——由会话 ctx 反查任务/工作项，
+  // 折 USD 后走 `recordCost`（与 LLM 用量同一张成本表、同一套预算读数）。
+  employeeTools.push(
+    await createImageGenerateTool(options.cwd, {
+      recordImageCost: ({ model, cny, ctx }) => {
+        const run = toolGate?.runOf(extractSessionId(ctx) ?? '') ?? null;
+        const taskId = run?.taskId ?? null;
+        if (taskId == null) return; // 无任务归属（频道会话）→ 不落任务成本
+        const rate = readSetting(options.db as never, 'cost.cnyPerUsd');
+        recordCost(options.db as never, {
+          taskId,
+          workItemId: run?.workItemId ?? null,
+          employeeId: run?.employeeId ?? null,
+          model,
+          tokensIn: 0,
+          tokensOut: 0,
+          usd: cnyToUsd(cny, typeof rate === 'number' ? rate : null),
+          source: 'image_generate',
+          now: Date.now(),
+        });
+      },
+    }),
+  );
   employeeTools.push(await createExportFormatTool(options.cwd));
 
   const pi: PiAgentRuntime = await createPiAgentRuntime({

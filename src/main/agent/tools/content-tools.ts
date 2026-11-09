@@ -8,11 +8,12 @@
  *    源须在项目根/工作目录内），导出文件与源同目录派生，不另收输出路径。
  * 两者都按**会话 cwd**（`sessionCwd(ctx)`）解析——与门禁 `run.cwd` 同源；装配期 cwd 只作兜底。
  */
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 
 import { exportToFile, type ExportFormat } from './export-format-tool.js';
-import { IMAGE_OUTPUT_SUBDIR, imageGenerate, qwenImageGenerate, resolveImageChannel } from './image-generate-tool.js';
+import { imagePriceCny, pngSize } from './image-cost.js';
+import { IMAGE_OUTPUT_SUBDIR, imageGenerate, QWEN_IMAGE_MODEL, qwenImageGenerate, resolveImageChannel } from './image-generate-tool.js';
 import { sessionCwd } from './session-cwd.js';
 
 /** 导出结果回给模型的预览长度（全文在导出文件里，不整篇灌进上下文）。 */
@@ -31,6 +32,11 @@ export async function createImageGenerateTool(
     channel?: 'qwen' | 'dalle' | null;
     /** 通道解析的 Key 注入（测试不碰真 secrets；缺省 process.env＋~/.aico/secrets）。 */
     keyOptions?: import('./image-generate-tool.js').ImageChannelKeyOptions;
+    /**
+     * B4-4/裁决 7：出图成功后**按张入账**（写 costs 行；缺省不写——单测/无装配场景）。
+     * 装配层注入：由会话 ctx 反查 taskId/workItemId/employeeId 再落 `recordCost`。
+     */
+    recordImageCost?: (info: { model: string; cny: number; tier: '1k' | '2k'; priced: boolean; path: string; ctx: unknown }) => void;
   } = {},
 ) {
   const generateDalle = deps.generate ?? imageGenerate;
@@ -73,9 +79,22 @@ export async function createImageGenerateTool(
               outputDir: join(cwd, IMAGE_OUTPUT_SUBDIR),
             });
       const rel = result.ok && result.path ? toRel(cwd, result.path) : null;
+      // 裁决 7：出图成功即按张入账（读 PNG 真实尺寸判 1k/2k 档；写失败不影响交付，但要响）。
+      let costNote = '';
+      if (result.ok && result.path && deps.recordImageCost != null) {
+        try {
+          const buf = readFileSync(result.path);
+          const size = pngSize(buf);
+          const price = imagePriceCny(channel === 'qwen' ? QWEN_IMAGE_MODEL : 'dall-e-3', size);
+          deps.recordImageCost({ model: channel === 'qwen' ? QWEN_IMAGE_MODEL : 'dall-e-3', cny: price.cny, tier: price.tier, priced: price.priced, path: result.path, ctx });
+          costNote = `（费用已记入成本面板：¥${price.cny}${price.priced ? '' : '，该模型无价目、按缺省估值'}）`;
+        } catch (error) {
+          console.error(`[image_generate] 出图费用入账失败（不阻断交付）：${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
       const details: { outcome: string; path: string | null } = { outcome: result.ok ? 'ok' : 'error', path: rel };
       const text = result.ok
-        ? `图片已生成：${rel}（交付时把这个路径填进 submit_work_item 的 artifacts）`
+        ? `图片已生成：${rel}${costNote}（交付时把这个路径填进 submit_work_item 的 artifacts）`
         : `图片生成失败：${result.error ?? '未知错误'}`;
       return { content: [{ type: 'text' as const, text }], details };
     },

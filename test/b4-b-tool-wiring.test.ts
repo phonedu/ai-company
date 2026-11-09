@@ -172,6 +172,12 @@ test('B4-6: export_format 工具定义——参数名 path（门禁路径层首�
 test('B4 接线守卫：web_fetch/screenshot/image_generate/export_format 四个工具都在 employee-factory 注册', () => {
   const src = readFileSync(join(process.cwd(), 'src', 'main', 'agent', 'employee-factory.ts'), 'utf8');
   for (const factory of ['createWebFetchTool', 'createScreenshotTool', 'createImageGenerateTool', 'createExportFormatTool']) {
-    assert.match(src, new RegExp(`employeeTools\\.push\\(await ${factory}\\(`), `${factory} 已推入 employeeTools`);
+    // 允许跨行（image_generate 带费用回调后是多行注册）：`employeeTools.push(` 之后 200 字符内出现该工厂。
+    // 删掉注册行 ⇒ 匹配不到 ⇒ 红，守卫仍有牙。
+    assert.match(
+      src,
+      new RegExp(`employeeTools\\.push\\([\\s\\S]{0,200}?await ${factory}\\(`),
+      `${factory} 已推入 employeeTools`,
+    );
   }
 });

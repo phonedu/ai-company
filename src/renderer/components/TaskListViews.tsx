@@ -118,6 +118,8 @@ export function ArchiveView({
   onRestoreProject,
   onExportProject,
   onDeleteProject,
+  actionError = null,
+  actionMessage = null,
 }: {
   /** **含归档行**的列表（容器进页时已按 `includeArchived` 取）。 */
   tasks: readonly TaskDTO[];
@@ -134,6 +136,9 @@ export function ArchiveView({
   onRestoreProject?: (projectId: number) => void;
   onExportProject?: (projectId: number) => void;
   onDeleteProject?: (projectId: number) => void;
+  /** S2b 复核 P2：恢复/导出/删除的回执（此前失败静默，只写进 projectActions）。 */
+  actionError?: string | null;
+  actionMessage?: string | null;
 }): ReactElement {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [filter, setFilter] = useState<ArchiveFilter>('all');
@@ -213,12 +218,32 @@ export function ArchiveView({
                   </button>
                 </>
               ) : (
-                <button type="button" data-testid="archive-project-delete" onClick={() => setConfirmDeleteId(p.projectId)}>
+                <button
+                  type="button"
+                  data-testid="archive-project-delete"
+                  disabled={p.taskCount > 0}
+                  title={
+                    p.taskCount > 0
+                      ? `项目下还有 ${p.taskCount} 个任务；当前只允许删除空归档项目（文件夹不动）`
+                      : '只删项目行；删除前会自动导出档案；文件夹不动'
+                  }
+                  onClick={() => setConfirmDeleteId(p.projectId)}
+                >
                   删除
                 </button>
               )}
             </div>
           ))}
+          {actionError != null && actionError.length > 0 ? (
+            <p className="tlist__action-error" data-testid="archive-project-action-error" role="alert">
+              {actionError}
+            </p>
+          ) : null}
+          {actionMessage != null && actionMessage.length > 0 ? (
+            <p className="tlist__muted" data-testid="archive-project-action-message">
+              {actionMessage}
+            </p>
+          ) : null}
         </section>
       ) : null}
       {error != null && error.length > 0 ? (

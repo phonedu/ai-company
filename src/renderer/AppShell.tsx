@@ -333,6 +333,8 @@ export function AppShell(): ReactElement {
             onRestoreProject={(projectId) => void restoreProject(projectId)}
             onExportProject={(projectId) => void exportProject(projectId)}
             onDeleteProject={(projectId) => void deleteProject(projectId)}
+            actionError={projectsSnap.error}
+            actionMessage={projectsSnap.message}
           />
         ) : (
           <BossChannel />

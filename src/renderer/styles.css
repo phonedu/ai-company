@@ -1034,6 +1034,75 @@ textarea:focus {
   background: var(--panel-2);
 }
 
+/* UI-2 S2b 复核（2026-11-09）：归档页「归档项目」区此前没有样式（排成一行挤在一起）。
+   与任务行同视觉：卡内分隔、行内 8 gap、次要用 --text-dim 的 12px。 */
+.tlist__archived-projects {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tlist__subtitle {
+  margin: 0 0 4px;
+  color: var(--text);
+  font-size: var(--text-section);
+  font-weight: 600;
+}
+
+.tlist__archived-project-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: var(--radius-md);
+}
+
+.tlist__archived-project-row:hover {
+  background: var(--panel-2);
+}
+
+.tlist__archived-project-row button {
+  border: 0;
+  background: transparent;
+  color: var(--accent-ink);
+  font: inherit;
+  font-size: var(--text-note);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+}
+
+.tlist__archived-project-row button:hover:not(:disabled) {
+  background: var(--tint-soft);
+}
+
+.tlist__archived-project-row button:disabled {
+  color: var(--text-dim);
+  cursor: not-allowed;
+}
+
+.tlist__linklike {
+  color: var(--text);
+  font-size: var(--text-body);
+  font-weight: 600;
+  text-align: left;
+}
+
+.tlist__muted {
+  color: var(--text-dim);
+  font-size: var(--text-note);
+}
+
+.tlist__action-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--text-note);
+}
+
 .tlist__dot {
   flex: 0 0 auto;
   width: 6px;
@@ -3708,6 +3777,36 @@ textarea:focus {
   padding: 0 6px;
   font: inherit;
   font-size: 12px;
+}
+
+/* UI-2 S2 复核 P1：模型卡复用同一套字段排版，输入框/多行文本框与 select 同视觉。 */
+.project-view__staffing-field input {
+  height: 26px;
+  width: 200px;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0 6px;
+  font: inherit;
+  font-size: 12px;
+}
+
+.project-view__staffing-field textarea {
+  min-height: 52px;
+  width: 320px;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 12px;
+  resize: vertical;
+}
+
+.project-view__staffing-field--wide {
+  flex: 1 1 100%;
 }
 
 /* ───────── 双栏改版（2026-10-17 老板令「不做跳转，一页两栏」）─────────

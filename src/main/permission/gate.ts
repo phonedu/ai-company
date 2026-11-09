@@ -76,6 +76,8 @@ export interface GateContext {
    * 不受影响（W1/B0-9 口径不变）。
    */
   employeeSession?: boolean;
+  /** B3-2/D-31③：多文档根注册层——已注册文档根的绝对路径列表（只读边界扩展）。 */
+  docRoots?: string[];
 }
 
 export interface GateResult {
@@ -466,7 +468,10 @@ export function permissionGate(call: ToolCall, ctx: GateContext): GateResult {
       if (deniedPrefix) return { decision: 'deny', reason: `路径命中拒绝规则：${deniedPrefix}`, rule: 'path_deny' };
       const inRoot = containedIn(p, ctx.projectRoot) || (ctx.cwd != null && containedIn(p, ctx.cwd));
       const allowedByPolicy = (ctx.policy?.pathAllow ?? []).some((pre) => containedIn(p, pre));
-      if (!inRoot && !allowedByPolicy) {
+      // B3-2/D-31③：多文档根只读边界——read/search 类工具可访问已注册文档根。
+      const isReadTool = toolCategory(call.name) === 'read' || toolCategory(call.name) === 'search';
+      const inDocRoot = isReadTool && (ctx.docRoots ?? []).some((dr) => containedIn(p, dr));
+      if (!inRoot && !inDocRoot && !allowedByPolicy) {
         return { decision: 'deny', reason: '路径在项目根/工作目录之外（默认拒绝）', rule: 'path_scope' };
       }
     }

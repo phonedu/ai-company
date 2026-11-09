@@ -10,6 +10,7 @@
  *  - 项目根 = 项目 `root_dir`（缺省 `defaults.projectRoot` / `process.cwd()`）。
  */
 import { getCapabilityTier, getProjectById, getTaskById, resolvePermissionPolicy, type SqliteDb } from '../db/index.js';
+import { projectDocRoots } from '../db/project_documents.js';
 import type { Autonomy, CapabilityTier, GateContext, PermissionPolicy } from '../permission/gate.js';
 
 export interface GateDefaults {
@@ -58,5 +59,16 @@ export function resolveGateContext(db: SqliteDb, subject: GateSubject, defaults:
     cwd: subject.cwd,
     policy,
     capabilityTierSource: fromEmployee != null ? 'employee' : 'default',
+    // B3-2/D-31③：多文档根只读边界扩展（read_doc 等工具可访问已注册文档根）。
+    ...(projectId != null ? { docRoots: getProjectDocRootsForGate(db, projectId) } : {}),
   };
+}
+
+/** B3-2：查项目文档根。 */
+function getProjectDocRootsForGate(db: SqliteDb, projectId: number): string[] {
+  try {
+    return projectDocRoots(db, projectId);
+  } catch {
+    return [];
+  }
 }

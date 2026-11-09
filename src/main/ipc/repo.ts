@@ -1226,18 +1226,29 @@ export function createSqliteChatRepo(db: SqliteDb): ChatRepo {
     },
 
     /**
-     * B4b 裁决 8（2026-11-09 独立验收 P3-9）：按**这张**权限审批找到发起它的工作项。
-     * 做法：从审批问题解析 toolName/rule，取同任务下最近一条匹配的 `permission_requested`。
-     * 找不到 → null（调用方回落「最近一条权限请求」）。
+     * B4b 裁决 8：按**这张**权限审批找到发起它的工作项。
+     * 第三轮复核 P2-3 实抓：只按 toolName+rule 取「最近一条」会在同规则多卡时补错件。
+     * 现在优先用审批问题里带的会话键（`…:wi:<id>`，发起请求时写进去的真相）直接定位件；
+     * 会话键缺失/解析不出时才回落 toolName+rule 匹配。
      */
     permissionRequestWorkItem(approvalId: number): number | null {
       const row = dbGetApproval(db, approvalId);
       if (row == null || row.task_id == null) return null;
       const parsed = parsePermissionQuestion(row.question);
       if (parsed == null) return null;
+      const belongs = (wiId: number): boolean =>
+        db.prepare('SELECT id FROM work_items WHERE id = ? AND task_id = ?').get(wiId, row.task_id) != null;
+      // 会话键形态：employee:<emp>:task:<tid>:wi:<workItemId>——取最后一段数字。
+      const parts = (parsed.sessionKey ?? '').split(':');
+      const tail = parts[parts.length - 2];
+      const last = parts[parts.length - 1];
+      if (tail === 'wi' && last != null && /^\d+$/.test(last)) {
+        const wiId = Number(last);
+        if (belongs(wiId)) return wiId;
+      }
       const rows = db
         .prepare(
-          "SELECT work_item_id, payload FROM task_events WHERE task_id = ? AND kind = 'permission_requested' ORDER BY id DESC LIMIT 20",
+          "SELECT work_item_id, payload FROM task_events WHERE task_id = ? AND kind = 'permission_requested' ORDER BY id DESC LIMIT 50",
         )
         .all(row.task_id) as Array<{ work_item_id: number | null; payload: string }>;
       for (const e of rows) {

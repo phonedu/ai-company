@@ -112,9 +112,16 @@ export async function createBossCardTools(deps: BossCardToolDeps): Promise<{ inb
       if (card.task_id == null) {
         return { content: [{ type: 'text', text: `卡#${card.id} 不关联任务，只能 ack 清除，无法选选项。` }], details: { action: 'select', card: card.id, result: 'no_task' } };
       }
-      const approval = deps.db
-        .prepare('SELECT id, question FROM approvals WHERE task_id = ? AND chosen IS NULL ORDER BY id DESC LIMIT 1')
-        .get(card.task_id) as { id: number; question: string | null } | undefined;
+      // 第三轮复核 P2-5（2026-11-09）：**按这张卡绑定的审批**回答，而不是「任务最近一条待批」——
+      // 同任务两张权限卡并存时（正是权限卡的常见场景），后者会把卡 810 的作答落到 811 上，
+      // 老板看到「已处理 810」实际批的是 811 的规则。优先 report_id 绑定；没绑定才回落任务级。
+      const approval =
+        (deps.db
+          .prepare('SELECT id, question FROM approvals WHERE report_id = ? AND chosen IS NULL ORDER BY id LIMIT 1')
+          .get(card.id) as { id: number; question: string | null } | undefined) ??
+        (deps.db
+          .prepare('SELECT id, question FROM approvals WHERE task_id = ? AND chosen IS NULL ORDER BY id DESC LIMIT 1')
+          .get(card.task_id) as { id: number; question: string | null } | undefined);
       if (approval == null) {
         return { content: [{ type: 'text', text: `任务 T-${card.task_id} 没有待批审批（可能已处理）。` }], details: { action: 'select', card: card.id, result: 'no_approval' } };
       }

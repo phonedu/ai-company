@@ -15,6 +15,8 @@ import { join } from 'node:path';
 import { cnyToUsd, DEFAULT_CNY_PER_USD, imagePriceCny, imageTierOf, pngSize } from '../src/main/agent/tools/image-cost.js';
 import { createImageGenerateTool } from '../src/main/agent/tools/content-tools.js';
 import { Engine } from '../src/main/engine/index.js';
+import { SessionToolGate } from '../src/main/agent/session-tool-gate.js';
+import { issueGrant } from '../src/main/permission/grants.js';
 import { SqliteCounterStore, createTask, getTaskById, insertWorkItem, listTaskEvents, openMemoryDatabase, runMigrations, type SqliteDb } from '../src/main/db/index.js';
 
 // ── 1. 图片费用口径 ─────────────────────────────────────────────────────
@@ -213,23 +215,33 @@ test('裁决 8（S7）：正常完成路径 state_before_close=verifying → 也
   }
 });
 
-test('裁决 8（S8 返工后）：补跑只为**本次批准的规则**、只给**新返工件会话**发 grant（不扩面）', async () => {
+test('裁决 8（S8 第三轮）：补跑**不另发授权**——放行靠批准入口写的老会话 grant（行为断言）', async () => {
   const { db, taskId, wiId } = setupRefire();
   try {
     db.prepare("UPDATE tasks SET state='done', closed_at=5, state_before_close='executing' WHERE id=?").run(taskId);
     db.prepare("UPDATE work_items SET state='done' WHERE id=?").run(wiId);
-    // 任务里另有一条更晚、且老板**没批过**的 spend 卡——补跑绝不能顺手放行它。
-    db.prepare("INSERT INTO task_events(task_id, work_item_id, ts, kind, actor, payload) VALUES(?,?,1,'permission_requested','employee:7','{\"toolName\":\"bash\",\"rule\":\"consent:egress\"}')").run(taskId, wiId);
-    db.prepare("INSERT INTO task_events(task_id, work_item_id, ts, kind, actor, payload) VALUES(?,?,2,'permission_requested','employee:7','{\"toolName\":\"image_generate\",\"rule\":\"consent:spend\"}')").run(taskId, wiId);
+    db.prepare("INSERT INTO task_events(task_id, work_item_id, ts, kind, actor, payload) VALUES(?,?,1,'permission_requested','employee:7','{\"toolName\":\"image_generate\",\"rule\":\"consent:spend\"}')").run(taskId, wiId);
+    // 模拟批准入口：把 grant 写在**发起请求的那个会话键**上（返工件沿 retry_of 继承它）。
+    const grantedKey = `employee:7:task:${taskId}:wi:${wiId}`;
+    issueGrant(db, { taskId, rule: 'consent:spend', toolName: 'image_generate', grantedBy: 'boss', now: 6, sessionKey: grantedKey });
     const engine = new Engine(db, noopExecutor, { autoSchedule: false, now: () => 10 });
-    await engine.refireAfterApproval(taskId, wiId, { rule: 'consent:egress', toolName: 'bash' });
-    const row = db.prepare("SELECT policy FROM permission_policies WHERE scope_type='task' AND scope_id=?").get(taskId) as { policy: string } | undefined;
-    const grants = (JSON.parse(row?.policy ?? '{}').grants ?? []) as Array<{ rule: string; toolName: string; sessionKey?: string }>;
-    const ok = grants.find((x) => x.rule === 'consent:egress' && x.toolName === 'bash');
-    assert.ok(ok, '只给本次批准的规则发 grant');
-    const rework = db.prepare('SELECT id FROM work_items WHERE task_id=? AND retry_of=?').get(taskId, wiId) as { id: number };
-    assert.equal(ok.sessionKey, `employee:7:task:${taskId}:wi:${rework.id}`, '绑到新返工件的会话键（不外溢到同任务其它件）');
-    assert.equal(grants.some((x) => x.rule === 'consent:spend'), false, '没批过的 spend 规则不得被补跑放行');
+    const res = await engine.refireAfterApproval(taskId, wiId);
+    assert.equal(res.ok, true, JSON.stringify(res));
+    // 行为断言：批过的那条规则在该会话放行；没批过的规则仍要问；不给任务级授权。
+    const gate = new SessionToolGate({ db, onDecision: () => {} });
+    assert.deepEqual(
+      gate.evaluate({ toolName: 'image_generate', input: { prompt: 'x' } }, { employeeId: 7, taskId, workItemId: wiId, cwd: 'D:/repo', sessionKey: grantedKey }),
+      {},
+      '批过的规则在该会话放行',
+    );
+    assert.equal(
+      gate.evaluate({ toolName: 'web_fetch', input: { url: 'https://x' } }, { employeeId: 7, taskId, workItemId: wiId, cwd: 'D:/repo', sessionKey: grantedKey }).block,
+      true,
+      '没批过的规则仍要问',
+    );
+    const policy = db.prepare("SELECT policy FROM permission_policies WHERE scope_type='task' AND scope_id=?").get(taskId) as { policy: string } | undefined;
+    const grants = (JSON.parse(policy?.policy ?? '{}').grants ?? []) as Array<{ rule: string; sessionKey?: string }>;
+    assert.equal(grants.some((g) => g.rule === 'consent:spend' && g.sessionKey == null), false, '不得出现任务级（无 sessionKey）授权');
   } finally {
     db.close();
   }
@@ -249,6 +261,81 @@ test('裁决 8（S5）：公司日预算超线 → 补跑拒绝（批准权限�
     assert.equal(res.ok, false);
     assert.match(res.reason, /budget_hold/);
     assert.equal((db.prepare('SELECT COUNT(*) AS n FROM work_items WHERE task_id=?').get(taskId) as { n: number }).n, 1, '被预算拦下时不建件');
+  } finally {
+    db.close();
+  }
+});
+
+// ── 第三轮复核补的用例（2026-11-09）────────────────────────────────────
+
+test('裁决 8（S7 强化）：verifying 路径必须**真建返工件**（不是只把任务态改了）', async () => {
+  const { db, taskId, wiId } = setupRefire();
+  try {
+    db.prepare("UPDATE tasks SET state='done', closed_at=5, state_before_close='verifying' WHERE id=?").run(taskId);
+    db.prepare("UPDATE work_items SET state='done' WHERE id=?").run(wiId);
+    db.prepare("INSERT INTO task_events(task_id, work_item_id, ts, kind, actor, payload) VALUES(?,?,1,'permission_requested','employee:7','{\"toolName\":\"image_generate\",\"rule\":\"consent:spend\"}')").run(taskId, wiId);
+    const engine = new Engine(db, noopExecutor, { autoSchedule: false, now: () => 10 });
+    const res = await engine.refireAfterApproval(taskId, wiId);
+    assert.equal(res.ok, true, JSON.stringify(res));
+    const n = (db.prepare('SELECT COUNT(*) AS n FROM work_items WHERE task_id=?').get(taskId) as { n: number }).n;
+    assert.equal(n, 2, '必须有新返工件（不是只改任务态）');
+  } finally {
+    db.close();
+  }
+});
+
+test('裁决 8（noop 先判后动）：源件已有返工记录 → 拒绝且**任务保持 done**', async () => {
+  const { db, taskId, wiId } = setupRefire();
+  try {
+    db.prepare("UPDATE tasks SET state='done', closed_at=5, state_before_close='verifying' WHERE id=?").run(taskId);
+    db.prepare("UPDATE work_items SET state='done' WHERE id=?").run(wiId);
+    db.prepare("INSERT INTO task_events(task_id, work_item_id, ts, kind, actor, payload) VALUES(?,?,1,'permission_requested','employee:7','{}')").run(taskId, wiId);
+    // 预占 spawn 动作键（模拟此前 B10 已返工过一次）。
+    db.prepare("INSERT INTO action_log(action_key, kind, task_id, payload, state, created_at) VALUES(?,?,?,?,?,?)")
+      .run(`spawn_work_item:work_item:${wiId}:0`, 'spawn_work_item', taskId, '{}', 'done', 5);
+    const engine = new Engine(db, noopExecutor, { autoSchedule: false, now: () => 10 });
+    const res = await engine.refireAfterApproval(taskId, wiId);
+    assert.equal(res.ok, false);
+    assert.match(res.reason, /verifying_refire_noop/);
+    assert.equal((getTaskById(db, taskId) as { state: string }).state, 'done', '任务不得被撤出 done');
+    assert.equal((db.prepare('SELECT COUNT(*) AS n FROM work_items WHERE task_id=?').get(taskId) as { n: number }).n, 1);
+  } finally {
+    db.close();
+  }
+});
+
+test('裁决 8（needs_decision 先判后拒）：任务保持 done、不新增件', async () => {
+  const { db, taskId, wiId } = setupRefire();
+  try {
+    db.prepare("UPDATE tasks SET state='done', closed_at=5, state_before_close='needs_decision' WHERE id=?").run(taskId);
+    db.prepare("UPDATE work_items SET state='done' WHERE id=?").run(wiId);
+    db.prepare("INSERT INTO task_events(task_id, work_item_id, ts, kind, actor, payload) VALUES(?,?,1,'permission_requested','employee:7','{}')").run(taskId, wiId);
+    const engine = new Engine(db, noopExecutor, { autoSchedule: false, now: () => 10 });
+    const res = await engine.refireAfterApproval(taskId, wiId);
+    assert.equal(res.ok, false);
+    assert.match(res.reason, /needs_decision/);
+    assert.equal((getTaskById(db, taskId) as { state: string }).state, 'done');
+    assert.equal((db.prepare('SELECT COUNT(*) AS n FROM work_items WHERE task_id=?').get(taskId) as { n: number }).n, 1);
+  } finally {
+    db.close();
+  }
+});
+
+test('裁决 8（双击去重）：已有本件的返工件在排队 → 第二次返回 already_active 且不重复建件', async () => {
+  const { db, taskId, wiId } = setupRefire();
+  try {
+    db.prepare("UPDATE tasks SET state='executing' WHERE id=?").run(taskId);
+    db.prepare("UPDATE work_items SET state='done' WHERE id=?").run(wiId);
+    db.prepare("INSERT INTO task_events(task_id, work_item_id, ts, kind, actor, payload) VALUES(?,?,1,'permission_requested','employee:7','{}')").run(taskId, wiId);
+    const engine = new Engine(db, noopExecutor, { autoSchedule: false, now: () => 10 });
+    const first = await engine.refireAfterApproval(taskId, wiId);
+    assert.equal(first.ok, true, JSON.stringify(first));
+    // 把任务退回 done-old 态再点第二次（模拟同毫秒/连点）——聚合里已有 queued 返工件。
+    db.prepare("UPDATE tasks SET state='done', closed_at=5, state_before_close='executing' WHERE id=?").run(taskId);
+    const second = await engine.refireAfterApproval(taskId, wiId);
+    assert.equal(second.ok, true);
+    assert.equal(second.reason, 'already_active', `第二次不应再建件（实际 ${second.reason}）`);
+    assert.equal((db.prepare('SELECT COUNT(*) AS n FROM work_items WHERE task_id=?').get(taskId) as { n: number }).n, 2);
   } finally {
     db.close();
   }

@@ -61,7 +61,8 @@ export const COMMAND_PRECHECK_RULES: readonly PrecheckRule[] = [
     reason: '访问已知凭据库（SSH/AWS/公司 secrets/系统影子文件/git 凭据/应用库）',
     // 换方向复核 P1-1（2026-11-09）：补 `.git-credentials`（明文存 git 密码）与 `aico.sqlite`
     // （应用库：含任务/消息/费用，bash 读它此前不拦，只对 read/write 工具有路径层保护）。
-    re: /(?:\.ssh[\\/](?:id_rsa|id_ed25519|authorized_keys|config)|\.aws[\\/](?:credentials|config)|\.aico[\\/]secrets|\.git-credentials|(?:^|[\\/])\.npmrc\b|(?:^|[\\/])id_rsa\b|\/etc\/shadow\b|cookies\b|login\s+data|(?:^|[\\/])aico\.sqlite(?:-wal|-shm)?\b|(?:^|[\\/])wechat\.json\b)/i,
+    // 第三轮复核 P3-7：裸文件名（`cat aico.sqlite`）此前漏（前缀要求行首或斜杠，实参前是空格）⇒ 加 `\s`。
+    re: /(?:\.ssh[\\/](?:id_rsa|id_ed25519|authorized_keys|config)|\.aws[\\/](?:credentials|config)|\.aico[\\/]secrets|\.git-credentials|(?:^|[\s\\/])\.npmrc\b|(?:^|[\s\\/])id_rsa\b|\/etc\/shadow\b|cookies\b|login\s+data|(?:^|[\s\\/])aico\.sqlite(?:-wal|-shm)?\b|(?:^|[\s\\/])wechat\.json\b)/i,
   },
   {
     id: 'command_precheck:env_file',

@@ -145,7 +145,9 @@ const EGRESS_COMMAND_PATTERNS: Array<{ re: RegExp; label: string }> = [
   //  · nc/telnet 要求「命令词 + 主机 + 端口」，避免 `grep -rn nc src/`、`grep ftp docs` 误判；
   //  · 覆盖 `require('https').request`、`WebSocket`、`undici`、`dgram`、`System.Net.*`、`Start-BitsTransfer`。
   // 已知边界（如实）：`node app.js` 里自己写 fetch 的脚本，静态词表看不见——这类靠沙箱/审计兜底。
-  { re: /\bnode\b[^\n]*?\s-[a-z]*[ep][a-z]*\s*[^\n]*?(?:\bfetch\b|\bwebsocket\b|\.request\s*\(|\.get\s*\(|\.post\s*\(|createsocket|\bdgram\b|\bundici\b|\baxios\b|\bnet\.|\btls\b)/i, label: 'node 网络请求（内联代码）' },
+  // `-e`/`-p`/`-pe` 与长选项 `--eval`/`--print`（含 `--eval=…` 紧凑写法）都要覆盖——
+  // 第三轮复核 P1 实抓：改成 `-[a-z]*[ep]` 后把 `--eval/--print` 漏了（旧版能拦、新版 allow）。
+  { re: /\bnode\b[^\n]*?\s-{1,2}[a-z]*[ep][a-z]*\b\s*[^\n]*?(?:\bfetch\b|\bwebsocket\b|\.request\s*\(|\.get\s*\(|\.post\s*\(|createsocket|\bdgram\b|\bundici\b|\baxios\b|\bnet\.|\btls\b)/i, label: 'node 网络请求（内联代码）' },
   { re: /require\(\s*['"]https?['"]\s*\)/, label: 'node 网络请求（require http/https）' },
   { re: /\b(deno|bun)\b[^\n]*?(?:\s-[a-z]*e[a-z]*\s*|--eval\b|\beval\b|\brun\b)[^\n]*?(?:\bfetch\b|\bwebsocket\b|\bconnect\b)/i, label: 'deno/bun 网络请求' },
   {
@@ -161,10 +163,11 @@ const EGRESS_COMMAND_PATTERNS: Array<{ re: RegExp; label: string }> = [
   { re: /\bftp:\/\//i, label: 'ftp 外发' },
   { re: /\bopenssl\s+s_client\b|\bsocat\b/i, label: 'openssl/socat' },
   // 同向复核 P1-2 补：其它脚本语言的内联外发、git 远程读写、DNS/ICMP 探测（都能带走数据）。
-  { re: /\bphp\b[^\n]*\s-r\s[^\n]*(?:file_get_contents|fsockopen|curl_|stream_socket)/i, label: 'php 网络请求' },
+  { re: /\bphp\b[^\n]*\s-r\s*[^\n]*(?:file_get_contents|fsockopen|curl_|stream_socket)/i, label: 'php 网络请求' },
   { re: /\bruby\b[^\n]*\s-e[\s]*[^\n]*(?:net::http|open-uri|socket|httparty)/i, label: 'ruby 网络请求' },
   { re: /\bperl\b[^\n]*\s-e[\s]*[^\n]*(?:lwp|http::|io::socket)/i, label: 'perl 网络请求' },
-  { re: /\bgit\s+(?:clone|fetch|ls-remote|pull)\b/i, label: 'git 远程读写' },
+  // 选项在前的写法也要覆盖（`git -c k=v clone`、`git -C repo clone`）。
+  { re: /\bgit\b[^\n]*?\b(?:clone|fetch|ls-remote|pull)\b/i, label: 'git 远程读写' },
   { re: /\b(?:ping|nslookup|dig|host)\s+[a-z0-9-]+(?:\.[a-z0-9-]+)+\b/i, label: 'DNS/ICMP 探测' },
   { re: /\/dev\/tcp\/|\/dev\/udp\//, label: 'bash /dev/tcp' },
   // S2（2026-11-09 安全复核实抓）：**内置 ffmpeg 本身就是外发客户端**——我们把随包 ffmpeg 前置进

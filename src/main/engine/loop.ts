@@ -813,36 +813,12 @@ export class Engine {
    * 只对 `verdict!=='pass'` 生效（对应迁移行自带守卫）；同源工作项仅生成一个返工项（幂等键）。
    */
   /**
-   * 补跑时的「让新会话也放行」——**只给本次批准的那条规则、只给新返工件那个会话**。
-   *
-   * 2026-11-09 换方向复核 P1 实抓：上一版取「任务最近一条 permission_requested」的规则、
-   * 且不带 sessionKey（＝任务级）⇒ 老板批 A 卡、系统却给 B 规则发了整个任务的**永久**授权
-   * （连老板拒过/没批过的规则都会放行）。这里改成：
-   *  - rule/toolName **由调用方按 approvalId 解析后传入**（就是老板真批的那一条）；
-   *  - sessionKey 绑定**新返工件**的会话键（`employee:<id>:task:<tid>:wi:<newWiId>`）——
-   *    与员工会话键同构（`employee-runtime.employeeSessionKey`），不外溢到同任务其它件。
+   * 补跑时**不需要**再发 grant —— 第三轮复核 P2 实抓：上一版把 grant 绑到新返工件的会话键
+   * （`wi:<新件>`），但返工件执行时**继承源件会话键**（`reworkInheritedSessionKey` ⇒ `wi:<源件>`），
+   * 那条 grant 永远命中不到实际会话，是**死授权**；真正让返工放行的是批准入口
+   * `applyApprovalAsGrant` 写在老会话键上的那条 grant（返工件正好继承它）。
+   * 所以这里只保留一个显式说明，不再写第二份授权（少一份授权面，也少一份漂移）。
    */
-  private grantForReworkSession(input: {
-    taskId: number;
-    employeeId: number;
-    workItemId: number;
-    rule: string;
-    toolName: string;
-  }): void {
-    try {
-      const sessionKey = `employee:${input.employeeId}:task:${input.taskId}:wi:${input.workItemId}`;
-      issueGrant(this.db, {
-        taskId: input.taskId,
-        rule: input.rule,
-        toolName: input.toolName,
-        grantedBy: 'boss(approval_refire)',
-        now: this.now(),
-        sessionKey,
-      });
-    } catch (error) {
-      console.error(`[engine] 补跑 grant 写入失败（不阻断补跑）：${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
 
   private spawnReworkItem(action: PersistedAction): void {
     const payload = action.payload as { workItemId?: unknown; notes?: unknown; employeeId?: unknown };
@@ -887,11 +863,12 @@ export class Engine {
     explicitWorkItemId?: number | null,
     /**
      * 老板**真批的那条规则**（由调用方按 approvalId 从审批问题解析后传入）。
-     * 换方向复核 P1：上一版从「最近一条权限请求」猜规则 ⇒ 老板批 A 卡、系统给 B 规则发授权。
-     * 缺省＝不补授权（宁可让员工再问一次，也不放大授权面）。
+     * 第三轮复核 P2 结论：补跑**不再另发授权**（死授权，实际放行来自批准入口写的老会话 grant）——
+     * 本参数保留为审计/上下文用（当前不参与判定），避免调用方接口再改一轮。
      */
     approvedRule?: { rule: string; toolName: string } | null,
   ): Promise<{ ok: boolean; reason: string; workItemId: number | null }> {
+    void approvedRule;
     const task = getTaskById(this.db, taskId);
     if (!task) return { ok: false, reason: 'task_not_found', workItemId: null };
     // 发起该权限请求的件：优先用调用方按 approvalId 绑定的件（多张权限卡并存时不会补错件）；
@@ -926,6 +903,20 @@ export class Engine {
       // 先判、后动：这个态直接拒绝，任务保持原状。
       if (task.state === 'done' && (task as { state_before_close?: string | null }).state_before_close === 'needs_decision') {
         return { ok: false, reason: 'task_state_needs_decision（需先在任务上拍板）', workItemId };
+      }
+      // 第三轮复核 P2-4（2026-11-09）：verifying 完成路径靠机器既有边 `verification_completed(fail)`
+      // 建返工件，而它的 spawn 动作键是**固定键** `spawn_work_item:work_item:<src>:0`——源件此前若已
+      // B10 返工过一次，键被占用 ⇒ 这次不建件。必须**在 undo 之前**判：占了就直接拒绝（任务保持 done），
+      // 否则会先把任务撤出 done、又没建件，留下悬挂态（实测 schedulePass 不自愈）。
+      if (
+        task.state === 'done' &&
+        (task as { state_before_close?: string | null }).state_before_close === 'verifying'
+      ) {
+        const spawnKey = `spawn_work_item:work_item:${workItemId}:0`;
+        const used = this.db.prepare('SELECT 1 FROM action_log WHERE action_key = ? LIMIT 1').get(spawnKey);
+        if (used != null) {
+          return { ok: false, reason: 'verifying_refire_noop（返工件未建：源件已有返工记录）', workItemId };
+        }
       }
       const reopenEvent = task.state === 'done' ? 'undo_finish' : 'retry';
       try {
@@ -992,16 +983,7 @@ export class Engine {
         now: this.now(),
         actor: 'system',
       }).id;
-      // S8：只给**本次批准的那条规则**、只给**新返工件那个会话**发 grant（不猜规则、不扩到任务级）。
-      if (approvedRule != null && wi.employee_id != null) {
-        this.grantForReworkSession({
-          taskId,
-          employeeId: wi.employee_id,
-          workItemId: newWiId,
-          rule: approvedRule.rule,
-          toolName: approvedRule.toolName,
-        });
-      }
+      void newWiId; // 只用来说明返工件已建；授权由批准入口 applyApprovalAsGrant 负责（见上方说明）。
     } else if (wi.state === 'failed') {
       // 只在本件仍 failed 时才发 retry（start_task 的 reconcile 可能已经重派过；重复发会撞非法迁移）。
       await this.dispatch({ scope: 'work_item', id: workItemId, event: 'retry', actor: 'boss', payload: { via: 'approval_refire' } });

@@ -155,6 +155,8 @@ export const QWEN_IMAGE_ENDPOINT = 'https://maas.qianwenaiapi.com/compatible-mod
 
 export async function qwenImageGenerate(opts: {
   prompt: string;
+  /** 尺寸（2026-11-09 真调实测：兼容模式**认** size，返回 1792×1024 与请求一致）。 */
+  size?: '1024x1024' | '1792x1024' | '1024x1792';
   outputDir: string;
   apiKey?: string;
   fetchImpl?: typeof fetch;
@@ -179,7 +181,8 @@ export async function qwenImageGenerate(opts: {
       signal: ctrl.signal,
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
       // 兼容模式不带 size（用模型默认）；带不认识的参数反而可能 400。
-      body: JSON.stringify({ model: QWEN_IMAGE_MODEL, prompt, n: 1 }),
+      // 2026-11-09 实测：兼容模式认 `size`（1792x1024 原样返回）⇒ 横版可**直出**，不必再本地裁。
+      body: JSON.stringify({ model: QWEN_IMAGE_MODEL, prompt, n: 1, ...(opts.size != null ? { size: opts.size } : {}) }),
     });
     if (!resp.ok) {
       const body = await resp.text();

@@ -139,3 +139,26 @@ test('裁决 5：工具层——qwen Key 在配置时走 qwen 通道；全无 Ke
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('裁决 5 追加：Qwen 通道透传 size（2026-11-09 实测兼容模式认尺寸，横版可直出）', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'qwen-size-'));
+  try {
+    const sent: Record<string, unknown> = {};
+    const b64 = Buffer.from('x').toString('base64');
+    const fetchImpl = (async (_url: string | URL, init?: { body?: string }) => {
+      Object.assign(sent, JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>);
+      return { ok: true, status: 200, json: async () => ({ data: [{ b64_json: b64 }] }) } as unknown as Response;
+    }) as unknown as typeof fetch;
+    const r = await qwenImageGenerate({ prompt: 'p', size: '1792x1024', outputDir: dir, apiKey: 'sk-k', fetchImpl });
+    assert.ok(r.ok, r.error);
+    assert.equal(sent['size'], '1792x1024', 'size 必须进请求体（否则只能出方图、靠本地裁）');
+    assert.equal(sent['model'], QWEN_IMAGE_MODEL);
+
+    // 不传 size 时不塞 undefined（保持模型默认）
+    for (const key of Object.keys(sent)) delete sent[key];
+    await qwenImageGenerate({ prompt: 'p', outputDir: dir, apiKey: 'sk-k', fetchImpl });
+    assert.equal('size' in sent, false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

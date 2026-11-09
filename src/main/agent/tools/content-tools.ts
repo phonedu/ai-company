@@ -56,7 +56,7 @@ export async function createImageGenerateTool(
       prompt: Type.String({ description: '图片描述（主体、风格、构图、配色；中英文皆可）' }),
       size: Type.Optional(
         Type.Union([Type.Literal('1024x1024'), Type.Literal('1792x1024'), Type.Literal('1024x1792')], {
-          description: '尺寸（Qwen 通道用模型默认，此参数仅对 OpenAI DALL-E 生效）',
+          description: '尺寸：方图 1024x1024（默认）／横版封面 1792x1024／竖版 1024x1792（两个通道都生效）',
         }),
       ),
     }),
@@ -72,7 +72,12 @@ export async function createImageGenerateTool(
       }
       const result =
         channel === 'qwen'
-          ? await generateQwen({ prompt: String(params.prompt ?? ''), outputDir: join(cwd, IMAGE_OUTPUT_SUBDIR) })
+          ? await generateQwen({
+              prompt: String(params.prompt ?? ''),
+              // 2026-11-09 实测兼容模式认 size ⇒ 尺寸参数两个通道都透传（横版/竖版可直出）。
+              size: params.size,
+              outputDir: join(cwd, IMAGE_OUTPUT_SUBDIR),
+            })
           : await generateDalle({
               prompt: String(params.prompt ?? ''),
               size: params.size,

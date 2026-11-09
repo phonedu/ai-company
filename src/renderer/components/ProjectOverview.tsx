@@ -155,7 +155,7 @@ export function ProjectOverview(): ReactElement {
   // UI-2 S1：页签容器（任务/设置；产物/运行/记忆随 S3 接入）＋任务搜索＋行下展开（store 承载，深链可写）。
   const [tab, setTab] = useState<'tasks' | 'settings'>('tasks');
   // UI-2 S2：项目设置的组（默认「模型」；只做显示过滤，卡片与读写口径不动）。
-  const [settingsGroup, setSettingsGroup] = useState<'model' | 'staffing' | 'permission' | 'skills' | 'docs' | 'advanced'>('model');
+  const [settingsGroup, setSettingsGroup] = useState<'model' | 'staffing' | 'permission' | 'skills' | 'docs' | 'time' | 'memory' | 'advanced'>('model');
   const [taskQuery, setTaskQuery] = useState('');
   const projectPageSnap = useSnapshot(projectPage);
   const expandedTaskId = projectPageSnap.expandedTaskId;
@@ -840,6 +840,8 @@ export function ProjectOverview(): ReactElement {
                 ['permission', '权限'],
                 ['skills', '技能'],
                 ['docs', '文档'],
+                ['time', '定时'],
+                ['memory', '记忆'],
                 ['advanced', '高级'],
               ] as const).map(([gid, label]) => (
                 <button
@@ -1018,11 +1020,12 @@ export function ProjectOverview(): ReactElement {
             ) : null}
           </section>
 
-          {/* B-1（M4）：项目概览·定时——列表/创建/取消/下次时间；与频道命令同源。 */}
-          <ProjectTriggers projectId={sessionSnap.selectedProjectId} />
+          {/* B-1（M4）：项目概览·定时——列表/创建/取消/下次时间；与频道命令同源。
+              UI-2 S2：外层包 data-group（组件本身不改），否则它会漏在每个组下面。 */}
+          <div data-group="time"><ProjectTriggers projectId={sessionSnap.selectedProjectId} /></div>
 
           {/* B-6（M4）：项目概览·项目记忆——老板显式写；pin/忘记/提升全局。 */}
-          <ProjectMemory projectId={sessionSnap.selectedProjectId} />
+          <div data-group="memory"><ProjectMemory projectId={sessionSnap.selectedProjectId} /></div>
 
           {/* B3（M3-N-3）：项目默认技能集（员工勾选 ∪ 项目默认；只影响该项目下新会话装配）。 */}
           <section className="project-pane__card" data-group="skills" data-testid="project-default-skills">

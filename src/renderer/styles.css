@@ -6743,6 +6743,8 @@ select option {
 .project-settings__body[data-active-group="permission"] [data-group]:not([data-group="permission"]),
 .project-settings__body[data-active-group="skills"] [data-group]:not([data-group="skills"]),
 .project-settings__body[data-active-group="docs"] [data-group]:not([data-group="docs"]),
+.project-settings__body[data-active-group="time"] [data-group]:not([data-group="time"]),
+.project-settings__body[data-active-group="memory"] [data-group]:not([data-group="memory"]),
 .project-settings__body[data-active-group="advanced"] [data-group]:not([data-group="advanced"]){display:none}
 .project-tab[aria-selected="true"] .project-tab__count{color:var(--text-dim)}
 .project-tasks__toolbar{padding:4px 0 8px}

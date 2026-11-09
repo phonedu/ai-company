@@ -66,6 +66,7 @@ test('image_generate：输出目录＝会话 cwd/assets/images（注入生成器
   try {
     const seen: string[] = [];
     const tool = (await createImageGenerateTool(a, {
+      channel: 'dalle', // 钉通道：不按真 Key 解析（单测不碰真 secrets）
       generate: async (opts) => {
         seen.push(opts.outputDir);
         return { ok: true, path: join(opts.outputDir, 'image-1.png') };

@@ -12,7 +12,7 @@ import { existsSync, realpathSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 
 import { exportToFile, type ExportFormat } from './export-format-tool.js';
-import { IMAGE_OUTPUT_SUBDIR, imageGenerate } from './image-generate-tool.js';
+import { IMAGE_OUTPUT_SUBDIR, imageGenerate, qwenImageGenerate, resolveImageChannel } from './image-generate-tool.js';
 import { sessionCwd } from './session-cwd.js';
 
 /** 导出结果回给模型的预览长度（全文在导出文件里，不整篇灌进上下文）。 */
@@ -22,8 +22,19 @@ function toRel(cwd: string, abs: string): string {
   return relative(cwd, abs).replace(/\\/g, '/');
 }
 
-export async function createImageGenerateTool(fallbackCwd: string, deps: { generate?: typeof imageGenerate } = {}) {
-  const generate = deps.generate ?? imageGenerate;
+export async function createImageGenerateTool(
+  fallbackCwd: string,
+  deps: {
+    generate?: typeof imageGenerate;
+    generateQwen?: typeof qwenImageGenerate;
+    /** 覆盖通道解析（测试用；缺省按已配置 Key 执行期选：qwen 优先、DALL-E 回落）。 */
+    channel?: 'qwen' | 'dalle' | null;
+    /** 通道解析的 Key 注入（测试不碰真 secrets；缺省 process.env＋~/.aico/secrets）。 */
+    keyOptions?: import('./image-generate-tool.js').ImageChannelKeyOptions;
+  } = {},
+) {
+  const generateDalle = deps.generate ?? imageGenerate;
+  const generateQwen = deps.generateQwen ?? qwenImageGenerate;
   const [{ defineTool }, { Type }] = await Promise.all([
     import('@earendil-works/pi-coding-agent'),
     import('@earendil-works/pi-ai'),
@@ -32,24 +43,35 @@ export async function createImageGenerateTool(fallbackCwd: string, deps: { gener
     name: 'image_generate',
     label: 'Image Generate',
     description:
-      '调 OpenAI DALL-E 3 生成一张图片（封面/插图），落盘到 assets/images/ 并返回相对路径——' +
-      '交付时把该路径填进 submit_work_item 的 artifacts。花钱动作：每次调用都要老板批准；' +
-      '先把文案定稿再生成，不要反复试图。',
+      '生成一张图片（封面/插图），落盘到 assets/images/ 并返回相对路径——交付时把该路径填进 ' +
+      'submit_work_item 的 artifacts。走已配置的出图供应商（阿里云百炼 Qwen 优先，OpenAI DALL-E 回落）。' +
+      '花钱动作：每次调用都要老板批准；先把文案定稿再生成，不要反复试图。',
     parameters: Type.Object({
-      prompt: Type.String({ description: '图片描述（主体、风格、构图、配色；英文描述效果更稳）' }),
+      prompt: Type.String({ description: '图片描述（主体、风格、构图、配色；中英文皆可）' }),
       size: Type.Optional(
         Type.Union([Type.Literal('1024x1024'), Type.Literal('1792x1024'), Type.Literal('1024x1792')], {
-          description: '尺寸：方图 1024x1024（默认）；横版封面 1792x1024；竖版 1024x1792',
+          description: '尺寸（Qwen 通道用模型默认，此参数仅对 OpenAI DALL-E 生效）',
         }),
       ),
     }),
     execute: async (_toolCallId, params, _signal, _onUpdate, ctx) => {
       const cwd = sessionCwd(ctx, fallbackCwd);
-      const result = await generate({
-        prompt: String(params.prompt ?? ''),
-        size: params.size,
-        outputDir: join(cwd, IMAGE_OUTPUT_SUBDIR),
-      });
+      const channel = deps.channel ?? resolveImageChannel(deps.keyOptions ?? {});
+      if (channel == null) {
+        const details: { outcome: string; path: string | null } = { outcome: 'error', path: null };
+        return {
+          content: [{ type: 'text' as const, text: '图片生成失败：出图 Key 未配置（设置 → 供应商与模型 → 阿里云百炼（Qwen 出图）或 OpenAI）' }],
+          details,
+        };
+      }
+      const result =
+        channel === 'qwen'
+          ? await generateQwen({ prompt: String(params.prompt ?? ''), outputDir: join(cwd, IMAGE_OUTPUT_SUBDIR) })
+          : await generateDalle({
+              prompt: String(params.prompt ?? ''),
+              size: params.size,
+              outputDir: join(cwd, IMAGE_OUTPUT_SUBDIR),
+            });
       const rel = result.ok && result.path ? toRel(cwd, result.path) : null;
       const details: { outcome: string; path: string | null } = { outcome: result.ok ? 'ok' : 'error', path: rel };
       const text = result.ok

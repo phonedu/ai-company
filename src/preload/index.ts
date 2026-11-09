@@ -153,6 +153,7 @@ const api = {
   /** B-6：记忆 P1b（老板显式 list/remember/update/pin/forget/promote/search/audit）。 */
   memory: {
     manage: (input?: unknown): Promise<unknown> => invoke('memory:manage', input),
+    confirm: (input?: unknown): Promise<unknown> => invoke('memory:confirm', input),
   },
   /** `OPT-EXT-13` 用量可视：成本聚合（今日成本等）。 */
   cost: {

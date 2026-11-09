@@ -7,7 +7,7 @@
  * 引擎从不 `await` 一个会话：派发只是登记动作，由执行器（M0 桩 / M1 真会话）异步完成。
  */
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { DEFAULT_SCHEDULER_CONFIG, planScheduling, type SchedulerConfig, type SchedulerInput } from '../../core/scheduler.js';
 import { normalizePlanWorkItems, type NormalizedPlanWorkItem } from '../../core/plan.js';
@@ -1107,7 +1107,7 @@ export class Engine {
    * M2-C 第 5 项：`submit_work_item` 的 `result.artifacts`（路径列表）→ `artifacts` 行（同事务）。
    * `source` = `<accessMode>:<collapsePath(cwd)>`（**与 G2 的会话/cwd 归一化同源**）；`sha256` 尽力而为。
    */
-  private writeSubmittedArtifacts(wi: import('../db/index.js').WorkItemRow, event: EngineEvent, now: number): void {
+  private async writeSubmittedArtifacts(wi: import('../db/index.js').WorkItemRow, event: EngineEvent, now: number): Promise<void> {
     const result = (event.payload as { result?: { artifacts?: unknown } } | undefined)?.result;
     const raw = Array.isArray(result?.artifacts) ? (result.artifacts as unknown[]) : [];
     const paths = raw.filter((x): x is string => typeof x === 'string' && x.trim().length > 0).map((x) => x.trim());
@@ -1117,17 +1117,20 @@ export class Engine {
     // 和 staging 的产物回挂都以它为准；在 finishWorkspace 之前并入 ctx.touched。
     if (ws) ws.touched = [...new Set([...ws.touched, ...paths])];
     const source = ws ? `${ws.accessMode}:${collapsePath(ws.cwd)}` : null;
+    const task = getTaskById(this.db, wi.task_id) as { project_id?: number | null } | undefined;
+    const project = task?.project_id != null ? getProjectById(this.db, task.project_id) : undefined;
     for (const p of paths) {
       try {
         let sha: string | null = null;
-        if (ws) {
+        const absPath = ws ? resolve(ws.cwd, p) : null;
+        if (ws && absPath) {
           try {
-            sha = createHash('sha256').update(readFileSync(resolve(ws.cwd, p))).digest('hex');
+            sha = createHash('sha256').update(readFileSync(absPath)).digest('hex');
           } catch {
             sha = null; // 路径不可读（URL/标识符/未产出）⇒ 不阻塞登记
           }
         }
-        insertArtifact(this.db, {
+        const artifactResult = insertArtifact(this.db, {
           taskId: wi.task_id,
           workItemId: wi.id,
           path: p,
@@ -1136,6 +1139,15 @@ export class Engine {
           sha256: sha,
           now,
         });
+        // B3-3/D-31④：inplace 项目产物登记时**快照到 .aico/versions/**（staging 走 git 版本）。
+        if (project?.access_mode === 'inplace' && artifactResult.created && ws && absPath && existsSync(absPath)) {
+          try {
+            const { snapshotArtifactFile } = await import('../git/artifact-versions.js');
+            snapshotArtifactFile(this.db, artifactResult.id, absPath);
+          } catch (snapError) {
+            console.error('[engine] inplace 产物快照失败（不阻塞登记）', snapError);
+          }
+        }
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         console.error(`[engine] 产物登记失败（work item ${wi.id}, path=${p}）：${msg}`);

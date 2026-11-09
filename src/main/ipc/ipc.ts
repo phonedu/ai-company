@@ -4291,6 +4291,8 @@ export function registerAppIpc(ipcMain: IpcMain, deps: IpcDeps): void {
   ipcMain.handle('project:trigger-manage', async (_event, raw) => handleProjectTriggerManage(deps, raw, now()));
   // B-6（M4）：记忆 P1b 写入口（老板显式 list/remember/update/pin/forget/promote/search/audit）。
   ipcMain.handle('memory:manage', async (_event, raw) => handleMemoryManage(deps, raw, now()));
+  // B3-5/D-31：抽取提议卡确认（老板在记忆页点「确认」→ provisional→confirmed→进 brief）
+  ipcMain.handle('memory:confirm', async (_event, raw) => handleMemoryConfirm(deps, raw));
   // M3-DOC-4：项目级文档检查开关（只影响新任务是否挂检查；已有任务按当前开关记未检查）。
   ipcMain.handle('project:docs-check-set', async (_event, raw) => handleProjectDocsCheckSet(deps, raw));
   // B3（M3-N-3）：项目默认技能集（只影响该项目新会话装配）。

@@ -53,6 +53,30 @@ test('安全 F2：spend grant 用后即焚——批准后放行一次，同会�
   }
 });
 
+test('复验 N1：前次审批已作答后，第二次 ask 出**新卡**；待批期间仍只一张', () => {
+  const { db, taskId, run } = setup();
+  try {
+    const gate = new SessionToolGate({ db, onDecision: (d) => persistSessionGateDecision(db, d) });
+    const call = { toolName: 'image_generate', input: { prompt: 'cover' } };
+    gate.evaluate(call, run); // ask #1 → 卡 1
+    const askCards = () =>
+      (db.prepare("SELECT COUNT(*) AS n FROM reports WHERE kind='ask' AND payload LIKE '%权限请求：image_generate%'").get() as { n: number }).n;
+    assert.equal(askCards(), 1);
+    // 老板拒绝（卡 1 resolved）
+    db.prepare("UPDATE approvals SET chosen='deny', decided_by='boss', decided_at=10 WHERE id=1").run();
+    gate.evaluate(call, run); // ask #2
+    assert.equal(askCards(), 2, '旧卡 resolved 后新询问必须出新卡（去重键不得吞）');
+    // 待批期间再次询问：仍只 2 张（固定键去重生效）
+    gate.evaluate(call, run);
+    assert.equal(askCards(), 2, '同问待批期间不重复出卡');
+    // 两张卡都能各自回挂审批行
+    const linked = (db.prepare('SELECT COUNT(*) AS n FROM approvals WHERE report_id IS NOT NULL').get() as { n: number }).n;
+    assert.equal(linked >= 2, true);
+  } finally {
+    db.close();
+  }
+});
+
 test('安全 F2：任务级（无 sessionKey）spend grant 同样被消费；external grant 不消费', () => {
   const { db, taskId, run } = setup();
   try {

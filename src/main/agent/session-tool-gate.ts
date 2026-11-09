@@ -177,8 +177,13 @@ export class SessionToolGate {
     if (result.decision === 'allow') {
       // B4b 安全批（审查 F2）：spend grant 用后即焚——「批准一次」＝真一次，下次同工具再弹卡。
       // external 类不消费（对外放行保持会话内有效，既有 UX 不变）。
+      // 复验 N3（2026-11-09）：审计/簿记写失败不反噬会话（与本仓惯例一致）——响亮报错后照常放行。
       if (result.rule === 'grant:consent:spend' && run.taskId != null) {
-        consumeSpendGrant(this.deps.db, run.taskId, event.toolName, run.sessionKey ?? null);
+        try {
+          consumeSpendGrant(this.deps.db, run.taskId, event.toolName, run.sessionKey ?? null);
+        } catch (error) {
+          console.error(`[gate] spend grant 消费失败（不阻断放行）：${error instanceof Error ? error.message : String(error)}`);
+        }
       }
       // D-19 P1：只给显式接线的装配层（频道助手）审计放行；既有调用方不接＝行为不变。
       this.deps.onAllow?.(info);
@@ -233,17 +238,25 @@ export function persistSessionGateDecision(db: SqliteDb, info: GateDecisionInfo,
     // BRK10（挂载 2，2026-10-15）：会话工具权限请求**可见化**——此前只建 approvals 行 ⇒「待我处理」看不到。
     // 现：建审批行 → 落真卡（`待我处理` 数据源＝reports）→ `report_id` 回挂（批准按钮寻址）。
     // 任务机**不动**（会话闸门无引擎句柄；批准后 grant 生效、工具重试即放行——G1 口径不变）。
-    // 去重键＝(会话, 工具, 规则)：同规则在批前只出**一张**卡（作答后 grant 生效不再问）。
+    // 去重键分代（B4b 复验 N1，2026-11-09）：spend grant 用后即焚后会有**第二次询问**，而旧卡已
+    // resolved——沿用固定键会被 notify 去重吞掉（老板看不到第二次请求）。键＝固定键＋「同问已作答次数」
+    // 代号：同一代内反复询问同键（待批期间只一张卡）；每作答一次进一代（下一次询问出新卡）。
+    // 第 0 代＝原固定键（不带后缀）⇒ 升级前在途的卡完全兼容。
     const question = `${PERMISSION_QUESTION_PREFIX}会话工具 ${info.toolName}（${info.rule ?? 'unknown'}）[${info.run.sessionKey ?? '-'}]`;
     const options = [
       { key: 'approve', label: '批准一次' },
       { key: 'deny', label: '拒绝' },
     ];
+    const answered = db
+      .prepare('SELECT COUNT(*) AS n FROM approvals WHERE task_id = ? AND question = ? AND chosen IS NOT NULL')
+      .get(info.run.taskId, question) as { n: number } | undefined;
+    const generation = answered?.n ?? 0;
+    const stableKey = `permission:${info.run.sessionKey ?? '-'}:${info.toolName}:${info.rule ?? '-'}`;
     const approval = insertApproval(db, { taskId: info.run.taskId, question, options, defaultAction: null, timeoutAt: null });
     const card = notify(db, {
       taskId: info.run.taskId,
       kind: 'ask',
-      dedupeKey: `permission:${info.run.sessionKey ?? '-'}:${info.toolName}:${info.rule ?? '-'}`,
+      dedupeKey: generation === 0 ? stableKey : `${stableKey}:g${generation}`,
       payload: {
         title: `权限请求：${info.toolName}`,
         card: 'permission',

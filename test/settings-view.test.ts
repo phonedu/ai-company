@@ -628,3 +628,16 @@ test('UI-2 S2b 复核 P2：非空归档项目禁删＋动作回执可见', () =>
   const shell = readFileSync('src/renderer/AppShell.tsx', 'utf8');
   assert.match(shell, /actionError=\{projectsSnap\.error\}/, 'AppShell 把 projectActions.error 接进归档页');
 });
+
+// 复核 P1（2026-11-10，独立终验员冷启动实抓）：上次停在归档页时，restoreSession 只走 loadTasks()
+//（不含归档行）也不拉项目 ⇒ 假空态＋删除门失效。恢复路径必须与 showArchive 同口径。
+test('UI-2 S2b 复核 P1：恢复视图=归档时补拉项目列表与归档行', () => {
+  const store = readFileSync('src/renderer/store.ts', 'utf8');
+  const start = store.indexOf('export async function restoreSession');
+  const end = store.indexOf('export function showNotes', start);
+  assert.ok(start >= 0 && end > start, 'restoreSession 段落在场');
+  const body = store.slice(start, end);
+  assert.match(body, /session\.view === 'archive'/, '按归档视图分支');
+  assert.match(body, /loadProjectsForOverview\(\)/, '补拉项目列表（含已归档）');
+  assert.match(body, /loadTasks\(\{ includeArchived: true \}\)/, '补拉归档任务行');
+});

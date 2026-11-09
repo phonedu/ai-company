@@ -1156,6 +1156,13 @@ export async function restoreSession(): Promise<void> {
   }
   session.selectedEmployeeId = null;
   persistSession();
+  // S2 复核 P1（2026-11-10，独立终验员冷启动实抓）：上次停在归档页时，这里只走 loadTasks()（不含
+  // 归档行）且没拉项目列表 ⇒ 冷启动归档页假空态（0 个任务/暂无归档任务），「归档项目」的删除门
+  // 也因 taskCount=0 失效。与 showArchive 同口径补齐。
+  if (session.view === 'archive') {
+    void loadProjectsForOverview();
+    void loadTasks({ includeArchived: true });
+  }
 }
 
 export function showNotes(): void {

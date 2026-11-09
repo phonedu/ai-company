@@ -77,6 +77,7 @@ try {
   );
   insertTask.run(1, 'T-2001', 1, '模型编辑样例任务', '配方种子', 'executing', 0, AT, AT);
   insertTask.run(2, 'T-2002', 2, '归档项目的历史任务', '配方种子', 'done', 0, AT + 1, AT + 1);
+  insertTask.run(3, 'T-2003', 2, '已归档的终态任务', '配方种子', 'done', 1, AT + 2, AT + 2);
   db.close();
 
   pid = start();
@@ -226,6 +227,18 @@ try {
   await waitFor("document.querySelectorAll('[data-testid=archive-project-row]').length === 1", '恢复后归档区只剩 1 行');
   findings.steps.push({ step: '恢复后归档项目数', value: await evalIn("document.querySelectorAll('[data-testid=archive-project-row]').length") });
 
+  // 冷启动恢复路径（独立终验员 P1 实抓）：上次视图=archive 时重新加载页面，项目区与归档任务行都必须有真数据。
+  await evalIn(`localStorage.setItem('aico.session.view', JSON.stringify({view:'archive',selectedTaskId:null,selectedProjectId:null,selectedEmployeeId:null})); location.reload(); true`);
+  await waitFor("!!document.querySelector('[data-testid=archive-project-row]')", '冷启动归档项目行', 120);
+  const cold = await evalIn(`(() => ({
+    rows: document.querySelectorAll('[data-testid=archive-project-row]').length,
+    tasks: document.querySelectorAll('[data-testid=archive-list] [data-testid=tlist-row]').length,
+    view: document.querySelector('[data-testid=center]')?.dataset.view ?? null,
+    emptyText: document.querySelector('[data-testid=archive-view]')?.textContent?.includes('暂无归档任务') ?? null,
+  }))()`);
+  findings.steps.push({ step: '冷启动归档页', value: cold });
+  await shot('ui2-s2-archive-coldstart.png');
+
   findings.ok = true;
 } catch (error) {
   findings.ok = false;
@@ -260,7 +273,10 @@ try {
     String(findings.steps.find((s) => s.step === '保存后摘要')?.value ?? '').includes('deepseek/deepseek-v4-pro') &&
     (findings.steps.find((s) => s.step === '归档项目行（含删除键状态）')?.value ?? []).some((r) => r.name?.includes('归档非空样例') && r.deleteDisabled === true) &&
     (findings.steps.find((s) => s.step === '归档项目行（含删除键状态）')?.value ?? []).some((r) => r.name?.includes('归档空样例') && r.deleteDisabled === false) &&
-    findings.steps.find((s) => s.step === '恢复后归档项目数')?.value === 1;
+    findings.steps.find((s) => s.step === '恢复后归档项目数')?.value === 1 &&
+    findings.steps.find((s) => s.step === '冷启动归档页')?.value?.rows === 1 &&
+    (findings.steps.find((s) => s.step === '冷启动归档页')?.value?.tasks ?? 0) >= 1 &&
+    findings.steps.find((s) => s.step === '冷启动归档页')?.value?.emptyText === false;
   findings.pass = pass;
   writeFileSync(join(EVIDENCE, `ui2-s2-review-result-${new Date().toISOString().replace(/[:.]/g, '-')}.json`), JSON.stringify(findings, null, 2), 'utf8');
   console.log(JSON.stringify({ pass, db: findings.db, steps: findings.steps, shots: findings.shots, error: findings.error ?? null }, null, 2));

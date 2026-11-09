@@ -170,6 +170,11 @@ export function ProjectOverview(): ReactElement {
   const [modelSaving, setModelSaving] = useState(false);
   const [modelNotice, setModelNotice] = useState('');
   const [modelError, setModelError] = useState('');
+  const modelFormRef = useRef<HTMLDivElement | null>(null);
+  // 复核 P2（2026-11-10）：752 高的窗口里表单底部「保存」会落在折线以下——打开时滚到可见。
+  useEffect(() => {
+    if (modelEditing) modelFormRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [modelEditing]);
   const [taskQuery, setTaskQuery] = useState('');
   const projectPageSnap = useSnapshot(projectPage);
   const expandedTaskId = projectPageSnap.expandedTaskId;
@@ -978,7 +983,7 @@ export function ProjectOverview(): ReactElement {
                 >
                   {modelEditing ? '取消' : '设置'}
                 </button>
-                <span className="project-view__docs-text">
+                <span className="project-view__docs-text project-view__model-summary">
                   {project.defaultModel ?? '公司默认'}
                   {' · '}
                   {project.modelPolicy === 'fixed'
@@ -995,50 +1000,45 @@ export function ProjectOverview(): ReactElement {
                 </span>
               </div>
               {modelEditing ? (
-                <div className="project-view__staffing-form" data-testid="project-model-form">
-                  <label className="project-view__staffing-field project-view__staffing-field--wide">
-                    策略
-                    <select
-                      data-testid="project-model-policy"
-                      value={modelPolicyDraft}
-                      onChange={(e) =>
-                        setModelPolicyDraft(
-                          e.target.value === 'fixed'
-                            ? 'fixed'
-                            : e.target.value === 'assistant'
-                              ? 'assistant'
-                              : 'employee_first',
-                        )
-                      }
-                    >
-                      <option value="employee_first">员工优先（默认）</option>
-                      <option value="fixed">固定模型（压平员工偏好）</option>
-                      <option value="assistant">幕僚长调度（允许清单内按任务选）</option>
-                    </select>
-                  </label>
-                  <label className="project-view__staffing-field project-view__staffing-field--wide">
-                    默认模型
-                    <input
-                      data-testid="project-model-default"
-                      placeholder="未设置（回落公司默认；fixed 必填）"
-                      value={modelDefaultDraft}
-                      onChange={(e) => setModelDefaultDraft(e.target.value)}
-                    />
-                  </label>
-                  <label className="project-view__staffing-field project-view__staffing-field--wide">
-                    允许模型（每行一个 provider/model；留空＝不额外限制）
-                    <textarea
-                      data-testid="project-model-allowed"
-                      rows={2}
-                      value={modelAllowedDraft}
-                      onChange={(e) => setModelAllowedDraft(e.target.value)}
-                    />
-                  </label>
-                  <label className="project-view__staffing-field">
-                    默认任务预算
+                <div className="project-view__model-form" data-testid="project-model-form" ref={modelFormRef}>
+                  <span className="project-view__model-label">策略</span>
+                  <select
+                    data-testid="project-model-policy"
+                    value={modelPolicyDraft}
+                    onChange={(e) =>
+                      setModelPolicyDraft(
+                        e.target.value === 'fixed'
+                          ? 'fixed'
+                          : e.target.value === 'assistant'
+                            ? 'assistant'
+                            : 'employee_first',
+                      )
+                    }
+                  >
+                    <option value="employee_first">员工优先（默认）</option>
+                    <option value="fixed">固定模型（压平员工偏好）</option>
+                    <option value="assistant">幕僚长调度（允许清单内按任务选）</option>
+                  </select>
+                  <span className="project-view__model-label">默认模型</span>
+                  <input
+                    data-testid="project-model-default"
+                    placeholder="未设置（回落公司默认；fixed 必填）"
+                    value={modelDefaultDraft}
+                    onChange={(e) => setModelDefaultDraft(e.target.value)}
+                  />
+                  <span className="project-view__model-label">允许模型</span>
+                  <textarea
+                    data-testid="project-model-allowed"
+                    rows={2}
+                    placeholder="每行一个 provider/model；留空＝不额外限制"
+                    value={modelAllowedDraft}
+                    onChange={(e) => setModelAllowedDraft(e.target.value)}
+                  />
+                  <span className="project-view__model-label">默认任务预算</span>
+                  <span className="project-view__model-inline">
                     <input
                       data-testid="project-budget"
-                      placeholder="留空＝不限"
+                      placeholder="留空＝不限（只影响之后新建且未填预算的任务）"
                       inputMode="numeric"
                       value={modelBudgetDraft}
                       onChange={(e) => setModelBudgetDraft(e.target.value)}
@@ -1051,9 +1051,9 @@ export function ProjectOverview(): ReactElement {
                     >
                       保存预算
                     </button>
-                  </label>
-                  <label className="project-view__staffing-field">
-                    合并目标分支
+                  </span>
+                  <span className="project-view__model-label">合并目标分支</span>
+                  <span className="project-view__model-inline">
                     <input
                       data-testid="project-target-branch"
                       placeholder="留空＝沿用 main/master"
@@ -1068,17 +1068,18 @@ export function ProjectOverview(): ReactElement {
                     >
                       保存分支
                     </button>
-                  </label>
-                  <button
-                    type="button"
-                    data-testid="project-model-save"
-                    disabled={modelSaving}
-                    onClick={() => void submitModelPolicy()}
-                  >
-                    {modelSaving ? '保存中…' : '保存'}
-                  </button>
-                  <span className="project-view__docs-text">只影响之后的员工会话；预算只影响之后新建且未填预算的任务。</span>
-                </div>
+                  </span>
+                  <span className="project-view__model-actions">
+                    <button
+                      type="button"
+                      data-testid="project-model-save"
+                      disabled={modelSaving}
+                      onClick={() => void submitModelPolicy()}
+                    >
+                      {modelSaving ? '保存中…' : '保存'}
+                    </button>
+                    <span className="project-view__docs-text">只影响之后的员工会话。</span>
+                  </span>                </div>
               ) : null}
               {modelNotice.length > 0 ? (
                 <p className="project-view__docs-text" data-testid="project-model-notice">

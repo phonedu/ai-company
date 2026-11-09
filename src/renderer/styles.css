@@ -1065,7 +1065,7 @@ textarea:focus {
   background: var(--panel-2);
 }
 
-.tlist__archived-project-row button {
+.tlist__archived-project-row button:not(.tlist__linklike) {
   border: 0;
   background: transparent;
   color: var(--accent-ink);
@@ -1076,13 +1076,22 @@ textarea:focus {
   border-radius: var(--radius-sm);
 }
 
-.tlist__archived-project-row button:hover:not(:disabled) {
+.tlist__archived-project-row button:not(.tlist__linklike):hover:not(:disabled) {
   background: var(--tint-soft);
 }
 
 .tlist__archived-project-row button:disabled {
   color: var(--text-dim);
   cursor: not-allowed;
+}
+
+/* 复核 P2（2026-11-10）：项目名要和「恢复/导出/删除」区分开——行内按钮规则 0,1,1 会压掉
+   .tlist__linklike（0,1,0），实抓 computed 12px/400。这里提到 0,2,0 且放在后面。 */
+.tlist__archived-project-row .tlist__linklike {
+  color: var(--text);
+  font-size: var(--text-body);
+  font-weight: 600;
+  text-align: left;
 }
 
 .tlist__linklike {
@@ -1101,6 +1110,12 @@ textarea:focus {
   margin: 0;
   color: var(--danger);
   font-size: var(--text-note);
+}
+
+/* 复核 P2（2026-11-10）：后置的列表标题规则把 .tlist__title 压成 15px，归档页标题比空态标题
+   （20px）还小——按页头作用域还原 20px（只影响页头，不动列表内小标题）。 */
+.tlist__head .tlist__title {
+  font-size: var(--text-title);
 }
 
 .tlist__dot {
@@ -3805,13 +3820,64 @@ textarea:focus {
   resize: vertical;
 }
 
-.project-view__staffing-field--wide {
-  flex: 1 1 100%;
+/* 复核 P2（2026-11-10）：模型编辑表单改两列网格——标签列定宽 88、控件列吃满，四行左边界对齐；
+   小窗（752 高）下打开表单会自动滚到可见（组件里 scrollIntoView），主操作不再落在折线以下。 */
+.project-view__model-form {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 0;
 }
 
-/* 宽行里的输入框给足宽度：默认模型/分支名是长标识，200 宽会被 flex 挤到看不清（真机截图实抓）。 */
-.project-view__staffing-field--wide input {
-  width: 320px;
+.project-view__model-label {
+  color: var(--text-dim);
+  font-size: var(--text-note);
+}
+
+.project-view__model-form select,
+.project-view__model-form input,
+.project-view__model-form textarea {
+  width: 100%;
+  max-width: 360px;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 4px 6px;
+  font: inherit;
+  font-size: var(--text-note);
+}
+
+.project-view__model-form select,
+.project-view__model-form input {
+  height: 26px;
+  padding: 0 6px;
+}
+
+.project-view__model-form textarea {
+  min-height: 52px;
+  max-width: none;
+  resize: vertical;
+}
+
+.project-view__model-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.project-view__model-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 复核 P2（2026-11-10）：摘要行是主读数，别比同排的「设置」按钮还小（12 灰 vs 15）。 */
+.project-view__model-summary {
+  font-size: var(--text-body);
+  color: var(--text);
 }
 
 /* ───────── 双栏改版（2026-10-17 老板令「不做跳转，一页两栏」）─────────

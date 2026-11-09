@@ -22,6 +22,7 @@ import { join } from 'node:path';
 import { createPiAgentRuntime, registerToolActivationGuard, type PiAgentRuntime } from './pi-runtime.js';
 import { TouchedPathRecorder } from './touched-path-recorder.js';
 import { createReadDocTool } from './read-doc-tool.js';
+import { createScreenshotTool, createWebFetchTool } from './tools/web-tools.js';
 import { createCompactionHandoffProvider } from './compaction-handoff.js';
 import { createRepoMapTool } from './repo-map-tool.js';
 import { isRepoMapEnabled } from './repo-map.js';
@@ -147,6 +148,9 @@ export async function createEmployeeRuntime(options: CreateEmployeeRuntimeOption
   ];
   if (repoMapTool) employeeTools.push(repoMapTool); // RET-1 P3：确定性仓库地图（A/B）
   employeeTools.push(readDocTool); // B3-8/D-31：只读项目文档（白名单 .md/.txt）
+  // B4-1/B4-2/D-29：网络访问＋屏幕截图工具（external 类——每次弹卡批准）。
+  employeeTools.push(await createWebFetchTool());
+  employeeTools.push(await createScreenshotTool(join(options.cwd, '.aico', 'screenshots')));
 
   const pi: PiAgentRuntime = await createPiAgentRuntime({
     provider: options.provider,

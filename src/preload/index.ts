@@ -154,6 +154,9 @@ const api = {
   memory: {
     manage: (input?: unknown): Promise<unknown> => invoke('memory:manage', input),
     confirm: (input?: unknown): Promise<unknown> => invoke('memory:confirm', input),
+    gitRemotes: (input?: unknown): Promise<unknown> => invoke('git:remotes', input),
+    gitPush: (input?: unknown): Promise<unknown> => invoke('git:push', input),
+    artifactExport: (input?: unknown): Promise<unknown> => invoke('artifact:export', input),
   },
   /** `OPT-EXT-13` 用量可视：成本聚合（今日成本等）。 */
   cost: {

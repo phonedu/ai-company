@@ -4293,6 +4293,33 @@ export function registerAppIpc(ipcMain: IpcMain, deps: IpcDeps): void {
   ipcMain.handle('memory:manage', async (_event, raw) => handleMemoryManage(deps, raw, now()));
   // B3-5/D-31：抽取提议卡确认（老板在记忆页点「确认」→ provisional→confirmed→进 brief）
   ipcMain.handle('memory:confirm', async (_event, raw) => handleMemoryConfirm(deps, raw));
+  // B3-7/D-31⑤：git push P0（显式按钮触发；永不自动）＋产物导出（md/html）。
+  ipcMain.handle('git:remotes', async (_event, raw) => {
+    const input = (raw ?? {}) as { projectRoot?: unknown };
+    const root = typeof input.projectRoot === 'string' ? input.projectRoot : null;
+    if (!root) return { ok: false, code: 'bad_request', message: 'projectRoot is required' };
+    const { listRemotes } = await import('../git/push-export.js');
+    return { ok: true, remotes: listRemotes(root) };
+  });
+  ipcMain.handle('git:push', async (_event, raw) => {
+    const input = (raw ?? {}) as { projectRoot?: unknown; remote?: unknown; branch?: unknown };
+    const root = typeof input.projectRoot === 'string' ? input.projectRoot : null;
+    const remote = typeof input.remote === 'string' ? input.remote : 'origin';
+    const branch = typeof input.branch === 'string' ? input.branch : null;
+    if (!root || !branch) return { ok: false, code: 'bad_request', message: 'projectRoot + branch are required' };
+    // D-31⑤：永不自动 push——只有显式调用才走到这里。
+    const { pushBranch } = await import('../git/push-export.js');
+    return pushBranch(root, remote, branch);
+  });
+  ipcMain.handle('artifact:export', async (_event, raw) => {
+    const input = (raw ?? {}) as { sourcePath?: unknown; outputDir?: unknown; format?: unknown };
+    const srcPath = typeof input.sourcePath === 'string' ? input.sourcePath : null;
+    const outputDir = typeof input.outputDir === 'string' ? input.outputDir : null;
+    const format = input.format === 'html' ? 'html' as const : 'md' as const;
+    if (!srcPath || !outputDir) return { ok: false, code: 'bad_request', message: 'sourcePath + outputDir are required' };
+    const { exportArtifact } = await import('../git/push-export.js');
+    return exportArtifact(srcPath, outputDir, format);
+  });
   // M3-DOC-4：项目级文档检查开关（只影响新任务是否挂检查；已有任务按当前开关记未检查）。
   ipcMain.handle('project:docs-check-set', async (_event, raw) => handleProjectDocsCheckSet(deps, raw));
   // B3（M3-N-3）：项目默认技能集（只影响该项目新会话装配）。

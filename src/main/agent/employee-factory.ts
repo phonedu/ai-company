@@ -23,6 +23,7 @@ import { createPiAgentRuntime, registerToolActivationGuard, type PiAgentRuntime 
 import { TouchedPathRecorder } from './touched-path-recorder.js';
 import { createReadDocTool } from './read-doc-tool.js';
 import { createScreenshotTool, createWebFetchTool } from './tools/web-tools.js';
+import { createExportFormatTool, createImageGenerateTool } from './tools/content-tools.js';
 import { createCompactionHandoffProvider } from './compaction-handoff.js';
 import { createRepoMapTool } from './repo-map-tool.js';
 import { isRepoMapEnabled } from './repo-map.js';
@@ -151,6 +152,9 @@ export async function createEmployeeRuntime(options: CreateEmployeeRuntimeOption
   // B4-1/B4-2/D-29：网络访问＋屏幕截图工具（external 类——每次弹卡批准）。
   employeeTools.push(await createWebFetchTool());
   employeeTools.push(await createScreenshotTool(join(options.cwd, '.aico', 'screenshots')));
+  // B4-4/B4-6/D-29：图像生成（spend 闸）＋导出适配器（write 闸＋路径层）。
+  employeeTools.push(await createImageGenerateTool(options.cwd));
+  employeeTools.push(await createExportFormatTool(options.cwd));
 
   const pi: PiAgentRuntime = await createPiAgentRuntime({
     provider: options.provider,

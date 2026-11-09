@@ -8,9 +8,9 @@ import { ROLE_SOP_PRESETS, sopFor, renderSopLayer } from '../src/main/agent/role
 import { roleLayer, DELIVERY_DISCIPLINE_LAYER } from '../src/main/agent/context.js';
 import { ASSISTANT_SYSTEM_PROMPT_M0 } from '../src/main/agent/pi-assistant.js';
 
-test('B3-4: 6 预设角色 SOP——三段齐、每段实质内容（≥5 条/段）', () => {
-  const roles = ['执行', '开发', '写作', '研究', '评审', '验证'];
-  assert.equal(Object.keys(ROLE_SOP_PRESETS).length, 6);
+test('B3-4: 预设角色 SOP——三段齐、每段实质内容（≥5 条/段；B4-7 起含自媒体运营共 7 个）', () => {
+  const roles = ['执行', '开发', '写作', '研究', '评审', '验证', '自媒体运营'];
+  assert.equal(Object.keys(ROLE_SOP_PRESETS).length, 7);
   for (const role of roles) {
     const sop = sopFor(role);
     assert.ok(sop, `${role} 有 SOP`);

@@ -12,7 +12,6 @@ import { resolve } from 'node:path';
 import { DEFAULT_SCHEDULER_CONFIG, planScheduling, type SchedulerConfig, type SchedulerInput } from '../../core/scheduler.js';
 import { normalizePlanWorkItems, type NormalizedPlanWorkItem } from '../../core/plan.js';
 import { insertWorkItemDep } from '../db/work_item_deps.js';
-import { issueGrant } from '../permission/grants.js';
 import { SqliteMemoryStore } from '../memory/index.js';
 import type { TaskState, WaitingReason } from '../../core/types.js';
 import { DEFAULT_RATE_LIMITS, describeRateLimit, rateAction, type RateLimits, type RateTier } from './rate-gate.js';

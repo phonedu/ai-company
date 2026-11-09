@@ -32,7 +32,10 @@ export const COMMAND_PRECHECK_RULES: readonly PrecheckRule[] = [
     id: 'command_precheck:disk',
     decision: 'deny',
     reason: '磁盘/分区破坏命令',
-    re: /\b(?:mkfs(?:\.\w+)?|fdisk|diskpart|format(?:\.com)?)\b/i,
+    // 2026-11-09 真图出口实抓误伤：员工命令里只要出现英文单词 format（如 node -e "...format..."、
+    // ffmpeg 文案）就被判成「磁盘格式化」而拒绝。收敛为**真正的格式化调用**：
+    // ① `format C:` / `format.com C:`（带目标盘符）；② mkfs/fdisk/diskpart 保持原样。
+    re: /\b(?:mkfs(?:\.\w+)?|fdisk|diskpart)\b|format(?:\.com)?\s+[a-z]:/i,
   },
   {
     id: 'command_precheck:dd',

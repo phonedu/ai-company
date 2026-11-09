@@ -1175,6 +1175,9 @@ export function showProjectTree(): void {
 /** 2026-10-18（同裁）：**归档页**——归档任务列表；进页拉一次 `includeArchived`（归档行只在页里，左栏不含）。 */
 export function showArchive(): void {
   session.view = 'archive';
+  // S2b 复核 P1（2026-11-09）：归档页要显示「归档项目」，必须拉项目列表（含已归档）——
+  // 此前只拉任务，冷启动直达归档页时项目列表为空 ⇒ 归档项目区永不显示。
+  void loadProjectsForOverview();
   persistSession();
   void loadTasks({ includeArchived: true });
 }
@@ -3027,6 +3030,8 @@ export async function saveProjectModelPolicy(input: {
     }
     settingsView.saved = '项目模型策略已保存（只影响之后的员工会话）';
     await loadSettingsView();
+    // UI-2 S2 复核 P1：编辑面已搬回项目页「设置·模型」，摘要读 project:list——必须同步刷新。
+    await loadProjectsForOverview();
     return { ok: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -3055,6 +3060,8 @@ export async function saveProjectDefaultBudget(
     }
     settingsView.saved = '项目默认任务预算已保存（只影响之后新建且未填预算的任务）';
     await loadSettingsView();
+    // UI-2 S2 复核 P1：同「项目模型」——摘要与编辑面都在项目页，保存后同步刷新列表。
+    await loadProjectsForOverview();
     return { ok: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -3083,6 +3090,8 @@ export async function saveProjectTargetBranch(
     }
     settingsView.saved = branch ? `合并目标分支已设为 ${branch}` : '合并目标分支已清空（沿用 main/master）';
     await loadSettingsView();
+    // UI-2 S2 复核 P1：同上——合并目标分支的编辑面与摘要都在项目页。
+    await loadProjectsForOverview();
     return { ok: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

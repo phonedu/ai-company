@@ -2,9 +2,9 @@
  * 017_memory_fts.ts — 迁移内联常量（**打包安全**；运行时零文件系统依赖）。
  * 与同目录 `017_memory_fts.sql` 逐字一致（`test/migrations-packaging.test.ts` 校验漂移）。
  */
-export const SQL_017_MEMORY_FTS = `-- 017_memory_fts.sql — v17（：memory_items FTS5）
+export const SQL_017_MEMORY_FTS = `-- 017_memory_fts.sql — v17（M4-B-6：memory_items FTS5）
 --
--- 为什么需要：\`\` 的 v1 检索口径是“FTS5 可用则用，不可用回退 LIKE”；016 只建了普通表，
+-- 为什么需要：\`D-17\` 的 v1 检索口径是“FTS5 可用则用，不可用回退 LIKE”；016 只建了普通表，
 -- \`MemoryPort.search\` 一直是 LIKE/词项。本迁移为 \`memory_items\` 建 FTS5 外部内容索引
 -- （value + key + source_excerpt），用 trigram 支持中文子串；<3 字查询仍由应用层回退 LIKE。
 -- 索引由触发器随 INSERT/UPDATE/DELETE 同步；历史行用 rebuild 建索引。

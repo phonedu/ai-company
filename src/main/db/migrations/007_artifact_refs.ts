@@ -2,11 +2,11 @@
  * 007_artifact_refs.ts — 迁移内联常量（**打包安全**；运行时零文件系统依赖）。
  * 与同目录 `007_artifact_refs.sql` 逐字一致（`test/migrations-packaging.test.ts` 校验漂移）。
  */
-export const SQL_007_ARTIFACT_REFS = `-- 007_artifact_refs.sql — v7（§7 序 3 · G-A：跨项目引用载体）
+export const SQL_007_ARTIFACT_REFS = `-- 007_artifact_refs.sql — v7（M2 §7 序 3 · G-A：跨项目引用载体）
 --
 -- 为 \`artifacts\` 加**来源链条**两列（G-A 判据：先 \`copy\` ＋ sha256；\`link\` 后议）：
 --   · origin_artifact_id = 被引用的**源产物 id**（本行是"引用副本"；NULL ＝ 本任务自产）
---   · origin_project_id = 源产物所属**项目 id**（"这份文档从哪来"可查；跨项目引用 ⇒ 本列 ≠ 本行任务的项目）
+--   · origin_project_id  = 源产物所属**项目 id**（"这份文档从哪来"可查；跨项目引用 ⇒ 本列 ≠ 本行任务的项目）
 --   add-only、nullable ⇒ 老库升级零破坏；既有行两列 NULL（＝自产，语义与加列前一致）。
 -- 口径（G-B 硬规则 ②）：引用的文档带来源标记（\`origin_project_id\` ＋ sha256）——sha256 沿用既有列，
 -- 引用时按**实读字节**重算（与源记录不一致也照实入库并在 note 标注，不臆造）。

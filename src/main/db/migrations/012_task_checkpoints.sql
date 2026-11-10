@@ -1,4 +1,4 @@
--- 012_task_checkpoints.sql — v12（：工作项级检查点/回滚）
+-- 012_task_checkpoints.sql — v12（M3-N-2 GAP4：工作项级检查点/回滚）
 --
 -- 每个 staging 工作项在派发时记下 worktree 的 `base_sha`（`beginWorkspace`），
 -- 完成提交后补 `head_sha`（`finishWorkspace`）。回滚只恢复该工作项 `base..head`

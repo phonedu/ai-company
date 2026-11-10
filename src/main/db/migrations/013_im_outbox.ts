@@ -2,7 +2,7 @@
  * 013_im_outbox.ts — 迁移内联常量（**打包安全**；运行时零文件系统依赖）。
  * 与同目录 `013_im_outbox.sql` 逐字一致（`test/migrations-packaging.test.ts` 校验漂移）。
  */
-export const SQL_013_IM_OUTBOX = `-- 013_im_outbox.sql — v13（/ 微信 1:1：主动卡片投递队列）
+export const SQL_013_IM_OUTBOX = `-- 013_im_outbox.sql — v13（M3-REM-2 / 微信 1:1：主动卡片投递队列）
 --
 -- 卡片先落 reports（事实源）；本表只负责“送到哪个会话、送到什么状态”。
 -- 平台窗口（微信 context_token / 24h）导致发不出时置 blocked，等下一次入站补发；

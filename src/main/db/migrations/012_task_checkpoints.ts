@@ -2,7 +2,7 @@
  * 012_task_checkpoints.ts — 迁移内联常量（**打包安全**；运行时零文件系统依赖）。
  * 与同目录 `012_task_checkpoints.sql` 逐字一致（`test/migrations-packaging.test.ts` 校验漂移）。
  */
-export const SQL_012_TASK_CHECKPOINTS = `-- 012_task_checkpoints.sql — v12（：工作项级检查点/回滚）
+export const SQL_012_TASK_CHECKPOINTS = `-- 012_task_checkpoints.sql — v12（M3-N-2 GAP4：工作项级检查点/回滚）
 --
 -- 每个 staging 工作项在派发时记下 worktree 的 \`base_sha\`（\`beginWorkspace\`），
 -- 完成提交后补 \`head_sha\`（\`finishWorkspace\`）。回滚只恢复该工作项 \`base..head\`

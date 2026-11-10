@@ -128,6 +128,9 @@ let scanned = 0;
 for (const file of files) {
   const ext = file.match(/(\.[A-Za-z0-9]+)$/)?.[1]?.toLowerCase() ?? '';
   if (!SCANNABLE.has(ext)) continue;
+  // 冻结迁移（含历史注释）逐字参与校验和：改一个字节，已有用户库会拒绝启动。
+  // 因此这些文件不参与「注释去内部化」——校验和完整性优先于注释洁癖。
+  if (file.startsWith('src/main/db/migrations/')) continue;
   let text;
   try {
     text = readFileSync(file, 'utf8');

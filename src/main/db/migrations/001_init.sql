@@ -5,25 +5,25 @@
 -- 迁移器按「一个迁移 = 一个事务」应用；所有 DDL 均为 IF NOT EXISTS → 幂等可重跑。
 -- 改动顺序：先改 schema.sql，再新增 NNN_*.sql；禁止改写历史迁移（checksum 守卫）。
 -- ai-company 数据模型（SQLite / WAL）—— **v1 冻结（frozen）**
--- 本文件是 DDL 契约的**唯一权威**（schema.sql）；改动遵循「先改文档（本节），再改迁移」。
+-- 本文件是 DDL 契约的**唯一权威**（schema.sql）；改动遵循「先改文档（本节 + DEV §4），再改迁移」。
 -- 冻结日期：2026-10-12。v1 = 30 张表（26 张原有 + schema_migrations / counters / pending_lists / plan_steps）。
--- 计划步骤完成度：plan_steps 中 state='done' 的计数 / 总数（任务详情进度条）。
+-- 计划步骤完成度：plan_steps 中 state='done' 的计数 / 总数（任务详情进度条，UI.md §7）。
 -- 设计要点：
 --   1) task_events 是唯一事实来源（event sourcing 的轻量版）：状态、进度、汇报、timeline 全部由它投影。
 --   2) "聊天"不出现在工作模型里：只有老板频道（human_messages）+ 三类卡片（reports）+ IM 会话状态（im_conversations）。
 --   3) 员工协作走 work_items + mailbox 语义的 task_events，不共享 transcript。
 --   4) 多任务并发 = 活跃槽位（task.state=ready 等槽位）+ 员工占用队列；多项目 = projects + 记忆/产物隔离。
 --
--- 【迁移清单机制】（解 「重启不重复迁移」）
+-- 【迁移台账机制】（解 T0.2「重启不重复迁移」）
 --   * 基线：本文件即 v1 基线快照；所有 CREATE 一律 `IF NOT EXISTS`，可安全重复执行（幂等）。
 --   * 版本：启动读 `PRAGMA user_version`（0 = 空库）；逐条应用 `migrations/NNN_*.sql`。
 --     一个迁移 = 一个事务：应用 DDL + `INSERT INTO schema_migrations` + `PRAGMA user_version = N`。
---   * 清单：`schema_migrations` 是可读、可审计的已应用清单；`user_version` 只是快速门槛（避免每次遍历）。
---   * 旧库升级：永远增量（`ALTER TABLE`），**不重跑基线**；新库：先跑基线（version=1），再按清单追加。
+--   * 台账：`schema_migrations` 是可读、可审计的已应用清单；`user_version` 只是快速门槛（避免每次遍历）。
+--   * 旧库升级：永远增量（`ALTER TABLE`），**不重跑基线**；新库：先跑基线（version=1），再按台账追加。
 --   * 守卫：版本号已存在于 `schema_migrations` → 跳过；`checksum` 不匹配 → 报错（禁止改写历史迁移）。
 
 
--- ─────────────────────────── 迁移清单（DDL 的版本轴） ───────────────────────────
+-- ─────────────────────────── 迁移台账（DDL 的版本轴） ───────────────────────────
 CREATE TABLE IF NOT EXISTS schema_migrations (
   version     INTEGER PRIMARY KEY,          -- 迁移号（基线 = 1；严格递增、不复用）
   name        TEXT NOT NULL,                -- 迁移文件名（不含序号），如 "001_init"
@@ -39,17 +39,17 @@ CREATE TABLE IF NOT EXISTS employees (
   role          TEXT NOT NULL,              -- 一句话角色，如 "researcher" / "writer" / "reviewer"
   persona       TEXT NOT NULL DEFAULT '',   -- 长期 system prompt（人设层③；与具体任务无关，任务细节进工作简报）
   model         TEXT,                       -- providerId/modelId；NULL = 跟随全局默认
-  thinking      TEXT,                       -- 思考强度：off | low | medium | high
+  thinking      TEXT,                       -- 思考强度：off | low | medium | high（EMPLOYEES.md §3）
   skills        TEXT NOT NULL DEFAULT '[]', -- JSON: 勾选的 skills.id 列表
   mcps          TEXT NOT NULL DEFAULT '[]', -- JSON: 勾选的 mcp_servers.id 列表
-  capability_tier TEXT NOT NULL DEFAULT 'standard', -- 员工能力档：sandbox | standard | trusted——限定 TA 能拿到什么工具（与项目放行档取交集）
+  capability_tier TEXT NOT NULL DEFAULT 'standard', -- 员工能力档：sandbox | standard | trusted——限定 TA 能拿到什么工具（与项目放行档取交集，PLAN §16.3）
   avatar        TEXT,                       -- 头像文件（~/.aico/avatars/）
   is_assistant  INTEGER NOT NULL DEFAULT 0, -- 0 号员工（幕僚长）
   active        INTEGER NOT NULL DEFAULT 1, -- 0 = 停用（停用前检查在跑/排队工作项并转派）
   created_at    INTEGER NOT NULL
 );
 
--- 技能库：员工档案里存勾选的 id；项目默认集存 projects.default_skills
+-- 技能库（EMPLOYEES.md §4）：员工档案里存勾选的 id；项目默认集存 projects.default_skills
 CREATE TABLE IF NOT EXISTS skills (
   id            INTEGER PRIMARY KEY,
   name          TEXT NOT NULL UNIQUE,
@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS skills (
   created_at    INTEGER NOT NULL
 );
 
--- MCP server 库
+-- MCP server 库（EMPLOYEES.md §5）
 CREATE TABLE IF NOT EXISTS mcp_servers (
   id            INTEGER PRIMARY KEY,
   name          TEXT NOT NULL UNIQUE,
@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS mcp_servers (
   created_at    INTEGER NOT NULL
 );
 
--- 供应商凭据池：明文只存 ~/.aico/secrets（受限权限文件），
+-- 供应商凭据池（EMPLOYEES.md §10）：明文只存 ~/.aico/secrets（受限权限文件），
 -- 本表仅存元数据；同供应商多 Key 默认轮询 + 遇 429 自动换 Key，可手动 pin。
 CREATE TABLE IF NOT EXISTS provider_keys (
   id            INTEGER PRIMARY KEY,
@@ -89,7 +89,7 @@ CREATE TABLE IF NOT EXISTS provider_keys (
 );
 
 -- 员工记忆按作用域分区：project_id = 0 表示跨项目的通用记忆（需显式提升），
--- 其余为项目记忆（任务结束时写入）。分开存放防止项目间串味。
+-- 其余为项目记忆（任务结束时写入）。分开存放防止项目间串味（PLAN §13.5）。
 CREATE TABLE IF NOT EXISTS employee_memory (
   employee_id   INTEGER NOT NULL REFERENCES employees(id),
   project_id    INTEGER NOT NULL DEFAULT 0, -- 0 = 全局/通用；否则 = projects.id
@@ -105,12 +105,12 @@ CREATE TABLE IF NOT EXISTS projects (
   name          TEXT NOT NULL,
   alias         TEXT UNIQUE,                -- IM 里用的短别名（如 "记账"），#记账 … 可寻址
   root_dir      TEXT NOT NULL,              -- 该项目产物与任务工作目录的根
-  attention     TEXT NOT NULL DEFAULT 'normal', -- focus | normal | quiet（推送策略）
-  access_mode   TEXT NOT NULL DEFAULT 'inplace', -- inplace（原地 + 每任务 git 分支）| staging（沙盒副本）
+  attention     TEXT NOT NULL DEFAULT 'normal', -- focus | normal | quiet（推送策略，PLAN §13.4）
+  access_mode   TEXT NOT NULL DEFAULT 'inplace', -- inplace（原地 + 每任务 git 分支）| staging（沙盒副本，PLAN §15.3）
   default_employee_ids TEXT NOT NULL DEFAULT '[]', -- JSON: 项目默认参与员工（v2）
-  default_skills TEXT NOT NULL DEFAULT '[]', -- JSON: 项目默认技能集——该项目下任务自动附加
-  allowed_providers TEXT NOT NULL DEFAULT '[]', -- JSON: 供应商白名单；空 = 不限制。非空时本项目员工模型必须落在其内
-  archived      INTEGER NOT NULL DEFAULT 0, -- 归档（软操作，不搬动/不删除文件夹；可恢复）
+  default_skills TEXT NOT NULL DEFAULT '[]', -- JSON: 项目默认技能集——该项目下任务自动附加（EMPLOYEES.md §4）
+  allowed_providers TEXT NOT NULL DEFAULT '[]', -- JSON: 供应商白名单；空 = 不限制。非空时本项目员工模型必须落在其内（EMPLOYEES.md §10.3）
+  archived      INTEGER NOT NULL DEFAULT 0, -- 归档（软操作，不搬动/不删除文件夹；可恢复，FLOWS.md F7）
   archived_at   INTEGER,
   created_at    INTEGER NOT NULL
 );
@@ -122,20 +122,20 @@ CREATE TABLE IF NOT EXISTS tasks (
   title         TEXT NOT NULL,
   goal          TEXT NOT NULL,              -- 原始需求（用户原话，不改写）
   acceptance    TEXT NOT NULL DEFAULT '[]', -- JSON: [{text, check?}] —— check 为可选的可执行检查命令（如 "npm test"），
-                                            -- verifier 实际执行取原始输出（机器判定）；无 check 的条目人话判定 + 证据
+                                            -- verifier 实际执行取原始输出（机器判定）；无 check 的条目人话判定 + 证据（PLAN §6）
   state         TEXT NOT NULL DEFAULT 'inbox',
     -- inbox | planning | awaiting_approval | ready | executing | paused | verifying
     -- | needs_decision | done | failed | blocked | cancelled
-    -- paused：用户主动暂停/搁置，不占槽位、不老化
-  resume_state  TEXT,                       -- 回边恢复目标：needs_decision/blocked/paused 恢复时回到的状态（禁默认回 ready）
-  state_before_close TEXT,                  -- 结束前状态：撤销结束回边（done/failed/cancelled → 原状态）用
+    -- paused：用户主动暂停/搁置，不占槽位、不老化（FLOWS.md F4/F5）
+  resume_state  TEXT,                       -- 回边恢复目标：needs_decision/blocked/paused 恢复时回到的状态（禁默认回 ready，FLOWS §3.1）
+  state_before_close TEXT,                  -- 结束前状态：撤销结束回边（done/failed/cancelled → 原状态）用（FLOWS §3.1）
   risk_level    INTEGER NOT NULL DEFAULT 1, -- 0=L0 无闸门 / 1=L1 审计划 / 2=L2 全流程+人工批准
   priority      INTEGER NOT NULL DEFAULT 0, -- 取槽位排序；优先 = 数值大
   ready_since   INTEGER,                    -- 进入 ready 的时刻；老化（anti-starvation）基准，src/core/scheduler.effectivePriority 依赖
   deadline      INTEGER,                    -- 截止时刻（epoch ms；NULL = 无）；调度次级排序键，src/core/scheduler.priorityOrder 依赖
   owner_id      INTEGER REFERENCES employees(id), -- 任务负责人（通常是 assistant）
   parent_task_id INTEGER REFERENCES tasks(id),    -- 子任务（父任务等全部子任务完成后进 verifying）
-  renewed_from  INTEGER REFERENCES tasks(id),     -- 续办来源：本任务由哪个终态任务续办而来
+  renewed_from  INTEGER REFERENCES tasks(id),     -- 续办来源：本任务由哪个终态任务续办而来（FLOWS.md F6）
   budget_tokens INTEGER,                    -- 预算（NULL = 不限）
   cost_tokens   INTEGER NOT NULL DEFAULT 0, -- 已消耗（由 costs 汇总回写）
   origin        TEXT NOT NULL DEFAULT 'boss',
@@ -150,14 +150,14 @@ CREATE INDEX IF NOT EXISTS idx_tasks_state ON tasks(state, priority DESC, update
 CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id, state);
 CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_task_id);
 
--- 任务依赖（DAG）：task_id 依赖 depends_on；全部依赖 done → 自动 ready
+-- 任务依赖（DAG）：task_id 依赖 depends_on；全部依赖 done → 自动 ready（PLAN §13.2）
 CREATE TABLE IF NOT EXISTS task_deps (
   task_id       INTEGER NOT NULL REFERENCES tasks(id),
   depends_on    INTEGER NOT NULL REFERENCES tasks(id),
   PRIMARY KEY (task_id, depends_on)
 );
 
--- 计划步骤（任务详情进度条的数据源；「●●○○ 2/4」）
+-- 计划步骤（任务详情进度条的数据源；UI.md §7「●●○○ 2/4」、DEV §8 T0.7）
 -- materialized 投影：task_events 仍是唯一事实来源——
 --   初始步骤随 kind='plan_drafted'（payload.steps[]）落库；
 --   每步状态变更落 kind='progress_reported'（payload={stepIdx,state}）；本表由事件重放/增量维护。
@@ -185,9 +185,9 @@ CREATE TABLE IF NOT EXISTS work_items (
   brief         TEXT NOT NULL,              -- 结构化工作简报（目标/验收/输入产物/预算）
   state         TEXT NOT NULL DEFAULT 'queued',
     -- queued | running | submitted | rejected | done | failed | interrupted
-    -- interrupted = 崩溃/重启导致的中断，编排器按策略自动重派或问你（风险 7）
+    -- interrupted = 崩溃/重启导致的中断，编排器按策略自动重派或问你（PLAN §12 风险 7）
     -- 注：每次迁移都必须在 task_events 落对应 kind（见下），work_items 只存当前态
-    -- （员工占用队列：同员工 queued 项按任务优先级 → created_at 排序）
+    -- （员工占用队列：同员工 queued 项按 任务优先级 → created_at 排序，PLAN §13.3）
   attempt       INTEGER NOT NULL DEFAULT 0,
   result        TEXT,                       -- JSON: submit_work_item 的结构化结果
   created_at    INTEGER NOT NULL,
@@ -208,17 +208,17 @@ CREATE TABLE IF NOT EXISTS task_events (
     -- plan_drafted / plan_reviewed / plan_approved
     -- work_item_created / work_item_assigned / work_item_started / work_item_submitted
     -- work_item_done / work_item_rejected / work_item_failed（与 work_items.state 对齐；rejected = 打回重做）
-    -- work_item_interrupted（崩溃/重启中断，可自动重派， 风险 7）
-    -- agent_settled（Pi 会话一轮结束 → 推进状态机）
-    -- cost_recorded（写 costs 行；payload 带 usage，/§6.2）
+    -- work_item_interrupted（崩溃/重启中断，可自动重派，PLAN §12 风险 7）
+    -- agent_settled（Pi 会话一轮结束 → 推进状态机，DEV §6.2）
+    -- cost_recorded（写 costs 行；payload 带 usage，DEV §1/§6.2）
     -- question_asked / question_answered / artifact_produced / progress_reported
     -- review_requested / review_completed / verification_started / verification_completed
     -- report_generated / decision_requested / decision_made
     -- task_blocked / task_failed / task_completed / task_cancelled
-    -- task_paused / task_resumed / task_archived / task_renewed（/）
+    -- task_paused / task_resumed / task_archived / task_renewed（FLOWS.md F5/F6/F7）
     -- budget_exceeded / focus_changed / thread_bound / thread_archived
-    -- tool_call / permission_requested / permission_decision（权限审计）
-    -- changeset_created / changeset_merged / changeset_discarded / external_change_detected（变更审查）
+    -- tool_call / permission_requested / permission_decision（权限审计，PLAN §16.4）
+    -- changeset_created / changeset_merged / changeset_discarded / external_change_detected（变更审查，UI.md §12）
   actor         TEXT NOT NULL,              -- boss | assistant | employee:<id> | verifier | critic | system
   payload       TEXT NOT NULL DEFAULT '{}', -- JSON：按 kind 约定结构
   session_ref   TEXT                        -- 原始模型/会话引用，供下钻查看，不进人类频道
@@ -226,14 +226,14 @@ CREATE TABLE IF NOT EXISTS task_events (
 CREATE INDEX IF NOT EXISTS idx_events_task ON task_events(task_id, ts);
 CREATE INDEX IF NOT EXISTS idx_events_kind ON task_events(kind, ts);
 
--- ─────────── 引擎两件套（：运行时模型） ───────────
+-- ─────────── 引擎两件套（PLAN §19：运行时模型） ───────────
 
 -- 动作日志：每个副作用动作先登记（pending）再执行（done），幂等键防重复
 -- 崩溃重启：扫 pending 的动作做幂等重放 —— 不会重复派工单/通知/扣预算
 -- 【action_key 生成规范】<kind>:<subject_kind>:<subject_id>:<revision>
---   kind = 动作类型（dispatch | notify | merge | charge_budget | schedule_timer ...）
+--   kind            = 动作类型（dispatch | notify | merge | charge_budget | schedule_timer ...）
 --   subject_kind/id = 动作针对的主体（work_item / report / task / changeset ...）
---   revision = 主体上的“第几次”（work_item.attempt；无自然次数的用 0）
+--   revision        = 主体上的“第几次”（work_item.attempt；无自然次数的用 0）
 --   例：dispatch:work_item:42:2 · notify:report:88:0 · merge:changeset:7:0
 --   不变式：同一逻辑动作重算出的 key 必须相同；不同主体/不同 attempt 必须不同。
 --   注：“已执行、未置 done”的崩溃窗口内重放是 at-least-once，靠下游幂等键（notifications.dedupe_key / timers.dedupe_key）兜底。
@@ -249,7 +249,7 @@ CREATE TABLE IF NOT EXISTS action_log (
 );
 CREATE INDEX IF NOT EXISTS idx_action_pending ON action_log(state, created_at);
 
--- 持久化时钟：AskCard 超时 / 阻塞看门狗 / 会话心跳 / cron 触发
+-- 持久化时钟：AskCard 超时 / 阻塞看门狗 / 会话心跳 / cron 触发（PLAN §19.2）
 CREATE TABLE IF NOT EXISTS timers (
   id            INTEGER PRIMARY KEY,
   kind          TEXT NOT NULL,              -- askcard_timeout | blocked_watchdog | session_heartbeat | cron_fire
@@ -277,9 +277,9 @@ CREATE TABLE IF NOT EXISTS artifacts (
 );
 CREATE INDEX IF NOT EXISTS idx_artifacts_task ON artifacts(task_id);
 
--- ──────────────── 变更集（代码/文件改动的审查单元） ────────────────
+-- ──────────────── 变更集（代码/文件改动的审查单元，UI.md §12） ────────────────
 -- 由任务 git 分支（aico/T-xxxx）生成；work_item 粒度的"小步提交"；
--- 主分支只有在你点「合并」后才前进（合并 = consent 动作）。
+-- 主分支只有在你点「合并」后才前进（合并 = consent 动作，PLAN §16）。
 
 CREATE TABLE IF NOT EXISTS changesets (
   id            INTEGER PRIMARY KEY,
@@ -345,7 +345,7 @@ CREATE TABLE IF NOT EXISTS reports (
   id            INTEGER PRIMARY KEY,
   task_id       INTEGER NOT NULL REFERENCES tasks(id),
   kind          TEXT NOT NULL,              -- report | ask | alert
-  payload       TEXT NOT NULL,              -- JSON：TL;DR/产物/证据/成本；或问题/选项/推荐/默认动作/超时
+  payload       TEXT NOT NULL,              -- JSON：TL;DR/产物/证据/成本；或 问题/选项/推荐/默认动作/超时
   state         TEXT NOT NULL DEFAULT 'pending', -- pending | delivered | acknowledged | resolved
   dedupe_key    TEXT,                       -- 同任务同类型去重
   created_at    INTEGER NOT NULL,
@@ -381,7 +381,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 CREATE INDEX IF NOT EXISTS idx_notifications_report ON notifications(report_id, channel);
 
--- ─────────── IM 通道：会话状态 / 回复链 / 显式绑定 ───────────
+-- ─────────── IM 通道：会话状态 / 回复链 / 显式绑定（PLAN §14） ───────────
 -- 对象模型：私聊总收件箱（唯一且永久） + 可选的项目群（每项目 ≤ 1 个）。
 -- 任务不是 IM 对象，只是消息上的短 ID 标签；IM 对象数 = 1 + 活跃项目数。
 -- 注：桌面老板频道（channel='desktop', conversation_ref='desktop:boss'）也复用本表存 sticky 焦点——
@@ -399,7 +399,7 @@ CREATE TABLE IF NOT EXISTS im_conversations (
   UNIQUE(channel, conversation_ref)
 );
 
--- 出站消息 → 任务/卡片映射：回复链归位（reply-to）的依据
+-- 出站消息 → 任务/卡片 映射：回复链归位（reply-to）的依据
 CREATE TABLE IF NOT EXISTS outbound_refs (
   id              INTEGER PRIMARY KEY,
   channel         TEXT NOT NULL,
@@ -479,18 +479,18 @@ CREATE TABLE IF NOT EXISTS settings (
   value         TEXT NOT NULL               -- JSON
 );
 -- 约定键：
---   scheduler.max_active_tasks （默认 3；全局 executing 任务槽位上限）
---   scheduler.aging_minutes （默认 30；等待老化的时间粒度）
---   scheduler.occupancy_aware （默认 false；true = 取槽位前确认有可立即派发的工作，避免空占）
---   employee.concurrency （默认 1；同员工并行上限，不建议 >1）
---   employees.auto_recruit （默认 true；秘书可自主招人，招募卡仅通知+可改；false = 招募需你批准）
---   models.default_thinking （默认 medium；员工/任务可覆盖）
---   models.role_map （JSON：角色 → 模型，招募时预填；）
---   models.critic （critic/verifier 专用模型，建议与执行员工不同供应商）
---   models.fallback_chain （JSON 数组：主模型不可用时的降级链，降级会记事件并标注）
---   projects.default_id （IM 未指定项目时新任务的落点；空 = 模糊时问你一次）
+--   scheduler.max_active_tasks （默认 3；全局 executing 任务槽位上限，PLAN §13.3）
+--   scheduler.aging_minutes    （默认 30；等待老化的时间粒度）
+--   scheduler.occupancy_aware  （默认 false；true = 取槽位前确认有可立即派发的工作，避免空占）
+--   employee.concurrency       （默认 1；同员工并行上限，不建议 >1）
+--   employees.auto_recruit     （默认 true；秘书可自主招人，招募卡仅通知+可改；false = 招募需你批准）
+--   models.default_thinking    （默认 medium；员工/任务可覆盖，EMPLOYEES.md §3）
+--   models.role_map            （JSON：角色 → 模型，招募时预填；EMPLOYEES.md §10.2）
+--   models.critic              （critic/verifier 专用模型，建议与执行员工不同供应商）
+--   models.fallback_chain      （JSON 数组：主模型不可用时的降级链，降级会记事件并标注）
+--   projects.default_id        （IM 未指定项目时新任务的落点；空 = 模糊时问你一次）
 
--- 放行档（autonomy）：global(0) / project / task 三级覆盖
+-- 放行档（autonomy，PLAN §16.3）：global(0) / project / task 三级覆盖
 -- tier: strict（严格——写操作也逐次批准）| standard（标准，默认）| loose（宽松——本地全自动；对外动作永远逐次批准）
 -- 员工"能拿到什么工具"的能力档在 employees.capability_tier；有效权限 = 两者取交集
 -- policy JSON: { pathRules[], commandDenylist[], consentRules[], grants[{rule, scope:'once'|'task'|'project', expiresAt}] }

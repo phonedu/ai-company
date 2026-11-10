@@ -156,7 +156,7 @@ test('细分直达：点「供应商与模型」一页铺开连接与模型；�
   assert.match(data, /data-testid="settings-about"/);
 });
 
-test('UI-2 S2：设置页不再有「项目模型」分区（指针也不留）——旧深链落到供应商与模型组', () => {
+test('项目页设置分组：设置页不再有「项目模型」分区（指针也不留）——旧深链落到供应商与模型组', () => {
   const html = render({ section: 'project-model', defaultProjectId: 11, projects: [project({ id: 11 })] });
   assert.equal(countTestId(html, 'settings-project-model'), 0, '指针块也不留（老板：没用且增加疑惑）');
   assert.match(html, /data-testid="settings-providers"/, '旧深链 project-model → 供应商与模型组');
@@ -570,21 +570,37 @@ test('自动更新（关于区）：状态如实显示；检查按钮按 canChec
   assert.ok(!portable.includes('settings-update-install'));
 });
 
-//  S2（2026-11-09）：项目页「设置」页签拆 6 组——分段导航 + 只做显示过滤（卡片 DOM 不动），
+// 项目页设置分组（2026-11-09）：项目页「设置」页签分组——分段导航 + 只做显示过滤（卡片 DOM 不动），
 // 默认只开「模型」；没有「定时」卡就不摆空组（不造假入口）。源码级守卫（组件渲染依赖 store 上下文）。
-test('UI-2 S2：项目设置 9 组导航在场、默认模型组、卡片带 data-group', () => {
+// 运行/产物页签（2026-11-10）：「记忆」从设置组迁出为独立页签 ⇒ 设置组 8 → 7。
+test('项目页设置分组：项目设置 7 组导航在场、默认模型组、卡片带 data-group', () => {
   const src = readFileSync('src/renderer/components/ProjectOverview.tsx', 'utf8');
   assert.match(src, /data-testid="project-settings-groupnav"/, '分组导航在场');
   assert.match(src, /useState<[^>]*'model'[^>]*>\('model'\)/, '默认组＝model');
-  for (const g of ['model', 'staffing', 'permission', 'skills', 'docs', 'time', 'memory', 'advanced']) {
+  for (const g of ['model', 'staffing', 'permission', 'skills', 'docs', 'time', 'advanced']) {
     assert.ok(src.includes(`data-group="${g}"`), `卡片缺 data-group="${g}"`);
   }
+  assert.ok(!src.includes(`data-group="memory"`), '记忆不再属于设置组（已迁独立页签）');
   const css = readFileSync('src/renderer/styles.css', 'utf8');
   assert.match(css, /data-active-group="model"[^\n]*\[data-group\]:not\(\[data-group="model"\]\)/, 'CSS 过滤规则在场');
 });
 
+// 运行/产物页签（2026-11-10）：项目页新增 运行/产物/记忆 页签；三格与两页签的 testid 契约。
+test('运行/产物页签：页面五页签＋三格＋运行/产物/记忆容器在场', () => {
+  const src = readFileSync('src/renderer/components/ProjectOverview.tsx', 'utf8');
+  for (const id of ['project-tab-tasks', 'project-tab-runs', 'project-tab-artifacts', 'project-tab-memory', 'project-tab-settings']) {
+    assert.ok(src.includes(`data-testid="${id}"`), `缺页签 ${id}`);
+  }
+  for (const id of ['project-now', 'project-now-progress', 'project-now-pending', 'project-runs', 'project-runs-list', 'project-artifacts', 'project-artifacts-list', 'project-memory-tab']) {
+    assert.ok(src.includes(`data-testid="${id}"`), `缺容器 ${id}`);
+  }
+  const store = readFileSync('src/renderer/store.ts', 'utf8');
+  assert.match(store, /export async function loadProjectRuns/, '运行/产物拼装走 store（懒加载＋缓存）');
+  assert.match(store, /projectRuns\.signature === signature/, '签名不变不重拉（缓存口径）');
+});
+
 //  S2b（2026-11-09）：归档页集中承载归档项目的恢复/导出/删除（项目页仍保留上下文入口）。
-test('UI-2 S2b：归档页有「归档项目」区；恢复/导出/删除三键＋删除需二次确认', () => {
+test('归档页复核：归档页有「归档项目」区；恢复/导出/删除三键＋删除需二次确认', () => {
   const src = readFileSync('src/renderer/components/TaskListViews.tsx', 'utf8');
   assert.match(src, /data-testid="archive-projects"/, '归档项目区在场');
   for (const id of ['archive-project-restore', 'archive-project-export', 'archive-project-delete']) {
@@ -598,7 +614,7 @@ test('UI-2 S2b：归档页有「归档项目」区；恢复/导出/删除三键�
 
 //   复核（2026-11-09）：设置页「项目模型」随退役时把唯一编辑面一起删了，只剩只读摘要＋
 // 指向不存在的入口。真活搬回项目页「设置·模型」：策略/默认模型/允许清单/默认预算/合并目标分支。
-test('UI-2 S2 复核 P1：项目页「设置·模型」有编辑面，且不再指向已退役的设置入口', () => {
+test('项目页设置复核 P1：项目页「设置·模型」有编辑面，且不再指向已退役的设置入口', () => {
   const src = readFileSync('src/renderer/components/ProjectOverview.tsx', 'utf8');
   for (const id of [
     'project-model-edit',
@@ -621,7 +637,7 @@ test('UI-2 S2 复核 P1：项目页「设置·模型」有编辑面，且不再�
 
 //   复核（2026-11-09）：后端只允许删**空**归档项目；UI 对非空项目必须显式禁用并说明，
 // 恢复/导出/删除的失败要显示出来（此前静默写进 projectActions）。
-test('UI-2 S2b 复核 P2：非空归档项目禁删＋动作回执可见', () => {
+test('归档页复核 复核 P2：非空归档项目禁删＋动作回执可见', () => {
   const src = readFileSync('src/renderer/components/TaskListViews.tsx', 'utf8');
   assert.match(src, /disabled=\{p\.taskCount > 0\}/, '非空项目删除键禁用');
   assert.match(src, /archive-project-action-error/, '动作失败可见');
@@ -631,7 +647,7 @@ test('UI-2 S2b 复核 P2：非空归档项目禁删＋动作回执可见', () =>
 
 // 复核（2026-11-10，独立独立复核冷启动发现）：上次停在归档页时，restoreSession 只走 loadTasks()
 //（不含归档行）也不拉项目 ⇒ 假空态＋删除门失效。恢复路径必须与 showArchive 同口径。
-test('UI-2 S2b 复核 P1：恢复视图=归档时补拉项目列表与归档行', () => {
+test('归档页复核 复核 P1：恢复视图=归档时补拉项目列表与归档行', () => {
   const store = readFileSync('src/renderer/store.ts', 'utf8');
   const start = store.indexOf('export async function restoreSession');
   const end = store.indexOf('export function showNotes', start);

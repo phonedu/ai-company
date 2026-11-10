@@ -44,17 +44,32 @@ import {
   saveProjectModelPolicy,
   saveProjectStaffing,
   saveProjectTargetBranch,
+  cards,
+  hall,
+  loadChannel,
+  loadHall,
+  loadProjectRuns,
+  projectRuns,
   session,
   skillsLibrary,
   staffingDefaults,
   tasks,
 } from '../store';
-import type { ProjectDTO, TaskDTO } from '../types';
+import type { ProjectDTO, ReportDTO, TaskDTO } from '../types';
 import { docsHealthView, docsOrganizeDiff, groupProjectTasks, projectActionState, projectsFromList, STAFFING_TIER_LABEL, staffingFromProject, staffingSummary, type StaffingForm } from './projectView';
+import {
+  collectActiveWorkItems,
+  collectProjectArtifacts,
+  groupProjectArtifacts,
+  liveEmployeesOfProject,
+  pendingCardsOfProject,
+  progressSummary,
+} from './projectRuns.js';
 import { EmptyState } from './EmptyState.js';
 import { PencilIcon } from './icons.js';
 import { STATE_TONE } from './taskVisuals.js';
 import { TaskCreateDialog } from './TaskCreateDialog.js';
+import type { TaskDetailDTO } from './TaskDetail.js';
 import { TaskDetailBody } from './TaskDetailView.js';
 import { ProjectTriggers } from './ProjectTriggers.js';
 import { ProjectMemory } from './ProjectMemory.js';
@@ -98,6 +113,9 @@ export function ProjectOverview(): ReactElement {
   const staffingSnap = useSnapshot(staffingDefaults);
   const skillsSnap = useSnapshot(skillsLibrary);
   const companySnap = useSnapshot(companyConfig);
+  const cardsSnap = useSnapshot(cards);
+  const hallSnap = useSnapshot(hall);
+  const runsSnap = useSnapshot(projectRuns);
   // 项目分工 v1：编辑态＝本地草稿（初值从项目 DTO 取；保存走 store，成功即退出编辑）。
   /** 验收后复查 A：项目别名编辑（新项目/既有项目都从这里写入；`#别名` 解析同源）。 */
   const [aliasEditing, setAliasEditing] = useState(false);
@@ -155,10 +173,10 @@ export function ProjectOverview(): ReactElement {
   /** 2026-10-17（建任务入口批）：页头「＋建任务」→ 结构化表单（预填本项目）；成功回执本页显示。 */
   const [createOpen, setCreateOpen] = useState(false);
   const [createNotice, setCreateNotice] = useState('');
-  //  页签容器（任务/设置；产物/运行/记忆随接入）＋任务搜索＋行下展开（store 承载，深链可写）。
-  const [tab, setTab] = useState<'tasks' | 'settings'>('tasks');
-  //  项目设置的组（默认「模型」；只做显示过滤，卡片与读写口径不动）。
-  const [settingsGroup, setSettingsGroup] = useState<'model' | 'staffing' | 'permission' | 'skills' | 'docs' | 'time' | 'memory' | 'advanced'>('model');
+  // 运行/产物页签：页签＝任务 / 运行 / 产物 / 记忆 / 设置；「记忆」从设置组迁出为独立页签。
+  const [tab, setTab] = useState<'tasks' | 'runs' | 'artifacts' | 'memory' | 'settings'>('tasks');
+  // 项目页设置分组：项目设置的组（默认「模型」；只做显示过滤，卡片与读写口径不动）。「记忆」已迁出为独立页签。
+  const [settingsGroup, setSettingsGroup] = useState<'model' | 'staffing' | 'permission' | 'skills' | 'docs' | 'time' | 'advanced'>('model');
   //   复核（2026-11-09）：项目模型策略／默认预算／合并目标分支的**编辑面**随设置页「项目模型」
   // 被 5d54615 一起删掉了（只剩只读摘要 + 指向已不存在的入口）。编辑搬回「设置·模型」卡，读写口径不变。
   const [modelEditing, setModelEditing] = useState(false);
@@ -208,6 +226,35 @@ export function ProjectOverview(): ReactElement {
 
   const project = selectedProject;
   const actionState = projectActionState(project);
+
+  // 运行/产物页签：三格的数据源（大厅员工现场 / 待拍板卡）。都走既有 store，加载一次后由页面缓存。
+  useEffect(() => {
+    if (!project) return;
+    if (hall.data == null && !hall.loading) void loadHall();
+    if (!cards.loaded && !cards.loading) void loadChannel();
+  }, [project?.id, hall.data, hall.loading, cards.loaded, cards.loading]);
+  // 运行/产物页签：运行/产物页签懒加载（进入页签才拉逐任务详情；签名＝项目＋任务版本，变了才重拉）。
+  const tasksSig = selectedProjectTasks.map((t) => `${t.id}:${t.updatedAt ?? 0}`).join(',');
+  useEffect(() => {
+    if (!project) return;
+    if (tab !== 'runs' && tab !== 'artifacts') return;
+    void loadProjectRuns(project.id, selectedProjectTasks.map((t) => ({ id: t.id, updatedAt: t.updatedAt })));
+  }, [tab, project?.id, tasksSig]);
+
+  // 运行/产物页签·三格：进展＝任务派生摘要；员工现场＝大厅在跑/在等的员工按本项目过滤；
+  // 待拍板＝本项目未决卡。任一为空则不渲染该格；三格全空则整块不渲染（不摆空壳）。
+  const projectTaskIds = new Set(selectedProjectTasks.map((t) => t.id));
+  const progress = progressSummary(selectedProjectTasks);
+  const liveEmployees = liveEmployeesOfProject(hallSnap.data?.employees ?? [], projectTaskIds);
+  const pendingCards = project ? pendingCardsOfProject(cardsSnap.list as unknown as ReportDTO[], project.id) : [];
+  const showNowGrid = selectedProjectTasks.length > 0 || liveEmployees.length > 0 || pendingCards.length > 0;
+  // 运行/产物页签·运行/产物页签的投影（详情数组由 store 懒加载；空数组＝真的没有）。
+  // 切项目瞬间 store 里可能还是上一个项目的详情 ⇒ 只认「projectId 对得上」的那份，防串项目。
+  const runsForThisProject = project != null && runsSnap.projectId === project.id;
+  const runsLoading = runsSnap.loading || (project != null && runsSnap.projectId !== project.id);
+  const runDetails = runsForThisProject ? (runsSnap.details as unknown as TaskDetailDTO[]) : [];
+  const activeWorkItems = collectActiveWorkItems(runDetails);
+  const artifactGroups = groupProjectArtifacts(collectProjectArtifacts(runDetails));
 
   // 真值变化 → 重置草稿（不在项目之间串技能集）；回执/错误只在切换项目时清（保存后的提示要留得住）。
   useEffect(() => {
@@ -673,6 +720,15 @@ export function ProjectOverview(): ReactElement {
             <button type="button" className="project-tab" data-testid="project-tab-tasks" aria-selected={tab === 'tasks'} onClick={() => setTab('tasks')}>
               任务 <span className="project-tab__count">{group.tasks.length}</span>
             </button>
+            <button type="button" className="project-tab" data-testid="project-tab-runs" aria-selected={tab === 'runs'} onClick={() => setTab('runs')}>
+              运行
+            </button>
+            <button type="button" className="project-tab" data-testid="project-tab-artifacts" aria-selected={tab === 'artifacts'} onClick={() => setTab('artifacts')}>
+              产物
+            </button>
+            <button type="button" className="project-tab" data-testid="project-tab-memory" aria-selected={tab === 'memory'} onClick={() => setTab('memory')}>
+              记忆
+            </button>
             <button type="button" className="project-tab" data-testid="project-tab-settings" aria-selected={tab === 'settings'} onClick={() => setTab('settings')}>
               设置
             </button>
@@ -757,6 +813,67 @@ export function ProjectOverview(): ReactElement {
                   </button>
                 );
               })()}
+            </div>
+          ) : null}
+          {/* 运行/产物页签·三格：当前进展（派生，显式标「自动摘要」）/ 员工现场（本项目过滤）/ 待拍板（深链）。
+              任一格无真数据不渲染；三格全空整块不渲染。 */}
+          {project && showNowGrid ? (
+            <div className="project-now" data-testid="project-now">
+              {selectedProjectTasks.length > 0 ? (
+                <div className="project-now__cell" data-testid="project-now-progress">
+                  <div className="project-now__head">
+                    <span className="project-now__title">当前进展</span>
+                    <span className="project-now__badge" title="按任务状态与时间派生，不调用模型">自动摘要</span>
+                  </div>
+                  <p className="project-now__text">
+                    进行中 {progress.running} · 等待 {progress.waiting} · 已完成 {progress.done}
+                  </p>
+                  {progress.latest ? (
+                    <p className="project-now__muted" data-testid="project-now-latest">
+                      最近：{progress.latest.shortId ?? `#${progress.latest.id}`} {progress.latest.title} ·{' '}
+                      {relativeTime(progress.latest.updatedAt)}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              {liveEmployees.length > 0 ? (
+                <div className="project-now__cell" data-testid="project-now-live">
+                  <div className="project-now__head">
+                    <span className="project-now__title">员工现场</span>
+                  </div>
+                  <ul className="project-now__list">
+                    {liveEmployees.slice(0, 4).map((employee) => (
+                      <li key={employee.id} className="project-now__row" data-testid="project-now-employee">
+                        <span className="project-now__name">{employee.name}</span>
+                        <span className="project-now__muted">
+                          {employee.currentAction ?? (employee.status === 'waiting' ? '等待中' : '运行中')}
+                          {employee.currentMinutes != null ? ` · ${employee.currentMinutes} 分钟` : ''}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {pendingCards.length > 0 ? (
+                <div className="project-now__cell" data-testid="project-now-pending">
+                  <div className="project-now__head">
+                    <span className="project-now__title">待拍板</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="project-now__link"
+                    data-testid="project-now-pending-link"
+                    title="打开对应任务详情处理这张卡"
+                    onClick={() => {
+                      const card = pendingCards[0]!;
+                      if (card.taskId != null) void openTaskDetail(card.taskId);
+                    }}
+                  >
+                    {pendingCards.length} 张待你拍板
+                  </button>
+                  <p className="project-now__muted">{pendingCards[0]?.payload.title ?? pendingCards[0]?.payload.question ?? '—'}</p>
+                </div>
+              ) : null}
             </div>
           ) : null}
           {actionsSnap.error ? (
@@ -919,6 +1036,155 @@ export function ProjectOverview(): ReactElement {
             </ul>
             )}
           </section>
+          ) : tab === 'runs' ? (
+          <section className="project-pane__card project-runs-card" data-testid="project-runs">
+            <h3 className="project-pane__cardtitle">运行（活跃工作项 · 只读）</h3>
+            {runsLoading ? (
+              <p className="project-view__muted" data-testid="project-runs-loading">读取中…</p>
+            ) : runsSnap.error ? (
+              <p className="project-pane__error" data-testid="project-runs-error" role="alert">
+                {runsSnap.error}
+              </p>
+            ) : activeWorkItems.length === 0 && history.length === 0 ? (
+              <EmptyState
+                variant="inline"
+                testid="project-runs-empty"
+                title="没有在跑的工作项"
+                hint="任务进入执行后，工作项会在这里出现。"
+              />
+            ) : (
+              <>
+                {activeWorkItems.length === 0 ? (
+                  <p className="project-view__muted" data-testid="project-runs-empty-items">
+                    —（没有未完成的工作项）
+                  </p>
+                ) : (
+                  <ul className="project-runs__list" data-testid="project-runs-list">
+                    {activeWorkItems.map((item) => (
+                      <li
+                        key={`${item.taskId}-${item.idx}`}
+                        className="project-runs__row"
+                        data-testid="project-runs-row"
+                        data-task-id={item.taskId}
+                        data-state={item.state}
+                      >
+                        <button
+                          type="button"
+                          className="project-runs__task"
+                          data-testid="project-runs-task"
+                          title="打开任务详情"
+                          onClick={() => void openTaskDetail(item.taskId)}
+                        >
+                          {item.shortId ?? `#${item.taskId}`}
+                        </button>
+                        <span className="project-runs__step">
+                          {item.idx}. {item.text}
+                        </span>
+                        <span className="project-runs__state" data-state={item.state}>
+                          {item.state === 'running'
+                            ? '进行中'
+                            : item.state === 'failed'
+                              ? '失败'
+                              : item.state === 'blocked'
+                                ? '阻塞'
+                                : '待开始'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <details className="project-runs__history" data-testid="project-runs-history">
+                  <summary>变更历史（本项目 · {history.length} 条）</summary>
+                  {history.length === 0 ? (
+                    <p className="project-view__muted" data-testid="project-history-empty">
+                      —（还没有变更集；任务完成工作项并提交后才会出现）
+                    </p>
+                  ) : (
+                    <ul className="project-history__list" data-testid="project-history">
+                      {history.map((cs) => (
+                        <li key={cs.id} className="project-history__row" data-testid="project-history-row" data-state={cs.state}>
+                          <span className="project-history__task">{cs.shortId ?? `#${cs.taskId}`}</span>
+                          <span className="project-history__branch">{cs.branch ?? '—'}</span>
+                          <span className="project-history__state" data-state={cs.state}>
+                            {cs.state === 'merged' ? '已合并' : cs.state === 'open' ? '待合并' : cs.state}
+                          </span>
+                          <span className="project-history__meta">
+                            {cs.filesChanged} 文件 · +{cs.insertions}/−{cs.deletions}
+                          </span>
+                          <span className="project-history__meta">
+                            {new Date(cs.mergedAt ?? cs.createdAt).toLocaleString('zh-CN')}
+                          </span>
+                          <span className="project-history__summary">{cs.summary ?? cs.commitMsg ?? '—'}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </details>
+              </>
+            )}
+          </section>
+          ) : tab === 'artifacts' ? (
+          <section className="project-pane__card project-artifacts-card" data-testid="project-artifacts">
+            <h3 className="project-pane__cardtitle">产物（本项目 · 只读）</h3>
+            {runsLoading ? (
+              <p className="project-view__muted" data-testid="project-artifacts-loading">读取中…</p>
+            ) : runsSnap.error ? (
+              <p className="project-pane__error" data-testid="project-artifacts-error" role="alert">
+                {runsSnap.error}
+              </p>
+            ) : artifactGroups.length === 0 ? (
+              <EmptyState
+                variant="inline"
+                testid="project-artifacts-empty"
+                title="这个项目还没有产物"
+                hint="任务提交工作项并登记产物后会在这里出现。"
+              />
+            ) : (
+              <ul className="project-artifacts__list" data-testid="project-artifacts-list">
+                {artifactGroups.map((group) => (
+                  <li key={group.key} className="project-artifacts__group" data-testid="project-artifacts-group">
+                    <div className="project-artifacts__row" data-testid="project-artifacts-row">
+                      <span className="project-artifacts__kind">{group.kind === 'image' ? '图片' : group.kind === 'doc' ? '文档' : group.kind}</span>
+                      <button
+                        type="button"
+                        className="project-artifacts__path"
+                        data-testid="project-artifacts-open"
+                        title="打开产出它的任务"
+                        onClick={() => void openTaskDetail(group.latest.taskId)}
+                      >
+                        {group.latest.path}
+                      </button>
+                      <span className="project-artifacts__meta">
+                        {group.latest.shortId ?? `#${group.latest.taskId}`}
+                        {group.latest.originProjectName ? ` · 来自 ${group.latest.originProjectName}` : ''}
+                        {group.older.length > 0 ? ` · 旧版本 ${group.older.length}` : ''}
+                      </span>
+                    </div>
+                    {group.older.length > 0 ? (
+                      <details className="project-artifacts__older" data-testid="project-artifacts-older">
+                        <summary>历史版本（{group.older.length}）</summary>
+                        <ul>
+                          {group.older.map((row) => (
+                            <li key={row.artifactId} className="project-artifacts__row" data-testid="project-artifacts-old-row">
+                              <span className="project-artifacts__kind">旧</span>
+                              <span className="project-artifacts__path">{row.path}</span>
+                              <span className="project-artifacts__meta">
+                                {row.shortId ?? `#${row.taskId}`} · {new Date(row.at).toLocaleString('zh-CN')}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+          ) : tab === 'memory' ? (
+          <section className="project-pane__card" data-testid="project-memory-tab">
+            <ProjectMemory projectId={sessionSnap.selectedProjectId} />
+          </section>
           ) : (
           <section className="project-pane__card" data-testid="project-settings-panel">
           {/* 项目模型策略——摘要＋就地编辑都在本卡（复核：设置页「项目模型」随退役，编辑面搬到这里）。 */}
@@ -935,7 +1201,6 @@ export function ProjectOverview(): ReactElement {
                 ['skills', '技能'],
                 ['docs', '文档'],
                 ['time', '定时'],
-                ['memory', '记忆'],
                 ['advanced', '高级'],
               ] as const).map(([gid, label]) => (
                 <button
@@ -1243,9 +1508,6 @@ export function ProjectOverview(): ReactElement {
                ：外层包 data-group（组件本身不改），否则它会漏在每个组下面。 */}
           <div data-group="time"><ProjectTriggers projectId={sessionSnap.selectedProjectId} /></div>
 
-          {/* B-6：项目概览·项目记忆——老板显式写；pin/忘记/提升全局。 */}
-          <div data-group="memory"><ProjectMemory projectId={sessionSnap.selectedProjectId} /></div>
-
           {/* 项目默认技能集（员工勾选 ∪ 项目默认；只影响该项目下新会话装配）。 */}
           <section className="project-pane__card" data-group="skills" data-testid="project-default-skills">
             <h3 className="project-view__state-title">项目默认技能</h3>
@@ -1547,36 +1809,6 @@ export function ProjectOverview(): ReactElement {
             </div>
             </details>
           ) : null}
-
-          {/*   将迁「运行」页签；先随设置页保底可见。 */}
-          {/*  / C3：变更历史（跨任务；只读人话版） */}
-          <section className="project-pane__card" data-testid="project-history">
-            <h3 className="project-pane__cardtitle">变更历史（本项目 · 最近 50 条）</h3>
-            {history.length === 0 ? (
-              <p className="project-view__muted" data-testid="project-history-empty">
-                —（还没有变更集；任务完成工作项并提交后才会出现）
-              </p>
-            ) : (
-              <ul className="project-history__list">
-                {history.map((cs) => (
-                  <li key={cs.id} className="project-history__row" data-testid="project-history-row" data-state={cs.state}>
-                    <span className="project-history__task">{cs.shortId ?? `#${cs.taskId}`}</span>
-                    <span className="project-history__branch">{cs.branch ?? '—'}</span>
-                    <span className="project-history__state" data-state={cs.state}>
-                      {cs.state === 'merged' ? '已合并' : cs.state === 'open' ? '待合并' : cs.state}
-                    </span>
-                    <span className="project-history__meta">
-                      {cs.filesChanged} 文件 · +{cs.insertions}/−{cs.deletions}
-                    </span>
-                    <span className="project-history__meta">
-                      {new Date(cs.mergedAt ?? cs.createdAt).toLocaleString('zh-CN')}
-                    </span>
-                    <span className="project-history__summary">{cs.summary ?? cs.commitMsg ?? '—'}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
           </section>
           )}
 

@@ -6874,6 +6874,42 @@ select option {
 .project-history__meta { color: var(--text-dim); }
 .project-history__summary { color: var(--text); flex: 1 1 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* 运行/产物页签：项目页三格（当前进展 / 员工现场 / 待拍板）——自适应列宽，窄窗自动换行。 */
+.project-now { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.project-now__cell { display: flex; flex-direction: column; gap: 4px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--panel-2); min-width: 0; }
+.project-now__head { display: flex; align-items: center; gap: 8px; }
+.project-now__title { font-size: var(--text-note); color: var(--text-dim); }
+.project-now__badge { padding: 0 6px; border: 1px solid var(--border); border-radius: var(--radius-pill); font-size: var(--text-note); color: var(--text-dim); }
+.project-now__text { margin: 0; font-size: var(--text-body); color: var(--text); }
+.project-now__muted { margin: 0; font-size: var(--text-note); color: var(--text-dim); overflow-wrap: anywhere; }
+.project-now__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.project-now__row { display: flex; justify-content: space-between; gap: 8px; min-width: 0; }
+.project-now__name { font-size: var(--text-note); color: var(--text); }
+.project-now__link { align-self: flex-start; border: 0; background: transparent; padding: 0; color: var(--accent-ink); font: inherit; font-size: var(--text-body); cursor: pointer; }
+
+/* 运行/产物页签：运行页签（活跃工作项只读列表＋变更历史折叠）。 */
+.project-runs__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.project-runs__row { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: var(--radius-md); min-width: 0; }
+.project-runs__row:hover { background: var(--panel-2); }
+.project-runs__task { flex: 0 0 auto; border: 0; background: transparent; padding: 0; color: var(--accent-ink); font: inherit; font-size: var(--text-note); cursor: pointer; }
+.project-runs__step { flex: 1 1 auto; min-width: 0; font-size: var(--text-note); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-runs__state { flex: 0 0 auto; font-size: var(--text-note); color: var(--text-dim); }
+.project-runs__state[data-state='running'] { color: var(--accent-ink); }
+.project-runs__state[data-state='failed'] { color: var(--danger); }
+.project-runs__history { margin-top: 8px; }
+.project-runs__history > summary { cursor: pointer; font-size: var(--text-note); color: var(--text-dim); }
+
+/* 运行/产物页签：产物页签（类型｜路径｜来源任务；旧版本折叠）。 */
+.project-artifacts__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.project-artifacts__group { min-width: 0; }
+.project-artifacts__row { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: var(--radius-md); min-width: 0; }
+.project-artifacts__row:hover { background: var(--panel-2); }
+.project-artifacts__kind { flex: 0 0 auto; min-width: 32px; font-size: var(--text-note); color: var(--text-dim); }
+.project-artifacts__path { flex: 1 1 auto; min-width: 0; border: 0; background: transparent; padding: 0; color: var(--accent-ink); font: inherit; font-size: var(--text-note); text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-artifacts__meta { flex: 0 0 auto; font-size: var(--text-note); color: var(--text-dim); }
+.project-artifacts__older { margin: 0 0 0 40px; }
+.project-artifacts__older > summary { cursor: pointer; font-size: var(--text-note); color: var(--text-dim); }
+
 /* /：合并冲突结构化面板 */
 .merge-conflict__list { margin: 6px 0; padding-left: 18px; font-size: var(--text-note); color: var(--text); }
 .merge-conflict__file { font-family: var(--font-mono, monospace); }

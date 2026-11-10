@@ -167,6 +167,57 @@ export const archiveView = proxy({
   notice: null as string | null,
 });
 
+/**
+ * 运行/产物页签：项目页「运行 / 产物」页签的数据缓存——逐任务 `task:get` 拼装。
+ * 失效口径：项目切换 或 任务版本签名（id:updatedAt）变化；页签懒加载，进入时才拉。
+ */
+export const projectRuns = proxy({
+  projectId: null as number | null,
+  loading: false,
+  error: null as string | null,
+  signature: '',
+  details: [] as TaskDetailDTO[],
+});
+
+export async function loadProjectRuns(
+  projectId: number,
+  tasks: readonly { id: number; updatedAt?: number }[],
+  options: { force?: boolean } = {},
+): Promise<void> {
+  const api = getApi();
+  if (!api?.task?.get) return;
+  const signature = `${projectId}|${tasks
+    .map((t) => `${t.id}:${t.updatedAt ?? 0}`)
+    .sort()
+    .join(',')}`;
+  if (!options.force && projectRuns.projectId === projectId && projectRuns.signature === signature && projectRuns.error == null) {
+    return;
+  }
+  projectRuns.projectId = projectId;
+  projectRuns.signature = signature;
+  projectRuns.loading = true;
+  projectRuns.error = null;
+  const results: TaskDetailDTO[] = [];
+  let failed = 0;
+  const queue = [...tasks];
+  const worker = async (): Promise<void> => {
+    for (;;) {
+      const next = queue.shift();
+      if (!next) return;
+      try {
+        const detail = (await api.task.get({ taskId: next.id })) as TaskDetailDTO | null | undefined;
+        if (detail) results.push(detail);
+      } catch {
+        failed += 1;
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(4, tasks.length) }, worker));
+  projectRuns.details = results.sort((a, b) => a.task.id - b.task.id);
+  projectRuns.error = failed > 0 ? `${failed} 个任务详情读取失败（已跳过）` : null;
+  projectRuns.loading = false;
+}
+
 /** ``：拉今日成本（`since` = 今日 0 点；**空表 => costRows:0**，顶栏据此显 `—`）。 */
 export async function loadCostSummary(now: number = Date.now()): Promise<void> {
   const api = getApi();

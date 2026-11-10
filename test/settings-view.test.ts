@@ -599,6 +599,8 @@ test('运行/产物页签：页面五页签＋三格＋运行/产物/记忆容�
   assert.match(store, /projectRuns\.signature === signature/, '签名不变不重拉（缓存口径）');
   assert.match(store, /projectRuns\.details = \[\]/, '切项目/失败路径清空旧详情（不串项目）');
   assert.match(store, /projectRunsToken \+= 1/, '失败路径作废在飞的旧请求');
+  assert.match(src, /hall\.error == null/, '大厅失败不自动重试（避免失败-清错循环）');
+  assert.match(src, /cards\.error == null/, '卡片失败不自动重试');
 });
 
 //  S2b（2026-11-09）：归档页集中承载归档项目的恢复/导出/删除（项目页仍保留上下文入口）。

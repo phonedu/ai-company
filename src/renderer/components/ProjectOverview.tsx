@@ -229,11 +229,13 @@ export function ProjectOverview(): ReactElement {
   const actionState = projectActionState(project);
 
   // 运行/产物页签：三格的数据源（大厅员工现场 / 待拍板卡）。都走既有 store，加载一次后由页面缓存。
+  // 失败不自动重试（error 非空就停）：否则失败→重试→清 error 的循环既刷屏又刷 IPC；失败提示保持可见，
+  // 由用户点「重试」显式再拉（loadHall/loadChannel 自己会清 error）。
   useEffect(() => {
     if (!project) return;
-    if (hall.data == null && !hall.loading) void loadHall();
-    if (!cards.loaded && !cards.loading) void loadChannel();
-  }, [project?.id, hall.data, hall.loading, cards.loaded, cards.loading]);
+    if (hall.data == null && !hall.loading && hall.error == null) void loadHall();
+    if (!cards.loaded && !cards.loading && cards.error == null) void loadChannel();
+  }, [project?.id, hall.data, hall.loading, hall.error, cards.loaded, cards.loading, cards.error]);
   // 运行/产物页签：运行/产物页签懒加载（进入页签才拉逐任务详情；签名＝项目＋任务版本，变了才重拉）。
   const tasksSig = selectedProjectTasks.map((t) => `${t.id}:${t.updatedAt ?? 0}`).join(',');
   useEffect(() => {
@@ -246,10 +248,12 @@ export function ProjectOverview(): ReactElement {
   // 待拍板＝本项目未决卡。任一为空则不渲染该格；三格全空则整块不渲染（不摆空壳）。
   const projectTaskIds = new Set(selectedProjectTasks.map((t) => t.id));
   // 进展摘要只算「未归档」的任务：归档是历史收尾，与任务页签的活跃计数同口径。
-  const progress = progressSummary(selectedProjectTasks.filter((t) => t.archived !== 1));
+  const progressTasks = selectedProjectTasks.filter((t) => t.archived !== 1);
+  const progress = progressSummary(progressTasks);
   const liveEmployees = liveEmployeesOfProject(hallSnap.data?.employees ?? [], projectTaskIds);
   const pendingCards = project ? pendingCardsOfProject(cardsSnap.list as unknown as ReportDTO[], project.id) : [];
-  const showNowGrid = selectedProjectTasks.length > 0 || liveEmployees.length > 0 || pendingCards.length > 0;
+  // 只有归档任务的项目不摆「全 0」进展格。
+  const showNowGrid = progressTasks.length > 0 || liveEmployees.length > 0 || pendingCards.length > 0;
   // 运行/产物页签·运行/产物页签的投影（详情数组由 store 懒加载；空数组＝真的没有）。
   // 切项目瞬间 store 里可能还是上一个项目的详情 ⇒ 只认「projectId 对得上」的那份，防串项目。
   const runsForThisProject = project != null && runsSnap.projectId === project.id;
@@ -821,7 +825,7 @@ export function ProjectOverview(): ReactElement {
               任一格无真数据不渲染；三格全空整块不渲染。 */}
           {project && showNowGrid ? (
             <div className="project-now" data-testid="project-now">
-              {selectedProjectTasks.length > 0 ? (
+              {progressTasks.length > 0 ? (
                 <div className="project-now__cell" data-testid="project-now-progress">
                   <div className="project-now__head">
                     <span className="project-now__title">当前进展</span>
@@ -893,11 +897,17 @@ export function ProjectOverview(): ReactElement {
           {project && cardsSnap.error ? (
             <p className="project-pane__error" data-testid="project-now-cards-error" role="alert">
               卡片读取失败：{cardsSnap.error}
+              <button type="button" className="project-now__link" data-testid="project-now-cards-retry" onClick={() => void loadChannel()}>
+                重试
+              </button>
             </p>
           ) : null}
           {project && hallSnap.error ? (
             <p className="project-pane__error" data-testid="project-now-hall-error" role="alert">
               员工现场读取失败：{hallSnap.error}
+              <button type="button" className="project-now__link" data-testid="project-now-hall-retry" onClick={() => void loadHall()}>
+                重试
+              </button>
             </p>
           ) : null}
           {actionsSnap.error ? (
@@ -1072,7 +1082,7 @@ export function ProjectOverview(): ReactElement {
                     {runsSnap.error}（下面只显示读到的部分）
                   </p>
                 ) : null}
-                {activeWorkItems.length === 0 && history.length === 0 ? (
+                {runsSnap.error == null && activeWorkItems.length === 0 && history.length === 0 ? (
                   <EmptyState
                     variant="inline"
                     testid="project-runs-empty"
@@ -1164,7 +1174,7 @@ export function ProjectOverview(): ReactElement {
                     {runsSnap.error}（下面只显示读到的部分）
                   </p>
                 ) : null}
-                {artifactGroups.length === 0 ? (
+                {runsSnap.error == null && artifactGroups.length === 0 ? (
                   <EmptyState
                     variant="inline"
                     testid="project-artifacts-empty"

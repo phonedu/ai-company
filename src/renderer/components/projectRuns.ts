@@ -7,8 +7,11 @@
 import type { ReportDTO, TaskDTO } from '../types.js';
 import type { TaskDetailDTO } from './TaskDetail.js';
 
-/** 「活跃」＝任务还在流程里（含等待/暂停），终态任务不再列入运行页。 */
+/** 「活跃」＝任务还在流程里（含待批准/规划/等待/暂停），终态任务不再列入运行页。 */
 export const ACTIVE_TASK_STATES: ReadonlySet<string> = new Set([
+  'inbox',
+  'planning',
+  'awaiting_approval',
   'ready',
   'executing',
   'verifying',
@@ -123,27 +126,46 @@ export function groupProjectArtifacts(rows: readonly ProjectArtifactRow[]): Proj
 export function progressSummary(tasks: readonly TaskDTO[]): {
   running: number;
   waiting: number;
+  pendingStart: number;
   done: number;
   latest: TaskDTO | null;
 } {
   let running = 0;
   let waiting = 0;
+  let pendingStart = 0;
   let done = 0;
   let latest: TaskDTO | null = null;
   for (const task of tasks) {
     if (task.state === 'executing' || task.state === 'verifying') running += 1;
-    else if (task.state === 'needs_decision' || task.state === 'blocked' || task.state === 'paused') waiting += 1;
+    else if (
+      task.state === 'awaiting_approval' ||
+      task.state === 'needs_decision' ||
+      task.state === 'blocked' ||
+      task.state === 'paused'
+    ) {
+      waiting += 1;
+    } else if (task.state === 'inbox' || task.state === 'planning' || task.state === 'ready') pendingStart += 1;
     else if (task.state === 'done') done += 1;
     if (latest == null || (task.updatedAt ?? 0) > (latest.updatedAt ?? 0)) latest = task;
   }
-  return { running, waiting, done, latest };
+  return { running, waiting, pendingStart, done, latest };
 }
 
-/** 三格·待拍板：本项目未决卡（按时间倒序）。`projectId` 缺省的全局卡不计入。 */
+/** 三格·待拍板：本项目未决卡（只认「需要你决定」的 ask 卡，通知类不算；按时间倒序）。 */
 export function pendingCardsOfProject(cards: readonly ReportDTO[], projectId: number): ReportDTO[] {
   return cards
-    .filter((card) => card.projectId === projectId && card.state === 'pending')
+    .filter((card) => card.projectId === projectId && card.state === 'pending' && card.kind === 'ask')
     .sort((a, b) => b.createdAt - a.createdAt);
+}
+
+/** 产物的类型标签（真实 kind 是 file/url/snapshot/input，不直接给用户看英文）。 */
+export function artifactKindLabel(kind: string): string {
+  if (kind === 'image') return '图片';
+  if (kind === 'doc') return '文档';
+  if (kind === 'url') return '链接';
+  if (kind === 'snapshot') return '快照';
+  if (kind === 'input') return '输入';
+  return '文件';
 }
 
 export interface LiveEmployeeRow {

@@ -169,6 +169,7 @@ export const archiveView = proxy({
 
 /**
  * 运行/产物页签：项目页「运行 / 产物」页签的数据缓存——逐任务 `task:get` 拼装。
+ * 任务宇宙＝该项目全部任务（含归档、不限 7 天窗口）——产物/运行不能因导航或时间窗口缺数据。
  * 失效口径：项目切换 或 任务版本签名（id:updatedAt）变化；页签懒加载，进入时才拉。
  */
 export const projectRuns = proxy({
@@ -179,13 +180,22 @@ export const projectRuns = proxy({
   details: [] as TaskDetailDTO[],
 });
 
-export async function loadProjectRuns(
-  projectId: number,
-  tasks: readonly { id: number; updatedAt?: number }[],
-  options: { force?: boolean } = {},
-): Promise<void> {
+/** 并发代数：切项目时旧请求晚回包，必须丢弃（否则会把上一项目的详情写进当前页）。 */
+let projectRunsToken = 0;
+
+export async function loadProjectRuns(projectId: number, options: { force?: boolean } = {}): Promise<void> {
   const api = getApi();
-  if (!api?.task?.get) return;
+  if (!api?.task?.get || !api?.task?.list) return;
+  // 先取该项目全量任务（含归档、无时间窗），签名＝项目＋任务版本。
+  let tasks: Array<{ id: number; updatedAt?: number }> = [];
+  try {
+    const raw = (await api.task.list({ projectId, includeArchived: true })) as TaskDTO[] | undefined;
+    tasks = (raw ?? []).map((task) => ({ id: task.id, updatedAt: task.updatedAt }));
+  } catch {
+    projectRuns.projectId = projectId;
+    projectRuns.error = '任务列表读取失败';
+    return;
+  }
   const signature = `${projectId}|${tasks
     .map((t) => `${t.id}:${t.updatedAt ?? 0}`)
     .sort()
@@ -193,6 +203,7 @@ export async function loadProjectRuns(
   if (!options.force && projectRuns.projectId === projectId && projectRuns.signature === signature && projectRuns.error == null) {
     return;
   }
+  const token = ++projectRunsToken;
   projectRuns.projectId = projectId;
   projectRuns.signature = signature;
   projectRuns.loading = true;
@@ -213,6 +224,8 @@ export async function loadProjectRuns(
     }
   };
   await Promise.all(Array.from({ length: Math.min(4, tasks.length) }, worker));
+  // 晚回包守卫：期间又切了项目（或触发了新加载）→ 本次结果作废，不写进当前页。
+  if (token !== projectRunsToken || projectRuns.projectId !== projectId) return;
   projectRuns.details = results.sort((a, b) => a.task.id - b.task.id);
   projectRuns.error = failed > 0 ? `${failed} 个任务详情读取失败（已跳过）` : null;
   projectRuns.loading = false;

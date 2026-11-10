@@ -6875,7 +6875,7 @@ select option {
 .project-history__summary { color: var(--text); flex: 1 1 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* 运行/产物页签：项目页三格（当前进展 / 员工现场 / 待拍板）——自适应列宽，窄窗自动换行。 */
-.project-now { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.project-now { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
 .project-now__cell { display: flex; flex-direction: column; gap: 4px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--panel-2); min-width: 0; }
 .project-now__head { display: flex; align-items: center; gap: 8px; }
 .project-now__title { font-size: var(--text-note); color: var(--text-dim); }
@@ -6960,7 +6960,6 @@ select option {
 .project-settings__body[data-active-group="skills"] [data-group]:not([data-group="skills"]),
 .project-settings__body[data-active-group="docs"] [data-group]:not([data-group="docs"]),
 .project-settings__body[data-active-group="time"] [data-group]:not([data-group="time"]),
-.project-settings__body[data-active-group="memory"] [data-group]:not([data-group="memory"]),
 .project-settings__body[data-active-group="advanced"] [data-group]:not([data-group="advanced"]){display:none}
 .project-tab[aria-selected="true"] .project-tab__count{color:var(--text-dim)}
 .project-tasks__toolbar{padding:4px 0 8px}

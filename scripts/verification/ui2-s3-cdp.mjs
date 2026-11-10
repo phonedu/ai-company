@@ -79,22 +79,32 @@ try {
   insertTask.run(1, 'T-3001', 1, '正在执行的任务', '种子', 'executing', AT, AT + 10);
   insertTask.run(2, 'T-3002', 1, '等老板拍板的任务', '种子', 'needs_decision', AT, AT + 9);
   insertTask.run(3, 'T-3003', 1, '已完成的任务', '种子', 'done', AT, AT + 8);
+  insertTask.run(5, 'T-3005', 1, '已归档但有产物的任务', '种子', 'done', AT, AT + 6);
+  db.prepare('UPDATE tasks SET archived = 1, archived_at = ? WHERE id = 5').run(AT + 6);
+  insertTask.run(6, 'T-3006', 1, '等老板批准计划的任务', '种子', 'awaiting_approval', AT, AT + 5);
   const insertStep = db.prepare(
     'INSERT INTO plan_steps(task_id, idx, text, state, created_at, updated_at) VALUES(?,?,?,?,?,?)',
   );
   insertStep.run(1, 1, '搭骨架', 'done', AT, AT);
   insertStep.run(1, 2, '实现主流程', 'running', AT, AT);
   insertStep.run(1, 3, '自测', 'pending', AT, AT);
+  insertStep.run(6, 1, '等批准后开工', 'pending', AT, AT);
   const insertArtifact = db.prepare(
     'INSERT INTO artifacts(task_id, path, kind, note, sha256, created_at) VALUES(?,?,?,?,?,?)',
   );
   insertArtifact.run(3, 'docs/spec.md', 'doc', '第一版规格', 'a'.repeat(64), AT + 100);
   insertArtifact.run(3, 'docs/spec.md', 'doc', '修订版规格', 'b'.repeat(64), AT + 200);
   insertArtifact.run(3, 'assets/cover.png', 'image', '封面', 'c'.repeat(64), AT + 150);
+  insertArtifact.run(5, 'docs/archived.md', 'file', '归档任务的产物', 'd'.repeat(64), AT + 120);
   db.prepare(
     `INSERT INTO reports(task_id, kind, payload, state, dedupe_key, created_at)
      VALUES(2,'ask',?,'pending',?,?)`,
   ).run(JSON.stringify({ title: '需要你拍板：选方案 A 还是 B', question: 'A/B' }), `s3-recipe:${AT}`, AT + 300);
+  // 通知卡（日报）不得被算成「待拍板」。
+  db.prepare(
+    `INSERT INTO reports(task_id, kind, payload, state, dedupe_key, created_at)
+     VALUES(3,'notification',?,'pending',?,?)`,
+  ).run(JSON.stringify({ title: '日报 · 2026-11-10', tldr: '只是通知' }), `s3-recipe-note:${AT}`, AT + 310);
   db.close();
 
   pid = start();
@@ -165,14 +175,14 @@ try {
     step: '三格',
     value: await evalIn(`(() => ({
       progress: document.querySelector('[data-testid=project-now-progress]')?.textContent ?? null,
-      pending: document.querySelector('[data-testid=project-now-pending-link]')?.textContent ?? null,
+      pending: document.querySelector('[data-testid=project-now-pending]')?.textContent ?? null,
       badge: document.querySelector('[data-testid=project-now-progress]')?.textContent?.includes('自动摘要') ?? false,
     }))()`),
   });
   await shot('s3-project-now.png');
 
   // 待拍板深链 → 任务详情
-  await evalIn("document.querySelector('[data-testid=project-now-pending-link]').click()");
+  await evalIn("document.querySelector('[data-testid=project-now-pending] [data-testid=project-now-pending-link]').click()");
   await waitFor("!!document.querySelector('[data-testid=task-detail]')", '待拍板深链到任务详情');
   await evalIn("document.querySelector('[data-testid=leftrail-projects]').click()");
   await waitFor("document.querySelectorAll('[data-testid=ptree-group]').length >= 2", '回到项目树');
@@ -243,14 +253,14 @@ try {
     Array.isArray(steps['页签']) &&
     steps['页签'].length === 5 &&
     String(steps['三格']?.progress ?? '').includes('进行中 1') &&
-    String(steps['三格']?.progress ?? '').includes('等待 1') &&
-    String(steps['三格']?.progress ?? '').includes('已完成 1') &&
+    String(steps['三格']?.progress ?? '').includes('等待 2') &&
+    String(steps['三格']?.progress ?? '').includes('已完成') &&
     steps['三格']?.badge === true &&
     String(steps['三格']?.pending ?? '').includes('1 张待你拍板') &&
-    steps['运行页签']?.rows >= 2 &&
+    steps['运行页签']?.rows >= 3 &&
     String(steps['运行页签']?.text ?? '').includes('实现主流程') &&
     steps['运行页签']?.history === true &&
-    steps['产物页签']?.groups === 2 &&
+    steps['产物页签']?.groups === 3 &&
     steps['产物页签']?.older === 1 &&
     steps['旧版本展开'] === 1 &&
     Array.isArray(steps['设置组']) &&

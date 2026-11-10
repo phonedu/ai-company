@@ -7,6 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  artifactKindLabel,
   collectActiveWorkItems,
   collectProjectArtifacts,
   groupProjectArtifacts,
@@ -79,24 +80,37 @@ test('S3·产物：不同来源项目不合并（引用副本单独成组）', (
   assert.equal(groups.length, 2);
 });
 
-test('S3·三格：进展摘要＝真实计数＋最近更新；待拍板只取本项目未决卡', () => {
+test('S3·三格：进展摘要＝真实计数＋最近更新；待拍板只认本项目未决的 ask 卡', () => {
   const tasks = [
     { id: 1, state: 'executing', updatedAt: 10 },
     { id: 2, state: 'needs_decision', updatedAt: 30 },
     { id: 3, state: 'done', updatedAt: 20 },
     { id: 4, state: 'blocked', updatedAt: 5 },
+    { id: 5, state: 'awaiting_approval', updatedAt: 50 },
+    { id: 6, state: 'planning', updatedAt: 60 },
   ] as unknown as TaskDTO[];
   const p = progressSummary(tasks);
-  assert.deepEqual({ running: p.running, waiting: p.waiting, done: p.done }, { running: 1, waiting: 2, done: 1 });
-  assert.equal(p.latest?.id, 2);
+  assert.deepEqual(
+    { running: p.running, waiting: p.waiting, pendingStart: p.pendingStart, done: p.done },
+    { running: 1, waiting: 3, pendingStart: 1, done: 1 },
+  );
+  assert.equal(p.latest?.id, 6);
 
   const cards = [
-    { id: 1, projectId: 7, state: 'pending', createdAt: 10 },
-    { id: 2, projectId: 7, state: 'resolved', createdAt: 20 },
-    { id: 3, projectId: 8, state: 'pending', createdAt: 30 },
-    { id: 4, projectId: null, state: 'pending', createdAt: 40 },
+    { id: 1, projectId: 7, state: 'pending', kind: 'ask', createdAt: 10 },
+    { id: 2, projectId: 7, state: 'resolved', kind: 'ask', createdAt: 20 },
+    { id: 3, projectId: 8, state: 'pending', kind: 'ask', createdAt: 30 },
+    { id: 4, projectId: null, state: 'pending', kind: 'ask', createdAt: 40 },
+    { id: 5, projectId: 7, state: 'pending', kind: 'notification', createdAt: 50 },
   ] as unknown as ReportDTO[];
   assert.deepEqual(pendingCardsOfProject(cards, 7).map((c) => c.id), [1]);
+});
+
+test('S3·产物：真实 kind 有中文标签（不直接给用户看英文）', () => {
+  assert.equal(artifactKindLabel('file'), '文件');
+  assert.equal(artifactKindLabel('snapshot'), '快照');
+  assert.equal(artifactKindLabel('url'), '链接');
+  assert.equal(artifactKindLabel('image'), '图片');
 });
 
 test('S3·三格：员工现场只留「本项目任务上在跑/在等」的员工', () => {

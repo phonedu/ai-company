@@ -58,6 +58,7 @@ import {
 import type { ProjectDTO, ReportDTO, TaskDTO } from '../types';
 import { docsHealthView, docsOrganizeDiff, groupProjectTasks, projectActionState, projectsFromList, STAFFING_TIER_LABEL, staffingFromProject, staffingSummary, type StaffingForm } from './projectView';
 import {
+  artifactKindLabel,
   collectActiveWorkItems,
   collectProjectArtifacts,
   groupProjectArtifacts,
@@ -238,7 +239,7 @@ export function ProjectOverview(): ReactElement {
   useEffect(() => {
     if (!project) return;
     if (tab !== 'runs' && tab !== 'artifacts') return;
-    void loadProjectRuns(project.id, selectedProjectTasks.map((t) => ({ id: t.id, updatedAt: t.updatedAt })));
+    void loadProjectRuns(project.id);
   }, [tab, project?.id, tasksSig]);
 
   // 运行/产物页签·三格：进展＝任务派生摘要；员工现场＝大厅在跑/在等的员工按本项目过滤；
@@ -825,8 +826,8 @@ export function ProjectOverview(): ReactElement {
                     <span className="project-now__title">当前进展</span>
                     <span className="project-now__badge" title="按任务状态与时间派生，不调用模型">自动摘要</span>
                   </div>
-                  <p className="project-now__text">
-                    进行中 {progress.running} · 等待 {progress.waiting} · 已完成 {progress.done}
+                  <p className="project-now__text" data-testid="project-now-counts">
+                    进行中 {progress.running} · 等待 {progress.waiting} · 待开始 {progress.pendingStart} · 已完成 {progress.done}
                   </p>
                   {progress.latest ? (
                     <p className="project-now__muted" data-testid="project-now-latest">
@@ -852,6 +853,9 @@ export function ProjectOverview(): ReactElement {
                       </li>
                     ))}
                   </ul>
+                  {liveEmployees.length > 4 ? (
+                    <p className="project-now__muted">还有 {liveEmployees.length - 4} 人在本项目</p>
+                  ) : null}
                 </div>
               ) : null}
               {pendingCards.length > 0 ? (
@@ -859,22 +863,36 @@ export function ProjectOverview(): ReactElement {
                   <div className="project-now__head">
                     <span className="project-now__title">待拍板</span>
                   </div>
-                  <button
-                    type="button"
-                    className="project-now__link"
-                    data-testid="project-now-pending-link"
-                    title="打开对应任务详情处理这张卡"
-                    onClick={() => {
-                      const card = pendingCards[0]!;
-                      if (card.taskId != null) void openTaskDetail(card.taskId);
-                    }}
-                  >
-                    {pendingCards.length} 张待你拍板
-                  </button>
-                  <p className="project-now__muted">{pendingCards[0]?.payload.title ?? pendingCards[0]?.payload.question ?? '—'}</p>
+                  <p className="project-now__text">{pendingCards.length} 张待你拍板</p>
+                  <ul className="project-now__list">
+                    {pendingCards.slice(0, 3).map((card) => (
+                      <li key={card.id} className="project-now__row">
+                        <button
+                          type="button"
+                          className="project-now__link"
+                          data-testid="project-now-pending-link"
+                          data-card-id={card.id}
+                          title="打开对应任务详情处理这张卡"
+                          onClick={() => {
+                            if (card.taskId != null) void openTaskDetail(card.taskId);
+                          }}
+                        >
+                          {card.payload.title ?? card.payload.question ?? `卡 #${card.id}`}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  {pendingCards.length > 3 ? (
+                    <p className="project-now__muted">还有 {pendingCards.length - 3} 张（去「待我处理」看全部）</p>
+                  ) : null}
                 </div>
               ) : null}
             </div>
+          ) : null}
+          {project && cardsSnap.error ? (
+            <p className="project-pane__error" data-testid="project-now-cards-error" role="alert">
+              卡片读取失败：{cardsSnap.error}
+            </p>
           ) : null}
           {actionsSnap.error ? (
             <p className="project-pane__error" data-testid="project-error" role="alert">
@@ -1041,19 +1059,22 @@ export function ProjectOverview(): ReactElement {
             <h3 className="project-pane__cardtitle">运行（活跃工作项 · 只读）</h3>
             {runsLoading ? (
               <p className="project-view__muted" data-testid="project-runs-loading">读取中…</p>
-            ) : runsSnap.error ? (
-              <p className="project-pane__error" data-testid="project-runs-error" role="alert">
-                {runsSnap.error}
-              </p>
-            ) : activeWorkItems.length === 0 && history.length === 0 ? (
-              <EmptyState
-                variant="inline"
-                testid="project-runs-empty"
-                title="没有在跑的工作项"
-                hint="任务进入执行后，工作项会在这里出现。"
-              />
             ) : (
               <>
+                {runsSnap.error ? (
+                  <p className="project-pane__error" data-testid="project-runs-error" role="alert">
+                    {runsSnap.error}（下面只显示读到的部分）
+                  </p>
+                ) : null}
+                {activeWorkItems.length === 0 && history.length === 0 ? (
+                  <EmptyState
+                    variant="inline"
+                    testid="project-runs-empty"
+                    title="没有在跑的工作项"
+                    hint="任务进入执行后，工作项会在这里出现。"
+                  />
+                ) : (
+                  <>
                 {activeWorkItems.length === 0 ? (
                   <p className="project-view__muted" data-testid="project-runs-empty-items">
                     —（没有未完成的工作项）
@@ -1120,6 +1141,8 @@ export function ProjectOverview(): ReactElement {
                     </ul>
                   )}
                 </details>
+                  </>
+                )}
               </>
             )}
           </section>
@@ -1128,61 +1151,66 @@ export function ProjectOverview(): ReactElement {
             <h3 className="project-pane__cardtitle">产物（本项目 · 只读）</h3>
             {runsLoading ? (
               <p className="project-view__muted" data-testid="project-artifacts-loading">读取中…</p>
-            ) : runsSnap.error ? (
-              <p className="project-pane__error" data-testid="project-artifacts-error" role="alert">
-                {runsSnap.error}
-              </p>
-            ) : artifactGroups.length === 0 ? (
-              <EmptyState
-                variant="inline"
-                testid="project-artifacts-empty"
-                title="这个项目还没有产物"
-                hint="任务提交工作项并登记产物后会在这里出现。"
-              />
             ) : (
-              <ul className="project-artifacts__list" data-testid="project-artifacts-list">
-                {artifactGroups.map((group) => (
-                  <li key={group.key} className="project-artifacts__group" data-testid="project-artifacts-group">
-                    <div className="project-artifacts__row" data-testid="project-artifacts-row">
-                      <span className="project-artifacts__kind">{group.kind === 'image' ? '图片' : group.kind === 'doc' ? '文档' : group.kind}</span>
-                      <button
-                        type="button"
-                        className="project-artifacts__path"
-                        data-testid="project-artifacts-open"
-                        title="打开产出它的任务"
-                        onClick={() => void openTaskDetail(group.latest.taskId)}
-                      >
-                        {group.latest.path}
-                      </button>
-                      <span className="project-artifacts__meta">
-                        {group.latest.shortId ?? `#${group.latest.taskId}`}
-                        {group.latest.originProjectName ? ` · 来自 ${group.latest.originProjectName}` : ''}
-                        {group.older.length > 0 ? ` · 旧版本 ${group.older.length}` : ''}
-                      </span>
-                    </div>
-                    {group.older.length > 0 ? (
-                      <details className="project-artifacts__older" data-testid="project-artifacts-older">
-                        <summary>历史版本（{group.older.length}）</summary>
-                        <ul>
-                          {group.older.map((row) => (
-                            <li key={row.artifactId} className="project-artifacts__row" data-testid="project-artifacts-old-row">
-                              <span className="project-artifacts__kind">旧</span>
-                              <span className="project-artifacts__path">{row.path}</span>
-                              <span className="project-artifacts__meta">
-                                {row.shortId ?? `#${row.taskId}`} · {new Date(row.at).toLocaleString('zh-CN')}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </details>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
+              <>
+                {runsSnap.error ? (
+                  <p className="project-pane__error" data-testid="project-artifacts-error" role="alert">
+                    {runsSnap.error}（下面只显示读到的部分）
+                  </p>
+                ) : null}
+                {artifactGroups.length === 0 ? (
+                  <EmptyState
+                    variant="inline"
+                    testid="project-artifacts-empty"
+                    title="这个项目还没有产物"
+                    hint="任务提交工作项并登记产物后会在这里出现。"
+                  />
+                ) : (
+                  <ul className="project-artifacts__list" data-testid="project-artifacts-list">
+                    {artifactGroups.map((group) => (
+                      <li key={group.key} className="project-artifacts__group" data-testid="project-artifacts-group">
+                        <div className="project-artifacts__row" data-testid="project-artifacts-row">
+                          <span className="project-artifacts__kind">{artifactKindLabel(group.kind)}</span>
+                          <button
+                            type="button"
+                            className="project-artifacts__path"
+                            data-testid="project-artifacts-open"
+                            title={group.latest.path}
+                            onClick={() => void openTaskDetail(group.latest.taskId)}
+                          >
+                            {group.latest.path}
+                          </button>
+                          <span className="project-artifacts__meta">
+                            {group.latest.shortId ?? `#${group.latest.taskId}`}
+                            {group.latest.originProjectName ? ` · 来自 ${group.latest.originProjectName}` : ''}
+                            {group.older.length > 0 ? ` · 旧版本 ${group.older.length}` : ''}
+                          </span>
+                        </div>
+                        {group.older.length > 0 ? (
+                          <details className="project-artifacts__older" data-testid="project-artifacts-older">
+                            <summary>历史版本（{group.older.length}）</summary>
+                            <ul>
+                              {group.older.map((row) => (
+                                <li key={row.artifactId} className="project-artifacts__row" data-testid="project-artifacts-old-row">
+                                  <span className="project-artifacts__kind">旧</span>
+                                  <span className="project-artifacts__path" title={row.path}>{row.path}</span>
+                                  <span className="project-artifacts__meta">
+                                    {row.shortId ?? `#${row.taskId}`} · {new Date(row.at).toLocaleString('zh-CN')}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </details>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
             )}
           </section>
           ) : tab === 'memory' ? (
-          <section className="project-pane__card" data-testid="project-memory-tab">
+          <section data-testid="project-memory-tab">
             <ProjectMemory projectId={sessionSnap.selectedProjectId} />
           </section>
           ) : (

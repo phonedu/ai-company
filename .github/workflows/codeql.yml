@@ -1,0 +1,37 @@
+# SEC-VERIFY（B-16 P1，2026-11-10）：CodeQL 静态安全分析。
+# 为什么不用通用扫描器的「全量结论」：mimosa 在本仓只能给 inconclusive（调用图被动态派发打断）；
+# CodeQL 的 security-extended 对 JS/TS 不需要构建，结果以 SARIF 进 Security 页可复核。
+# 口径：这是**告警源**，不是「已安全」声明；每条告警按真实数据流人工消解（同 B-15 的做法）。
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # 每周一 20:00 UTC（周二 04:00 本地）补一次全量基线
+    - cron: '0 20 * * 1'
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ['javascript-typescript']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended
+          # JS/TS 不需要编译步骤：直接用源码建库（避免在 CI 里跑 better-sqlite3 原生构建）。
+          build-mode: none
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:${{ matrix.language }}'

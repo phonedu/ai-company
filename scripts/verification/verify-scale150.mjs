@@ -1,4 +1,4 @@
-// 150% 缩放真机验证（2026-11-10 老板：4K 屏没有，150% 可以）：用 Electron 的
+// 150% 缩放真机验证（2026-11-10）：用 Electron 的
 // --force-device-scale-factor=1.5 让 Chromium 走**真实缩放管线**（物理 2x 屏上按 1.5 栅格化/布局），
 // 不是 CDP 的 deviceScaleFactor 模拟。验证：dpr=1.5、零横向溢出、模型表单可开、主操作可见。
 import { spawn, spawnSync } from 'node:child_process';

@@ -94,7 +94,7 @@ export function isSafeDownloadUrl(rawUrl: string): boolean {
     return false;
   }
   if (u.protocol !== 'https:') return false;
-  // SEC-E（2026-11-10，B-16 对抗套件实抓）：URL 内嵌凭据（`https://user:pass@host/x`）此前放行——
+  // SEC-E（2026-11-10，对抗测试实抓）：URL 内嵌凭据（`https://user:pass@host/x`）此前放行——
   // 凭据会进日志/错误文案，且是钓鱼 URL 的常见形态；下载地址不需要凭据，一律拒。
   if (u.username.length > 0 || u.password.length > 0) return false;
   const host = hostOf(u);

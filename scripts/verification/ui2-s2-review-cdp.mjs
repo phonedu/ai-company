@@ -247,7 +247,7 @@ try {
   await waitFor("document.querySelectorAll('[data-testid=archive-project-row]').length === 1", '恢复后归档区只剩 1 行');
   findings.steps.push({ step: '恢复后归档项目数', value: await evalIn("document.querySelectorAll('[data-testid=archive-project-row]').length") });
 
-  // ── ③ 失败路径（2026-11-10 老板令「没验证的全验」）：把 userData/exports 做成**文件**，
+  // ── ③ 失败路径（2026-11-10 验收要求：未验证项全验）：把 userData/exports 做成**文件**，
   // 导出/删除都应在页面上显式报错（不静默）；恢复成目录后再导出应成功并落盘。
   rmSync(join(ud, 'exports'), { recursive: true, force: true });
   writeFileSync(join(ud, 'exports'), 'not a directory', 'utf8');
@@ -277,8 +277,8 @@ try {
     },
   });
 
-  // 冷启动恢复路径（终验员 P1 实抓）：上次视图=archive → **进程级重启**（不是 location.reload——
-  // 旧 DOM 里已有 archive-project-row，等它会立即返回，第二轮终验员实抓断言其实发生在 reload 前）。
+  // 冷启动恢复路径（独立复核实抓）：上次视图=archive → **进程级重启**（不是 location.reload——
+  // 旧 DOM 里已有 archive-project-row，等它会立即返回，第二轮复核实测断言其实发生在 reload 前）。
   // ⚠️ 必须优雅关窗：taskkill /F 会丢 localStorage 的异步落盘（实抓：强制杀后重启 cursor=null，
   // 视图回落 channel，冷启动步骤永远等不到归档行）。
   await evalIn(`localStorage.setItem('aico.session.view', JSON.stringify({view:'archive',selectedTaskId:null,selectedProjectId:null,selectedEmployeeId:null})); window.close(); true`);
@@ -299,7 +299,7 @@ try {
   }))()`);
   findings.steps.push({ step: '冷启动归档页', value: cold });
 
-  // ── ④ 深色 / 窄窗 720 / 非 2x DPI（2026-11-10 老板令：未验证项全验）
+  // ── ④ 深色 / 窄窗 720 / 非 2x DPI（2026-11-10 验收要求：未验证项全验）
   const lightBg = await evalIn('getComputedStyle(document.body).backgroundColor');
   await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'dark' }] });
   await sleep(600);
@@ -353,7 +353,7 @@ try {
   await shot('ui2-s2-model-dpi125.png');
   findings.steps.push({ step: 'DPI1.25', value: dpi });
 
-  // 1.5 / 1.75 缩放档（老板令：非 2x DPI 全验；物理显示器 150% 无法在不动系统设置的前提下切，
+  // 1.5 / 1.75 缩放档（验收要求：非 2x DPI 全验；物理显示器 150% 无法在不动系统设置的前提下切，
   // 用 CDP DSF 模拟作代理口径——它决定 CSS px 与设备 px 的映射，是布局溢出的根因）。
   const scaleChecks = [];
   for (const dsf of [1.5, 1.75]) {

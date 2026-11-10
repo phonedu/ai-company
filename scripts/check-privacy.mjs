@@ -14,7 +14,7 @@ const RULES = [
   { re: new RegExp(P('C:', '/', 'Users', '/', 'dev'), 'i'), why: '本机用户目录' },
   { re: new RegExp(P('D:', '\\', 'ai-company-projects'), 'i'), why: '本机项目根' },
   { re: new RegExp(P('D:', '/', 'ai-company-projects'), 'i'), why: '本机项目根' },
-  { re: new RegExp(P('C:', '\\', 'Project', '\\', 'ai-company'), 'i'), why: '私有仓路径' },
+  { re: new RegExp(P('C:', '\\', 'Project', '\\', 'ai-company'), 'i'), why: '本机私有目录' },
   { re: new RegExp(P('inter', 'nal/(?:\d|next)'), 'i'), why: '内部台账路径' },
   { re: new RegExp(P('history', '/records'), 'i'), why: '内部证据路径' },
   { re: /history\/archive\//i, why: '内部归档路径' },

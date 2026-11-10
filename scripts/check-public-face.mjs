@@ -13,6 +13,8 @@ const forbidden = [
   { re: /\bRW-\d+\b/, why: '内部缺陷编号' },
   { re: /\bF-\d{2}\b/, why: '内部缺陷编号' },
   { re: /老板签收|验收台账|内部裁决|待老板|上报老板/, why: '内部流程用语' },
+  // 2026-11-10：对外文档不该出现「公开仓/私仓」这类跨仓关系词（读者不需要知道代码怎么分仓维护）。
+  { re: /公开仓|私仓|私有仓/, why: '跨仓用语' },
 ];
 const docs = ['README.md', 'CHANGELOG.md', 'CONTRIBUTING.md', 'SECURITY.md'];
 if (existsSync('docs')) {

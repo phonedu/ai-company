@@ -3,7 +3,7 @@
 // `OPT-AI-13` 评测跑器（M2 §7 序 5）。把 `scripts/eval/tasks.json` 的每条任务在**真引擎**上跑一遍，
 // 判分器在本跑器里（命令型 `check`，在工作区执行），产出**质量 / 成本 / 时长**三列。
 //
-//   用法（公开仓：`pnpm eval …`；Node ≥22）：
+//   用法（`pnpm eval …`；Node ≥22）：
 //     pnpm eval --dry-run                          # 管线自测：fake 运行时（零真调、零花费）
 //     pnpm eval --tiers=eco --limit=4              # 真跑：省钱档 4 条
 //     pnpm eval --tiers=eco,std --limit=4 --warmup # 真跑：两档对照（**加 --warmup 剔除冷启动**；V1 读数）
@@ -27,7 +27,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const distMain = join(root, 'dist', 'src', 'main');
-// 公开仓：评测明细落 out/eval（gitignored），不进版本库。
+// 评测明细落 out/eval（gitignored），不进版本库。
 const outDir = join(root, 'out', 'eval');
 
 const arg = (name, dflt) => process.argv.find((a) => a.startsWith(`--${name}=`))?.split('=')[1] ?? dflt;

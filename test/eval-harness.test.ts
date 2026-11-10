@@ -1,5 +1,5 @@
 /**
- * B1-3（57 批1 C4）：`src/main/eval/eval.ts` 此前是**零引用孤件**——评测逻辑在公开仓、跑器只在私有仓。
+ * B1-3（57 批1 C4）：`src/main/eval/eval.ts` 此前是**零引用孤件**——评测逻辑与跑器此前分离。
  * 本测试把「公开任务集 + 公开校验器」接起来（并让 tsc 真实编译 eval.ts），作为跑器 `scripts/eval/run.mjs`
  * 的前置门：任务集不合法（缺 impossible/超 20 条/无 check）就不许开跑。
  */

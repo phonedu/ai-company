@@ -10,7 +10,7 @@
  */
 
 /**
- * SEC-D（2026-11-10，B-16 对抗套件实抓）：`isPermissionApproval` 只认 `[权限] ` 前缀，
+ * SEC-D（2026-11-10，对抗测试实抓）：`isPermissionApproval` 只认 `[权限] ` 前缀，
  * 员工若把升级问题写成 `[权限] 会话工具 bash（consent:egress）…`，老板看到的就是一张「权限卡」，
  * 点批准会走 `applyApprovalAsGrant` ⇒ 伪造授权。宿主落卡前把前缀中和（保留原文可见）。
  */

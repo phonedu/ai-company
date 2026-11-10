@@ -1,4 +1,4 @@
-# SEC-VERIFY（B-16 P1）：gitleaks 配置。
+# gitleaks 密钥扫描配置。
 # 口径：**不按目录大放行**；只豁免①生成物 dist/（.gitignore 已排除，CI 里本来就不在）与
 # ②断言用假密钥所在的测试文件（值都是 TESTONLY/abcdef 这类明显的假串）。新增测试夹具若再触发，
 # 按文件加到下面的 paths，并在提交里说明「这是假值」。

@@ -1,7 +1,7 @@
-# SEC-VERIFY（B-16 P1，2026-11-10）：CodeQL 静态安全分析。
-# 为什么不用通用扫描器的「全量结论」：mimosa 在本仓只能给 inconclusive（调用图被动态派发打断）；
-# CodeQL 的 security-extended 对 JS/TS 不需要构建，结果以 SARIF 进 Security 页可复核。
-# 口径：这是**告警源**，不是「已安全」声明；每条告警按真实数据流人工消解（同 B-15 的做法）。
+# CodeQL 静态安全分析（2026-11-10）：security-extended + SARIF。
+# 为什么不用「一次扫描给结论」：通用扫描器对动态派发密集的工程只能给出「不确定」；
+# CodeQL 对 JS/TS 不需要构建，结果以 SARIF 进 Security 页，可逐条复核。
+# 口径：这是**告警源**，不是「已安全」声明；每条告警按真实数据流人工消解。
 name: CodeQL
 
 on:

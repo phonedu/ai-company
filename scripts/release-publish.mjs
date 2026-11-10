@@ -37,7 +37,10 @@ if (missing.length > 0) {
   process.exit(1);
 }
 const yml = readFileSync(latest, 'utf8');
-if (!new RegExp(`^version:\\s*${version.replace(/\./g, '\\.')}\\s*$`, 'm').test(yml)) {
+// CodeQL（2026-11-10）：version 来自命令行，此前只转义 `.`；`+`/`(` 等元字符会改语义（regex injection）。
+// 转义全部正则元字符（版本号本身只允许 [0-9A-Za-z.-]，这里多转一层不影响正常值）。
+const versionRe = version.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+if (!new RegExp(`^version:\\s*${versionRe}\\s*$`, 'm').test(yml)) {
   console.error(`[release] latest.yml 版本不是 ${version}：\n${yml.slice(0, 300)}`);
   process.exit(1);
 }

@@ -12,12 +12,15 @@ const light = css.slice(css.indexOf(':root {'), css.indexOf('@media (prefers-col
 const dark = css.slice(css.indexOf('@media (prefers-color-scheme: dark)'));
 
 test('F1 浅色 panel-2 不得等于 bg', () => {
-  const v = (k: string, block: string): string | undefined => block.match(new RegExp(`--${k}:\s*([^;]+);`))?.[1].trim().toLowerCase();
+  // CodeQL（2026-11-10）：模板字符串里的 `\s` 会退化成字面 `s`——这里用 String.raw 保真。
+  const v = (k: string, block: string): string | undefined =>
+    block.match(new RegExp(String.raw`--${k}:\s*([^;]+);`))?.[1].trim().toLowerCase();
   assert.ok(v('panel-2', light) !== v('bg', light), 'panel-2 需与 bg 不同');
 });
 
 test('F2 深色 panel 与 bg 不同（层级）', () => {
-  const v = (k: string, block: string): string | undefined => block.match(new RegExp(`--${k}:\s*([^;]+);`))?.[1].trim().toLowerCase();
+  const v = (k: string, block: string): string | undefined =>
+    block.match(new RegExp(String.raw`--${k}:\s*([^;]+);`))?.[1].trim().toLowerCase();
   assert.ok(v('panel', dark) !== v('bg', dark));
 });
 

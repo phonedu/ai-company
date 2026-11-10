@@ -50,6 +50,12 @@ test('B3-7: pushBranch——显式 push 成功（复用系统凭据）；坏 rem
     const bad = pushBranch(dir, 'no-such-remote', branch);
     assert.equal(bad.ok, false);
     assert.match(bad.output, /不存在/);
+    // MIMOSA-1：分支名以 - 开头会被 git 当选项（--all/--force 等价强推全部分支）——必须在进 argv 前拒。
+    for (const evil of ['--all', '--force', '-f', 'main --force']) {
+      const r = pushBranch(dir, 'origin', evil);
+      assert.equal(r.ok, false, `非法分支名应拒：${evil}`);
+      assert.match(r.output, /分支名不合法/);
+    }
   } finally {
     cleanup();
   }

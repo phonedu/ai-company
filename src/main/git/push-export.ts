@@ -53,6 +53,12 @@ export function pushBranch(projectRoot: string, remoteName: string, branch: stri
   if (!remotes.some((r) => r.name === remoteName)) {
     return { ok: false, remote: remoteName, branch, output: `remote '${remoteName}' 不存在（可用：${remotes.map((r) => r.name).join(', ') || '无'}）。` };
   }
+  // MIMOSA-1（2026-11-10 消解静态扫描时发现的真缺陷）：branch 原样进 argv 第三位，
+  // `--all`/`--force` 这类以 - 开头的值会被 git 当选项（等价于对全部分支强推）。
+  // 形状白名单＋禁前导 -；remote 已由 listRemotes 名单精确校验。
+  if (!/^[A-Za-z0-9._/-]+$/.test(branch) || branch.startsWith('-')) {
+    return { ok: false, remote: remoteName, branch, output: `分支名不合法（只允许字母/数字/./_/- 且不以 - 开头）：${branch}` };
+  }
   try {
     const out = execFileSync('git', ['push', remoteName, branch], { cwd: projectRoot, encoding: 'utf8', timeout: 60_000, stdio: ['pipe', 'pipe', 'pipe'] });
     const combined = `${out}${''}`;

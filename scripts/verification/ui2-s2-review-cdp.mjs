@@ -247,6 +247,36 @@ try {
   await waitFor("document.querySelectorAll('[data-testid=archive-project-row]').length === 1", '恢复后归档区只剩 1 行');
   findings.steps.push({ step: '恢复后归档项目数', value: await evalIn("document.querySelectorAll('[data-testid=archive-project-row]').length") });
 
+  // ── ③ 失败路径（2026-11-10 老板令「没验证的全验」）：把 userData/exports 做成**文件**，
+  // 导出/删除都应在页面上显式报错（不静默）；恢复成目录后再导出应成功并落盘。
+  rmSync(join(ud, 'exports'), { recursive: true, force: true });
+  writeFileSync(join(ud, 'exports'), 'not a directory', 'utf8');
+  await evalIn("window.__click('[data-testid=archive-project-export]')");
+  await waitFor("(document.querySelector('[data-testid=archive-project-action-error]')?.textContent||'').includes('导出失败')", '导出失败回执可见', 120);
+  await shot('ui2-s2-archive-export-error.png');
+  findings.steps.push({
+    step: '导出失败回执',
+    value: await evalIn("document.querySelector('[data-testid=archive-project-action-error]')?.textContent ?? null"),
+  });
+  await evalIn("window.__click('[data-testid=archive-project-delete]')");
+  await waitFor("!!document.querySelector('[data-testid=archive-project-delete-confirm]')", '删除二次确认');
+  await evalIn("window.__click('[data-testid=archive-project-delete-confirm]')");
+  await waitFor("(document.querySelector('[data-testid=archive-project-action-error]')?.textContent||'').includes('未删除')", '删除失败回执可见', 120);
+  findings.steps.push({
+    step: '删除失败回执',
+    value: await evalIn("document.querySelector('[data-testid=archive-project-action-error]')?.textContent ?? null"),
+  });
+  rmSync(join(ud, 'exports'), { force: true });
+  await evalIn("window.__click('[data-testid=archive-project-export]')");
+  await waitFor("(document.querySelector('[data-testid=archive-project-action-message]')?.textContent||'').includes('已导出项目档案')", '恢复后导出成功', 120);
+  findings.steps.push({
+    step: '导出成功落盘',
+    value: {
+      message: await evalIn("document.querySelector('[data-testid=archive-project-action-message]')?.textContent ?? null"),
+      files: readdirSync(join(ud, 'exports')).filter((f) => f.endsWith('.json')).length,
+    },
+  });
+
   // 冷启动恢复路径（终验员 P1 实抓）：上次视图=archive → **进程级重启**（不是 location.reload——
   // 旧 DOM 里已有 archive-project-row，等它会立即返回，第二轮终验员实抓断言其实发生在 reload 前）。
   // ⚠️ 必须优雅关窗：taskkill /F 会丢 localStorage 的异步落盘（实抓：强制杀后重启 cursor=null，
@@ -258,6 +288,8 @@ try {
   pid = start();
   await connect();
   await waitFor("!!(window.api && document.querySelector('[data-testid=archive-project-row]'))", '冷启动归档项目行', 160);
+  // 进程重启后是新页面上下文：HELPERS（__click/__setVal）必须重新注入。
+  await evalIn(HELPERS);
   const cold = await evalIn(`(() => ({
     rows: document.querySelectorAll('[data-testid=archive-project-row]').length,
     tasks: document.querySelectorAll('[data-testid=archive-list] [data-testid=tlist-row]').length,
@@ -266,6 +298,62 @@ try {
     restoreNoticeGone: !(document.body.textContent || '').includes('已恢复项目'),
   }))()`);
   findings.steps.push({ step: '冷启动归档页', value: cold });
+
+  // ── ④ 深色 / 窄窗 720 / 非 2x DPI（2026-11-10 老板令：未验证项全验）
+  const lightBg = await evalIn('getComputedStyle(document.body).backgroundColor');
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'dark' }] });
+  await sleep(600);
+  const darkBg = await evalIn('getComputedStyle(document.body).backgroundColor');
+  await shot('ui2-s2-archive-dark.png');
+  findings.steps.push({ step: '深色主题', value: { lightBg, darkBg, changed: lightBg !== darkBg } });
+
+  await evalIn("window.__click('[data-testid=leftrail-projects]')");
+  await waitFor("!!document.querySelector('[data-testid=project-tab-settings]')", '项目页(深色)');
+  await evalIn("window.__click('[data-testid=project-tab-settings]')");
+  await waitFor("!!document.querySelector('[data-testid=project-model-card]')", '模型卡(深色)');
+  await shot('ui2-s2-model-dark.png');
+
+  await send('Emulation.setDeviceMetricsOverride', { width: 720, height: 752, deviceScaleFactor: 1, mobile: false });
+  await sleep(700);
+  // 窄窗下把「设置·模型」也走一遍：单列布局里表单要能开、能滚、主操作可见、零横向溢出。
+  await evalIn("window.__click('[data-testid=project-tab-settings]')");
+  await waitFor("!!document.querySelector('[data-testid=project-model-card]')", '模型卡(720)');
+  await evalIn("window.__click('[data-testid=project-model-edit]')");
+  await waitFor("!!document.querySelector('[data-testid=project-model-form]')", '表单(720)');
+  await sleep(400);
+  const narrow = await evalIn(`(() => {
+    const btn = document.querySelector('[data-testid=project-model-save]').getBoundingClientRect();
+    return {
+      innerW: window.innerWidth,
+      scrollW: document.documentElement.scrollWidth,
+      overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+      saveVisible: btn.bottom <= window.innerHeight,
+    };
+  })()`);
+  await shot('ui2-s2-model-narrow720.png');
+  findings.steps.push({ step: '窄窗720', value: narrow });
+
+  await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 752, deviceScaleFactor: 1.25, mobile: false });
+  await sleep(700);
+  // 视口切换后窄窗抽屉态会重挂中栏：重新走一遍「项目树 → 设置」，别假设上一刻的 DOM 还在。
+  await evalIn("window.__click('[data-testid=leftrail-projects]')");
+  await waitFor("!!document.querySelector('[data-testid=project-tab-settings]')", '项目页(1280)');
+  await evalIn("window.__click('[data-testid=project-tab-settings]')");
+  await waitFor("!!document.querySelector('[data-testid=project-model-card]')", '模型卡(1280)');
+  if ((await evalIn("!!document.querySelector('[data-testid=project-model-form]')")) !== true) {
+    await evalIn("window.__click('[data-testid=project-model-edit]')");
+    await waitFor("!!document.querySelector('[data-testid=project-model-form]')", '编辑表单(1.25x)');
+  }
+  await sleep(500);
+  const dpi = await evalIn(`(() => {
+    const btn = document.querySelector('[data-testid=project-model-save]').getBoundingClientRect();
+    const ctl = document.querySelector('[data-testid=project-model-policy]').getBoundingClientRect();
+    return { saveBottom: Math.round(btn.bottom), viewport: window.innerHeight, saveVisible: btn.bottom <= window.innerHeight, controlLeft: Math.round(ctl.left) };
+  })()`);
+  await shot('ui2-s2-model-dpi125.png');
+  findings.steps.push({ step: 'DPI1.25', value: dpi });
+  await send('Emulation.clearDeviceMetricsOverride');
+  await send('Emulation.setEmulatedMedia', { features: [] });
   await shot('ui2-s2-archive-coldstart.png');
 
   findings.ok = true;
@@ -304,6 +392,13 @@ try {
     (findings.steps.find((s) => s.step === '归档项目行（含删除键状态）')?.value ?? []).some((r) => r.name?.includes('归档空样例') && r.deleteDisabled === false) &&
     findings.steps.find((s) => s.step === '恢复后归档项目数')?.value === 1 &&
     findings.steps.find((s) => s.step === '摘要字号')?.value === '15px' &&
+    String(findings.steps.find((s) => s.step === '导出失败回执')?.value ?? '').includes('导出失败') &&
+    String(findings.steps.find((s) => s.step === '删除失败回执')?.value ?? '').includes('未删除') &&
+    findings.steps.find((s) => s.step === '导出成功落盘')?.value?.files >= 1 &&
+    findings.steps.find((s) => s.step === '深色主题')?.value?.changed === true &&
+    findings.steps.find((s) => s.step === '窄窗720')?.value?.overflow === false &&
+    findings.steps.find((s) => s.step === '窄窗720')?.value?.saveVisible === true &&
+    findings.steps.find((s) => s.step === 'DPI1.25')?.value?.saveVisible === true &&
     findings.steps.find((s) => s.step === '归档项目名样式')?.value?.fontSize === '15px' &&
     findings.steps.find((s) => s.step === '归档项目名样式')?.value?.background === 'rgba(0, 0, 0, 0)' &&
     findings.steps.find((s) => s.step === '冷启动归档页')?.value?.restoreNoticeGone === true &&

@@ -3885,6 +3885,9 @@ textarea:focus {
 .project-view__docs-row .project-view__model-summary {
   font-size: var(--text-body);
   color: var(--text);
+  /* 终验员 P3 排版细节：CJK 默认可在任意字间断行，「合并目标」被拆成「合 / 并」——keep-all 只在空格/
+     分隔符处断。 */
+  word-break: keep-all;
 }
 
 /* ───────── 双栏改版（2026-10-17 老板令「不做跳转，一页两栏」）─────────

@@ -245,7 +245,8 @@ export function ProjectOverview(): ReactElement {
   // 运行/产物页签·三格：进展＝任务派生摘要；员工现场＝大厅在跑/在等的员工按本项目过滤；
   // 待拍板＝本项目未决卡。任一为空则不渲染该格；三格全空则整块不渲染（不摆空壳）。
   const projectTaskIds = new Set(selectedProjectTasks.map((t) => t.id));
-  const progress = progressSummary(selectedProjectTasks);
+  // 进展摘要只算「未归档」的任务：归档是历史收尾，与任务页签的活跃计数同口径。
+  const progress = progressSummary(selectedProjectTasks.filter((t) => t.archived !== 1));
   const liveEmployees = liveEmployeesOfProject(hallSnap.data?.employees ?? [], projectTaskIds);
   const pendingCards = project ? pendingCardsOfProject(cardsSnap.list as unknown as ReportDTO[], project.id) : [];
   const showNowGrid = selectedProjectTasks.length > 0 || liveEmployees.length > 0 || pendingCards.length > 0;
@@ -892,6 +893,11 @@ export function ProjectOverview(): ReactElement {
           {project && cardsSnap.error ? (
             <p className="project-pane__error" data-testid="project-now-cards-error" role="alert">
               卡片读取失败：{cardsSnap.error}
+            </p>
+          ) : null}
+          {project && hallSnap.error ? (
+            <p className="project-pane__error" data-testid="project-now-hall-error" role="alert">
+              员工现场读取失败：{hallSnap.error}
             </p>
           ) : null}
           {actionsSnap.error ? (

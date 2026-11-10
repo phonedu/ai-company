@@ -186,13 +186,23 @@ let projectRunsToken = 0;
 export async function loadProjectRuns(projectId: number, options: { force?: boolean } = {}): Promise<void> {
   const api = getApi();
   if (!api?.task?.get || !api?.task?.list) return;
+  // 切项目先作废旧缓存：否则「列表请求在飞/失败」的窗口里，页面会拿上一项目的详情当本项目的。
+  if (projectRuns.projectId !== projectId) {
+    projectRuns.details = [];
+    projectRuns.signature = '';
+  }
   // 先取该项目全量任务（含归档、无时间窗），签名＝项目＋任务版本。
   let tasks: Array<{ id: number; updatedAt?: number }> = [];
   try {
     const raw = (await api.task.list({ projectId, includeArchived: true })) as TaskDTO[] | undefined;
     tasks = (raw ?? []).map((task) => ({ id: task.id, updatedAt: task.updatedAt }));
   } catch {
+    // 失败路径同样要清干净：details 清空、signature 作废、loading 复位，并作废在飞的旧请求。
+    projectRunsToken += 1;
     projectRuns.projectId = projectId;
+    projectRuns.details = [];
+    projectRuns.signature = '';
+    projectRuns.loading = false;
     projectRuns.error = '任务列表读取失败';
     return;
   }

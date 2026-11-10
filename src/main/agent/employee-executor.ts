@@ -25,6 +25,7 @@ import { buildPlanningContext, buildReviewContext, type PlanningContextInput, ty
 import { sessionCompactionStats } from './compaction-policy.js';
 import { contextWindowForModel } from './model-catalog.js';
 import { formatMachineChecks, runAcceptanceChecksAsync } from './acceptance-checks.js';
+import { neutralizeEscalationQuestion } from './escalate-to-boss-tool.js';
 import { sendRecruitCard } from './assistant-cards.js';
 import { heartbeatWorkItem } from '../engine/timers.js';
 import { getFallbackChain, getRoleMap, isProviderUnavailableError, modelRefKey, normalModelName, providerBackoffMs, resolveSessionModel } from './model-policy.js';
@@ -1725,9 +1726,11 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
       if (wiAtSettle?.state !== 'interrupted') {
         const escalations = result.toolCalls.filter((t) => t.name === 'escalate_to_boss' && t.isError !== true);
         for (const [i, esc] of escalations.entries()) {
-          const input = esc.input as { question?: unknown; options?: unknown; selection?: unknown };
-          const question = String(input.question ?? '').trim();
+          const rawInput = esc.input as { question?: unknown; options?: unknown; selection?: unknown };
+          // SEC-D：员工不能把升级问题伪装成权限卡（`[权限] …`）——落卡前中和前缀。
+          const question = neutralizeEscalationQuestion(String(rawInput.question ?? ''));
           if (!question) continue;
+          const input = { ...rawInput, question };
           // RW-21 泛化：工具传入的结构化选项直通决策卡按钮（脏数据丢弃——只留 key/label 都是非空字符串的项）。
           const rawOptions = Array.isArray(input.options) ? input.options : [];
           const options = rawOptions

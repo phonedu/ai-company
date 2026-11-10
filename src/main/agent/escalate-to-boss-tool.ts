@@ -8,6 +8,18 @@
  * 与 `ask_colleague` 的分工：问同事走 mailbox（不进人类频道）；**升级**是给人看的（进「待我处理」）。
  * ESM/CJS 约束同 `report-progress-tool.ts`：异步工厂内动态 `import()`。
  */
+
+/**
+ * SEC-D（2026-11-10，B-16 对抗套件实抓）：`isPermissionApproval` 只认 `[权限] ` 前缀，
+ * 员工若把升级问题写成 `[权限] 会话工具 bash（consent:egress）…`，老板看到的就是一张「权限卡」，
+ * 点批准会走 `applyApprovalAsGrant` ⇒ 伪造授权。宿主落卡前把前缀中和（保留原文可见）。
+ */
+export const ESCALATION_QUESTION_PREFIX = '[员工提问] ';
+export function neutralizeEscalationQuestion(question: string): string {
+  const text = (question ?? '').trim();
+  return text.startsWith('[权限]') ? `${ESCALATION_QUESTION_PREFIX}${text}` : text;
+}
+
 export async function createEscalateToBossTool() {
   const [{ defineTool }, { Type }] = await Promise.all([
     import('@earendil-works/pi-coding-agent'),

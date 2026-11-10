@@ -897,6 +897,7 @@ export function ProjectOverview(): ReactElement {
           {project && cardsSnap.error ? (
             <p className="project-pane__error" data-testid="project-now-cards-error" role="alert">
               卡片读取失败：{cardsSnap.error}
+              {' · '}
               <button type="button" className="project-now__link" data-testid="project-now-cards-retry" onClick={() => void loadChannel()}>
                 重试
               </button>
@@ -905,6 +906,7 @@ export function ProjectOverview(): ReactElement {
           {project && hallSnap.error ? (
             <p className="project-pane__error" data-testid="project-now-hall-error" role="alert">
               员工现场读取失败：{hallSnap.error}
+              {' · '}
               <button type="button" className="project-now__link" data-testid="project-now-hall-retry" onClick={() => void loadHall()}>
                 重试
               </button>
@@ -1091,11 +1093,11 @@ export function ProjectOverview(): ReactElement {
                   />
                 ) : (
                   <>
-                {activeWorkItems.length === 0 ? (
+                {activeWorkItems.length === 0 && runsSnap.error == null ? (
                   <p className="project-view__muted" data-testid="project-runs-empty-items">
                     —（没有未完成的工作项）
                   </p>
-                ) : (
+                ) : activeWorkItems.length === 0 ? null : (
                   <ul className="project-runs__list" data-testid="project-runs-list">
                     {activeWorkItems.map((item) => (
                       <li

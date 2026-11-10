@@ -1,0 +1,26 @@
+# SEC-VERIFY（B-16 P1）：gitleaks 配置。
+# 口径：**不按目录大放行**；只豁免①生成物 dist/（.gitignore 已排除，CI 里本来就不在）与
+# ②断言用假密钥所在的测试文件（值都是 TESTONLY/abcdef 这类明显的假串）。新增测试夹具若再触发，
+# 按文件加到下面的 paths，并在提交里说明「这是假值」。
+title = 'ai-company gitleaks'
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = '生成物（dist/ 已在 .gitignore；本地跑 dir 模式时会扫到）'
+paths = ['''^dist/''']
+
+[[allowlists]]
+description = '测试断言用的假密钥（sk-proj-TESTONLY… / sk-abcdef… / sk_live_TESTONLY…）'
+paths = [
+  '''^test/agent-status\.test\.ts$''',
+  '''^test/agent-thinking\.test\.ts$''',
+  '''^test/custom-providers\.test\.ts$''',
+  '''^test/memory-ipc\.test\.ts$''',
+  '''^test/memory-store\.test\.ts$''',
+  '''^test/notify-redact\.test\.ts$''',
+  '''^test/notify\.test\.ts$''',
+  '''^test/provider-keys\.test\.ts$''',
+  '''^test/raw-conversation\.test\.ts$''',
+]

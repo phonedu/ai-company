@@ -1,5 +1,5 @@
 /**
- * M3 联动修复 P1：派生自动完成事件必须到达 config.onEvent（trigger service 的入口）。
+ *  联动修复 P1：派生自动完成事件必须到达 config.onEvent（trigger service 的入口）。
  * 旧实现只在 enqueue 时调 onEvent；L0/未抽验 L1 的 `verification_completed` 是派生事件，
  * trigger 永远看不到 ⇒「当 T1 完成」不触发。
  */

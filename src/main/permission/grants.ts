@@ -1,5 +1,5 @@
 /**
- * G1 余项（M2）· **`approvals → grants` 转换回路**：批准一次 `ask` → 发一条**最小范围**的 grant →
+ * G1 余项· **`approvals → grants` 转换回路**：批准一次 `ask` → 发一条**最小范围**的 grant →
  * 下次**同一规则**的调用放行（不再追问）。
  *
  * 口径（2884①）：
@@ -34,7 +34,7 @@ export function parsePermissionQuestion(question: string): ParsedPermissionQuest
 }
 
 /**
- * D-19 P1：**频道助手无任务审批**的问题格式。
+ *  P1：**频道助手无任务审批**的问题格式。
  * 任务审批复用 `[权限] 会话工具 …`；频道审批没有 task_id，必须显式带项目与（可选的）本应用会话，
  * 否则批准后无处落 grant（不能静默当成任务审批）。
  */
@@ -136,7 +136,7 @@ export function issueGrant(db: SqliteDb, input: IssueGrantInput): { granted: boo
 }
 
 /**
- * B4b 安全批（2026-11-09 审查 F2）：spend grant **用后即焚**——「批准一次」语义落地。
+ *  安全批（2026-11-09 审查）：spend grant **用后即焚**——「批准一次」语义落地。
  * 会话闸门放行一次花钱调用后消费之；同会话再次调用重新弹卡（gate 文案「逐次批准」自此成立）。
  * 纯 DB 操作；无匹配 grant 时幂等返回 false。external 类 grant 不在此列（对外放行保持会话内有效）。
  */
@@ -180,7 +180,7 @@ export interface IssueChannelGrantInput {
 }
 
 /**
- * D-19 P1：写频道助手的**项目级/会话级** grant。
+ *  P1：写频道助手的**项目级/会话级** grant。
  * - `sessionKey` 有 → `scope='session'`（本应用会话；由 `SessionToolGate` 的会话过滤生效）；
  * - 无 → `scope='project'`（该项目内所有频道助手会话）。
  * 幂等键 = `(rule, toolName, sessionKey ?? '')`；保留项目策略里其它字段（含 `assistantWriteMode`）。
@@ -226,7 +226,7 @@ export function issueChannelGrant(
 /**
  * 把一条**已批准**的权限审批转成 grant（幂等）。
  * - 任务审批：`[权限] 会话工具 …` + `task_id` → 任务/会话 grant（G1）。
- * - 频道审批（D-19 P1）：`[权限] 频道写操作 … [project:<id>|session:<key>]` + `task_id=null`
+ * - 频道审批（P1）：`[权限] 频道写操作 … [project:<id>|session:<key>]` + `task_id=null`
  *   → `approve_once` 写会话级、`approve_project` 写项目级 grant。
  * - 非权限审批 / 非批准 / 无上下文 / 问题不可解析 → `applied:false` + 原因（**不静默**）。
  */
@@ -240,7 +240,7 @@ export function applyApprovalAsGrant(
   if (!isPermissionApproval(row.question)) return { applied: false, reason: 'not_permission_approval' };
   const by = opts.approvedBy ?? row.decided_by ?? 'boss';
 
-  // D-19 P1：频道审批先分流——它没有 task_id，不能落到任务 grant。
+  //  P1：频道审批先分流——它没有 task_id，不能落到任务 grant。
   const channel = parseChannelPermissionQuestion(row.question);
   if (channel) {
     if (row.task_id != null) return { applied: false, reason: 'channel_with_task_context' };

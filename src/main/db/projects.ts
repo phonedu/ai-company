@@ -18,23 +18,23 @@ export interface ProjectRow extends ProjectRef {
   attention: string;
   access_mode: string;
   default_employee_ids: string;
-  /** 编制（D-11）：默认负责人（NULL＝未设置 → 缺省链兜底）。 */
+  /** 编制：默认负责人（NULL＝未设置 → 缺省链兜底）。 */
   default_owner_id: number | null;
-  /** 编制（D-11）：默认档 0/1/2（NULL＝未设置 → 建任务 db 缺省 1）。 */
+  /** 编制：默认档 0/1/2（NULL＝未设置 → 建任务 db 缺省 1）。 */
   default_risk_tier: number | null;
-  /** M3-DOC-4：项目级文档检查开关（1=任务验收默认挂文档检查；0=不挂/未检查）。 */
+  /** 项目级文档检查开关（1=任务验收默认挂文档检查；0=不挂/未检查）。 */
   docs_check_enabled: number;
   default_skills: string;
   allowed_providers: string;
-  /** D-22：项目默认模型（NULL＝未设置）。 */
+  /** 项目默认模型（NULL＝未设置）。 */
   default_model: string | null;
-  /** D-22：模型级允许清单 JSON 数组（空数组＝不额外限制）。 */
+  /** 模型级允许清单 JSON 数组（空数组＝不额外限制）。 */
   allowed_models: string;
-  /** D-22：fixed | employee_first | assistant（assistant 写侧暂拒）。 */
+  /** fixed | employee_first | assistant（assistant 写侧暂拒）。 */
   model_policy: string;
   /** v19：新任务默认 token 预算（NULL＝不限；任务显式预算优先）。 */
   default_budget_tokens: number | null;
-  /** S13-G/D-N06：合并目标分支（NULL＝沿用 main/master）。 */
+  /** /：合并目标分支（NULL＝沿用 main/master）。 */
   target_branch: string | null;
   archived: number;
   archived_at: number | null;
@@ -48,7 +48,7 @@ export function getProjectById(db: SqliteDb, id: number): ProjectRow | undefined
   return db.prepare(`SELECT ${COLUMNS} FROM projects WHERE id = ?`).get(id) as ProjectRow | undefined;
 }
 
-/** 别名寻址只认未归档项目（FLOWS：归档项目不再被别名寻址）。 */
+/** 别名寻址只认未归档项目（：归档项目不再被别名寻址）。 */
 export function getProjectByAlias(db: SqliteDb, alias: string): ProjectRef | null {
   const row = db
     .prepare('SELECT id, name FROM projects WHERE alias = ? AND archived = 0')
@@ -61,7 +61,7 @@ export function listProjects(db: SqliteDb, options: { includeArchived?: boolean 
   return db.prepare(`SELECT ${COLUMNS} FROM projects${where} ORDER BY id`).all() as ProjectRow[];
 }
 
-/** R2-4：新建项目（**只记录路径，不搬动/不复制目录**——PLAN §15.2「关联已有文件夹」口径）。 */
+/** R2-4：新建项目（**只记录路径，不搬动/不复制目录**——「关联已有文件夹」口径）。 */
 export function createProject(
   db: SqliteDb,
   input: { name: string; rootDir: string; accessMode?: string; alias?: string | null; now: number },
@@ -87,7 +87,7 @@ export function setProjectAlias(db: SqliteDb, id: number, alias: string | null):
   return getProjectById(db, id);
 }
 
-/** S13-G/D-N06：设置/清空合并目标分支（空串归一为 NULL＝沿用 main/master）。 */
+/** /：设置/清空合并目标分支（空串归一为 NULL＝沿用 main/master）。 */
 export function setProjectTargetBranch(
   db: SqliteDb,
   id: number,
@@ -180,7 +180,7 @@ export function getDefaultProject(db: SqliteDb): ProjectRef | null {
   return row ?? null;
 }
 
-// ── 编制 v1（D-11）：项目级三项缺省（默认负责人 / 默认执行员工 / 默认档）──────────────
+// ── 编制 v1：项目级三项缺省（默认负责人 / 默认执行员工 / 默认档）──────────────
 // 写者（唯一）：`project:staffing-set`（ipc handler）。读面＝`ProjectDTO`（零新读通道）。
 // 语义：**只影响之后派发的工作项**（owner/tier 建任务时快照；默认执行员工在派发缺省链②读取）；
 // 已派发工作项不回改；未设置 ⇒ 回落（缺省链 / db 缺省），绝不臆造。
@@ -196,7 +196,7 @@ export type StaffingWriteResult =
   | { ok: false; code: 'not_found' | 'unknown_employee' | 'bad_value'; message: string };
 
 /** 在职校验（写侧守卫与读侧回落共用：不存在 / active=0 一律不认）。 */
-/** 编制只能选**在职且非幕僚长**的员工：幕僚长只协调，不做执行兜底（D-20）。 */
+/** 编制只能选**在职且非幕僚长**的员工：幕僚长只协调，不做执行兜底。 */
 function isActiveEmployee(db: SqliteDb, employeeId: number): boolean {
   const row = db.prepare('SELECT active, is_assistant FROM employees WHERE id = ?').get(employeeId) as
     | { active: number; is_assistant: number }
@@ -243,14 +243,14 @@ export function setProjectStaffing(
   return { ok: true, row: updated };
 }
 
-/** M3-DOC-4：项目级文档检查开关（唯一写入口；不存在 → null，不臆造）。 */
+/** 项目级文档检查开关（唯一写入口；不存在 → null，不臆造）。 */
 export function setProjectDocsCheck(db: SqliteDb, projectId: number, enabled: boolean): ProjectRow | undefined {
   db.prepare('UPDATE projects SET docs_check_enabled = ? WHERE id = ?').run(enabled ? 1 : 0, projectId);
   return getProjectById(db, projectId);
 }
 
 /**
- * B3（M3-N-3）：项目默认技能集（唯一写入口）。存**技能名**数组（稳定、可读）；
+ * 项目默认技能集（唯一写入口）。存**技能名**数组（稳定、可读）；
  * 调用方（IPC）已校验全部为启用中的技能。只影响该项目下新会话的装配，不改员工档案。
  */
 export function setProjectDefaultSkills(
@@ -271,7 +271,7 @@ function parseStringArray(raw: string): string[] {
   }
 }
 
-/** D-22：读项目模型策略（坏 JSON/未知策略 → 防御性回落；不抛）。 */
+/** 读项目模型策略（坏 JSON/未知策略 → 防御性回落；不抛）。 */
 export function getProjectModelPolicy(db: SqliteDb, projectId: number): ProjectModelPolicy | null {
   const row = getProjectById(db, projectId);
   if (!row) return null;
@@ -283,7 +283,7 @@ export function getProjectModelPolicy(db: SqliteDb, projectId: number): ProjectM
 }
 
 /**
- * D-22：写项目模型策略（唯一写入口；校验在 `core/model-tiers.ts#projectModelPolicyError`）。
+ * 写项目模型策略（唯一写入口；校验在 `core/model-tiers.ts#projectModelPolicyError`）。
  * 三字段整体提交（未给的字段视为默认值：policy=employee_first / default=null / allowed=[]）。
  */
 export function setProjectModelPolicy(
@@ -341,8 +341,8 @@ export function setProjectDefaultBudget(
 }
 
 /**
- * 派发缺省链②（D-6/D-11）：取项目编制里的**首个在职且非幕僚长**默认执行员工；跳过失活/幻影/幕僚长；
- * 无一可用 ⇒ `null`（调用方回落负责人 → 首个可执行员工/自动招募，D-20；不猜、不报错）。
+ * 派发缺省链②（D-6/）：取项目编制里的**首个在职且非幕僚长**默认执行员工；跳过失活/幻影/幕僚长；
+ * 无一可用 ⇒ `null`（调用方回落负责人 → 首个可执行员工/自动招募，；不猜、不报错）。
  */
 export function resolveDefaultEmployeeId(db: SqliteDb, projectId: number): number | null {
   const row = db.prepare('SELECT default_employee_ids FROM projects WHERE id = ?').get(projectId) as

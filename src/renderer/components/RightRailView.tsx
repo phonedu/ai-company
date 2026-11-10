@@ -1,5 +1,5 @@
 /**
- * 右栏纯展示层（2026-10-17 细节优化批 B2）。
+ * 右栏纯展示层（2026-10-17 细节优化批）。
  *
  * 两种上下文：
  *   - 全局：今日概览 + 资源占用 + 「谁在忙」；回答"为什么慢"的入口去公司大厅。
@@ -31,7 +31,7 @@ export interface TaskRailProps {
   cost?: CostSummaryDTO | null;
   loading?: boolean;
   error?: string | null;
-  /** UG-05：产物名可点开统一预览抽屉（缺省 → 纯文本，不假装可点）。 */
+  /** 产物名可点开统一预览抽屉（缺省 → 纯文本，不假装可点）。 */
   onPreviewArtifact?: (artifactId: number) => void;
 }
 

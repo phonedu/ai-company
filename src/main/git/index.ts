@@ -1,4 +1,4 @@
-/** `src/main/git` 公共出口（DEV §2：分支/提交/合并/diff；M1 部分只做 worktree + 路径白名单提交）。 */
+/** `src/main/git` 公共出口（：分支/提交/合并/diff； 部分只做 worktree + 路径白名单提交）。 */
 export {
   WorktreeManager,
   createGitRunner,

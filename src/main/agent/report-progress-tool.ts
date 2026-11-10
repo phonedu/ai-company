@@ -1,7 +1,7 @@
 /**
- * `report_progress` customTool 定义（EMPLOYEES §2 五工具之一；M0 只实做这一个）。
+ * `report_progress` customTool 定义（五工具之一； 只实做这一个）。
  *
- * 参数（字段契约权威：`EMPLOYEES §2.1`；与 `DEV §4` 第 8 条投影对齐）：
+ * 参数（字段契约权威：``；与 `` 第 8 条投影对齐）：
  *   `{ stepIdx: number(>=1), state: 'pending'|'running'|'done'|'skipped'|'failed', note?: string }`
  *
  * ⚠️ 本工具**只做信号**：真正的落库（`progress_reported` 事件 + `plan_steps` 投影）由宿主

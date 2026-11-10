@@ -1,5 +1,5 @@
 /**
- * Windows toast AUMID（2026-10-29，S13 未验证收口）：
+ * Windows toast AUMID（2026-10-29， 未验证收口）：
  *
  * 旧实现 `app.setAppUserModelId(process.execPath)`——开发态 AUMID 是 electron.exe 的绝对路径，
  * 安装态随安装目录变化，注册表/开始菜单快捷方式无法稳定登记同一 ID，Windows 会把 toast 静默丢弃。

@@ -1,5 +1,5 @@
 /**
- * OPT-M10-1 · 员工间结构化 mailbox（`PLAN §G-6` 裁决：复用 `notifications` + `task_events`，不新增表）。
+ * OPT- · 员工间结构化 mailbox（`` 决定：复用 `notifications` + `task_events`，不新增表）。
  *
  * 验收：**员工问答走 mailbox；人类频道无员工间噪声**（不写 `human_messages`、不落 `im:*`/`desktop`）；
  * **未实现通道返回明确错误码**；**幂等重放不重复投递**。每条断言可被弄红。

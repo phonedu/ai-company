@@ -1,5 +1,5 @@
 /**
- * B0-9③（58 §3.1 洞 3）：bash 内容外发无门的回归测试。
+ * bash 内容外发无门的回归测试。
  *
  * 旧实现：`gate` 按**工具名**分类——`web`/`git_push` 走 external ask，但 `bash` 内容不解析，
  * `curl --data @文件`、`git push`、`scp` 在 standard/loose 档**自动放行**；consentRules 默认空。

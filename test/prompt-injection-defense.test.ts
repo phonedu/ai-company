@@ -1,5 +1,5 @@
 /**
- * OPT-AI-14 · 提示注入防线：外部内容**不得放宽**权限（真实 gate 零放宽 + 守卫"有牙"）。
+ *  · 提示注入防线：外部内容**不得放宽**权限（真实 gate 零放宽 + 守卫"有牙"）。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

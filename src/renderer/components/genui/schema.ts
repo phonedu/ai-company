@@ -1,5 +1,5 @@
 /**
- * GenUI 卡片 schema（M1 最小版）—— 契约见 `docs/UI.md §4.7`（`CardSchema` 冻结）。
+ * GenUI 卡片 schema（最小版）—— 契约见 `docs/`（`CardSchema` 冻结）。
  *
  * 设计约束（安全三条）：
  *  1) **白名单组件 + 白名单 action**：只渲染受控组件、只接受受控意图，**绝不执行模型生成的 JS**；
@@ -54,9 +54,9 @@ export interface GenUiIntent {
 export const GENUI_ACTIONS = ['select', 'submit', 'ack', 'open-artifact', 'approve', 'reject'] as const;
 export type GenUiAction = (typeof GENUI_ACTIONS)[number];
 
-/** M1 支持的组件类型（其余 → 整卡降级 legacy 文本，不白屏）。 */
+/**  支持的组件类型（其余 → 整卡降级 legacy 文本，不白屏）。 */
 export const GENUI_TYPES_M1 = ['stack', 'text', 'button-group', 'disclosure', 'progress'] as const;
-/** M4 组件：本轮**不支持**（含 `chart`/`table`/`form`）→ 走降级。 */
+/**  组件：本轮**不支持**（含 `chart`/`table`/`form`）→ 走降级。 */
 export const GENUI_TYPES_M4 = ['form', 'table', 'chart'] as const;
 
 /** 禁止出现在 schema 的语义（渲染器一律拒绝；从根上避免"卡片绕过 permissionGate"）。 */
@@ -79,7 +79,7 @@ const MAX_NODES = 200;
 
 /**
  * 校验并规范化 schema（纯函数）。
- * - 非法（非对象 / `v!==1` / 缺 `id` / 未知或 M4 组件类型 / 超深超量）→ `ok:false`（调用方降级 legacy 文本）；
+ * - 非法（非对象 / `v!==1` / 缺 `id` / 未知或组件类型 / 超深超量）→ `ok:false`（调用方降级 legacy 文本）；
  * - `button-group` 里 **action 不在白名单**的按钮 → **从结果里剔除**并记入 `rejectedActions`（AC3），其余照常渲染。
  */
 export function validateSchema(raw: unknown): GenUiValidation {
@@ -94,7 +94,7 @@ export function validateSchema(raw: unknown): GenUiValidation {
 
   const rejectedActions: Array<{ componentId: string; action: string }> = [];
   let nodes = 0;
-  // 任一节点非法（未知/M4 类型、缺 type/id、超深超量）→ **整体非法**（调用方降级 legacy 文本，不白屏）。
+  // 任一节点非法（未知/ 类型、缺 type/id、超深超量）→ **整体非法**（调用方降级 legacy 文本，不白屏）。
   let failed = false;
 
   const visit = (node: unknown, depth: number): GenUiComponent | null => {

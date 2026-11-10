@@ -1,7 +1,7 @@
 /**
- * OPT-EXT-2 · 旧版「待我处理」未读游标（**只作一次性迁移来源**）。
+ *  · 旧版「待我处理」未读游标（**只作一次性迁移来源**）。
  *
- * M3-REM-1c 起，权威游标在服务端 `read_cursors`（`inbox:read-state` / `inbox:read-mark`）。
+ * 1c 起，权威游标在服务端 `read_cursors`（`inbox:read-state` / `inbox:read-mark`）。
  * 本文件的 `aico.inbox.seenAt` 只用来把升级前“已看过”的卡片一次性标读；成功后由 store 清除。
  * 无 `localStorage` 环境（单测/非浏览器）→ 安全降级（读返回 0、写/清为 no-op），**不抛**。
  */

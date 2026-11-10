@@ -1,5 +1,5 @@
 /**
- * B2-6（57 P0-8；D-30③）：done 前老板签收关卡——风险档分级。
+ * （57 P0-8；）：done 前签收关卡——风险档分级。
  *
  * 口径：**L0 机器门直通不变**（verifier pass → 自动 done）；**L1+ verifier pass → 不自动
  * done**，迁 `needs_decision`（resume_state=verifying）出**签收卡**（复用决策卡形态：

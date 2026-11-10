@@ -1,14 +1,14 @@
 /**
- * B2-1（58 §1.6 P1；D-30）· 幕僚长指挥四工具：`create_task` / `dispatch` / `steer` / `list_holds`。
+ * · 幕僚长指挥四工具：`create_task` / `dispatch` / `steer` / `list_holds`。
  *
- * 背景（58 §1.1 脑1）：幕僚长头衔宣称「拆解与规划、分派员工」但无建派工具——头衔与能力结构矛盾；
+ * 背景：幕僚长头衔宣称「拆解与规划、分派员工」但无建派工具——头衔与能力结构矛盾；
  * hold 状态读不到（P3）。本模块把四工具落地，口径：
- *  - `create_task`：**复用 `handleTaskCreate` 全部门**（预算预检/模型白名单/D1 分诊/归属问一次）——
+ *  - `create_task`：**复用 `handleTaskCreate` 全部门**（预算预检/模型白名单/ 分诊/归属问一次）——
  *    建任务回调由 `main/index.ts` 注入（`agent` 层不 import `ipc`，避免层向倒挂）；工具层只做
  *    入参校验与缺省（projectId 缺省＝频道范围，与分诊器口径一致）、origin/via 标记。
  *  - `dispatch`：`schedule`＝引擎调度 tick（空队列也跑 fixpoint）；`retry`＝对任务最新失败
  *    工作项发 `retry` 事件（attempt+1，statemachine 既有迁移）。无引擎如实说（不假装派发）。
- *  - `steer`：复用 BRK9 通路投话到**在跑员工会话**（`steerEmployee` 由 index 注入，与
+ *  - `steer`：复用通路投话到**在跑员工会话**（`steerEmployee` 由 index 注入，与
  *    `#短号` 插话同一实现）；任务不在跑 → **记入任务上下文并明说**（绝不假装送达）。
  *    两种情况消息都落 `human_messages(in)`（审计可见）。
  *  - `list_holds`：`engine.listDispatchHolds()`＋`schedulerSlots()` 真读数；空态明说，不臆造。
@@ -23,9 +23,9 @@ import type { EngineEvent } from '../engine/types.js';
 /** 引擎能力子集（`main/index.ts` 传引擎实例；缺方法时工具如实降级）。 */
 export interface AssistantEnginePort {
   dispatch(event: EngineEvent): Promise<void>;
-  /** B2-1：手动调度 tick（引擎已有 `tick()`；旧装配缺失 → dispatch 工具如实降级）。 */
+  /** 手动调度 tick（引擎已有 `tick()`；旧装配缺失 → dispatch 工具如实降级）。 */
   tick?(): Promise<void>;
-  /** BRK14：派发等待读数（WI 级＋任务级）。 */
+  /** 派发等待读数（WI 级＋任务级）。 */
   listDispatchHolds?(): Array<{
     workItemId: number | null;
     taskId?: number;
@@ -196,7 +196,7 @@ export async function createAssistantCommandTools(deps: AssistantCommandDeps) {
       if (task == null) return text(`没找到任务 ${String(params.task ?? '')}——请核对短号后重试。`);
       const message = typeof params.message === 'string' ? params.message.trim() : '';
       if (message.length === 0) return text('steer 被拒：message 不能为空——要带给员工的话必须说清。');
-      // 审计先行：无论是否送达，这句话都进任务消息流（F4 口径：不石沉大海）。
+      // 审计先行：无论是否送达，这句话都进任务消息流（口径：不石沉大海）。
       insertHumanMessage(db, { direction: 'in', taskId: task.id, content: message, now: Date.now() });
       const running = listWorkItemsByTask(db, task.id).find((w) => w.state === 'running');
       if (running == null) {
@@ -204,7 +204,7 @@ export async function createAssistantCommandTools(deps: AssistantCommandDeps) {
       }
       const sessionKey = employeeSessionKey({ employeeId: running.employee_id, taskId: task.id, workItemId: running.id });
       const delivered = deps.steerEmployee?.(sessionKey, message) ?? false;
-      // B2b 出口 E 实抓：chat 裁定（taskId=null）下 task_events 收不了（task_id NOT NULL）
+      //  出口 E 发现：chat 裁定（taskId=null）下 task_events 收不了（task_id NOT NULL）
       // ⇒ 工具调用曾无痕。steer 结果落 action_log 全局审计（幂等键含随机 id；不依赖任务锚）。
       try {
         const { registerPendingAction, markActionDone } = await import('../db/action_log.js');
@@ -260,7 +260,7 @@ export async function createAssistantCommandTools(deps: AssistantCommandDeps) {
 }
 
 
-// ── B3-4/D-31：draft_sop——为新角色起草 SOP → 确认卡（老板批准才入库） ──────────
+// ──：draft_sop——为新角色起草 SOP → 确认卡（老板批准才入库） ──────────
 
 /** 幕僚长 draft_sop 工具：起草新角色 SOP（工作方法/输出规范/自检清单）→ 确认卡。 */
 export async function createDraftSopTool(deps: AssistantCommandDeps) {

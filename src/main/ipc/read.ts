@@ -1,5 +1,5 @@
 /**
- * `inbox:read-state` / `inbox:read-mark`（M3-REM-1c）。
+ * `inbox:read-state` / `inbox:read-mark`（1c）。
  *
  * 只读/写服务端未读游标；业务事实（`reports`/`approvals`/任务状态）不在这里动。
  * 当前只接受老板桌面（principal='boss'）；远程入口以后复用同一 DAO，并把 source 换成 `remote`。

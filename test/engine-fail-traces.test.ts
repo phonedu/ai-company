@@ -1,5 +1,5 @@
 /**
- * OPT-M8-2 ①：失败/中断必须留痕（`task_events`）。
+ * OPT- ①：失败/中断必须留痕（`task_events`）。
  *  - 副作用动作执行失败 → `action_failed`（含 actionKey/kind/error）；
  *  - 工作项失败 → `work_item_failed` payload 带 `reason`（= 触发事件名）；
  *  - 崩潰恢复 → `work_item_interrupted` payload 带 `reason='restart'`。
@@ -68,7 +68,7 @@ test('OPT-M8-2①: 工作项失败 → `work_item_failed` payload 带 reason（=
     await engine.dispatch(ev(taskId, 'plan_drafted')); // L0 → ready → 自动 executing + dispatch
     assert.equal(getWorkItem(db, wi.id)?.state, 'running');
 
-    // 会话结束但未提交结果 → B2-3/D-30② 单件重派（attempt+1，running）；work_item_failed 事件留痕
+    // 会话结束但未提交结果 → / 单件重派（attempt+1，running）；work_item_failed 事件留痕
     await engine.dispatch({ scope: 'work_item', id: wi.id, event: 'agent_settled', actor: 'employee:1' });
     assert.equal(getWorkItem(db, wi.id)?.state, 'running', '业务失败 → 单件重派（D-30②）');
     assert.equal(getWorkItem(db, wi.id)?.attempt, 1);

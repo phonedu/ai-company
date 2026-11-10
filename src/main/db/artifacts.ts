@@ -1,5 +1,5 @@
 /**
- * `artifacts` 数据访问（产物元信息；M8-1 读、M2-C 第 5 项**写者**）。
+ * `artifacts` 数据访问（产物元信息； 读、 第 5 项**写者**）。
  *
  * 列的口径（003 之后）：`source`（来源归属，与 G2 会话/cwd 归一化同源）· `changeset_id`（产物↔变更集）·
  * `commit_sha`（产物所在提交）。**消费端保持列无关**（`ipc/repo.ts#listArtifactsForTask` 用

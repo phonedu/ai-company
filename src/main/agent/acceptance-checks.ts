@@ -1,12 +1,12 @@
 /**
- * M3-DOC-4 · 验收项里的**机器检查**（P6：命令门禁，不让模型代判）。
+ *  · 验收项里的**机器检查**（P6：命令门禁，不让模型代判）。
  *
  * 口径：
  *  - 只跑 `acceptance[].check` 非空的条目；无 check 的条目仍由 verifier 人话判定；
  *  - 任一条 check 失败 ⇒ **硬门失败**（调用方跳过 verifier 模型、直接 fail，不许模型翻案）；
  *  - `aico:docs-check` 是**进程内**文档检查（项目根 `.aico/docs`），不是 shell 命令；
  *  - 项目关闭文档检查（`projects.docs_check_enabled=0`）或无文档树 ⇒ 状态 `skip`（未检查，不冒充通过）；
- *  - 普通命令在**项目根**执行，**默认 10 分钟**超时（B0-2：60s 会掐断 `pnpm test` 级验收；
+ *  - 普通命令在**项目根**执行，**默认 10 分钟**超时（：60s 会掐断 `pnpm test` 级验收；
  *    `AICO_ACCEPTANCE_TIMEOUT_MS` 可配，显式参数优先）；输出只留尾部摘要（防爆报告）。
  */
 import { spawn, spawnSync } from 'node:child_process';
@@ -22,7 +22,7 @@ import type { SqliteDb } from '../db/open.js';
 export { DOCS_CHECK_COMMAND };
 
 /**
- * B0-2（ADV-1 G2）：验收命令默认超时。旧值 60s 对 `pnpm test` 级检查必掐断 → 永远过不了硬门。
+ * （ADV-1 G2）：验收命令默认超时。旧值 60s 对 `pnpm test` 级检查必掐断 → 永远过不了硬门。
  * 默认 10 分钟；`AICO_ACCEPTANCE_TIMEOUT_MS` 覆盖（正整数毫秒）；显式参数最优先。
  */
 export const DEFAULT_ACCEPTANCE_TIMEOUT_MS = 10 * 60_000;

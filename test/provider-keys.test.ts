@@ -1,5 +1,5 @@
 /**
- * 设置·模型与供应商：本机 Key 写入/掩码/清除 + provider_keys 台账。
+ * 设置·模型与供应商：本机 Key 写入/掩码/清除 + provider_keys 清单。
  * 口径：只回掩码；env 优先；文件 0600；未知 provider/短 key 显式拒。
  */
 import test from 'node:test';
@@ -173,7 +173,7 @@ test('provider-keys：IPC list/set/clear 全链——只回掩码、落 provider
     assert.equal(listProviderKeys(db).length, 0);
     assert.equal(existsSync(join(baseDir, 'deepseek_api_key')), false);
 
-    // 添加供应商：SDK 内置但非 4 家的 provider 走同一入口；只回 4 家状态，但台账/文件真落。
+    // 添加供应商：SDK 内置但非 4 家的 provider 走同一入口；只回 4 家状态，但清单/文件真落。
     const custom = handleProviderSetKey(deps, { provider: 'google', key: 'google-ipc-key-123' });
     assert.equal(custom.ok, true);
     assert.equal(listProviderKeys(db).some((r) => r.provider === 'google'), true);

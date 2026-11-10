@@ -1,5 +1,5 @@
 /**
- * M4-D-1（P2）· `task:read-tool-output` —— 按不透明 ref 受控读取归档的工具大输出。
+ * （P2）· `task:read-tool-output` —— 按不透明 ref 受控读取归档的工具大输出。
  * 只接受归档根内的 ref；越界/不存在/超读取上限 → 显式错误（不静默读任意文件）。
  */
 import { readArchivedToolOutput } from '../agent/tool-output-archive.js';

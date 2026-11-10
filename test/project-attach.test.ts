@@ -7,7 +7,7 @@ import { probeProject, type ProbeIo } from '../src/main/ipc/project-probe.js';
 import { createSqliteChatRepo } from '../src/main/ipc/repo.js';
 import { handleProjectAttach } from '../src/main/ipc/ipc.js';
 
-// ── R2-4 · 项目接入（`06 §3.1` 第 2 屏）：探测＝**只报真事实**；`project:attach`＝dialog 选目录、只记录路径 ──
+// ── R2-4 · 项目接入（`` 第 2 屏）：探测＝**只报真事实**；`project:attach`＝dialog 选目录、只记录路径 ──
 
 const AT = 1_800_000_000_000;
 
@@ -89,7 +89,7 @@ test('R2-4 attach：选到目录 → 建行＋返回探测；取消 → cancelle
   db.close();
 });
 
-// ── RW-1（M5 真机带回，2026-10-27）：接入后默认指针跟着走；回退默认项目根必须真实存在 ──
+// ── （真机带回，2026-10-27）：接入后默认指针跟着走；回退默认项目根必须真实存在 ──
 
 test('RW-1①: attach 成功后把接入项目设为默认（教学接入的项目＝建任务默认落点）', async () => {
   const { db, repo } = setup();

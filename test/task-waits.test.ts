@@ -5,7 +5,7 @@ import { insertWorkItem, openMemoryDatabase, runMigrations, type SqliteDb } from
 import { createSqliteChatRepo } from '../src/main/ipc/repo.js';
 import { handleTaskGet, handleTaskList, type IpcDeps } from '../src/main/ipc/ipc.js';
 
-// ───────────── M1-3：task:get / task:list 的 `waits`（等待原因）★ 引擎为源，不推断 ─────────────
+// ─────────────：task:get / task:list 的 `waits`（等待原因）★ 引擎为源，不推断 ─────────────
 
 function setup(): { db: SqliteDb; repo: ReturnType<typeof createSqliteChatRepo>; taskId: number; workItemId: number } {
   const db = openMemoryDatabase();

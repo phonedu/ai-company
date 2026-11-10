@@ -1,4 +1,4 @@
--- 014_remote_foundation.sql — v14（M3-REM-1a：远程地基）
+-- 014_remote_foundation.sql — v14（1a：远程地基）
 --
 -- 两张表都只是本机 SQLite 的投影/日志，不改变任何业务事实：
 --   ① read_cursors：老板频道/IM/mailbox 的未读高水位（principal + surface）；

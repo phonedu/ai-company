@@ -1,5 +1,5 @@
 /**
- * 存量安全债（B4b 安全审查 F3，2026-11-09 老板批「其他的那就补上」）：
+ * 存量安全债（安全审查，2026-11-09 要求「其他的那就补上」）：
  * bash **外发词表**此前只认 curl/wget/git push 等命令行工具，`node -e "fetch(...)"`、
  * `python -c "requests.post(...)"`、PowerShell 的 .NET 客户端、certutil、bitsadmin、nc、/dev/tcp
  * 全部零弹卡（配了 Key 就能绕开 spend 闸直接外发/花钱）。

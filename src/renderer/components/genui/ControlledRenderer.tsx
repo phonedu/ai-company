@@ -1,5 +1,5 @@
 /**
- * GenUI 受控渲染器（M1 最小版）—— 契约 `UI.md §4.7`。
+ * GenUI 受控渲染器（最小版）—— 契约 ``。
  *
  * **同进程白名单渲染**：模型只提供 JSON，这里 `switch(component.type)` 渲染**我们自己的组件**，
  * **绝不执行模型生成的 JS**（`index.html` CSP 不改、不引入 `unsafe-eval`）。

@@ -1,7 +1,7 @@
 /**
  * 2026-10-25 老板反馈：
  *  - 老板频道「＋建任务」必须能在对话框里选择软件内项目（不再只能默认项目）；
- *  - 待验收卡可批量标记已阅（F-08），但只处理 report，不动决策/异常。
+ *  - 待验收卡可批量标记已阅，但只处理 report，不动决策/异常。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

@@ -1,5 +1,5 @@
 /**
- * G1（M2）· 会话内工具过 `permissionGate`：表驱动纯映射 + 假 `pi` 捕获 + 有牙。
+ * G1· 会话内工具过 `permissionGate`：表驱动纯映射 + 假 `pi` 捕获 + 有牙。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -238,7 +238,7 @@ test('G1 "有牙": 注入"永远放行"的 gate → 项目外写不再被拦（�
   }
 });
 
-// ── B2-7：员工会话 git 写子命令在会话闸门层被拦（employeeId>0 → employeeSession 注入）──
+// ──：员工会话 git 写子命令在会话闸门层被拦（employeeId>0 → employeeSession 注入）──
 
 test('B2-7: 会话闸门集成 —— 员工会话 git commit 被拦且带宿主收口提示；助手会话不受影响', () => {
   const { db, run } = setup();
@@ -250,7 +250,7 @@ test('B2-7: 会话闸门集成 —— 员工会话 git commit 被拦且带宿主
     // 只读 git 照常（standard 放行）。
     const read = gate.evaluate({ toolName: 'bash', input: { command: 'git log --oneline -5' } }, run);
     assert.notEqual(read.block, true, '员工会话只读 git 不拦');
-    // 频道助手（employeeId=0）不走 B2-7（W1 口径不变）。
+    // 频道助手（employeeId=0）不走 （W1 口径不变）。
     const assistantRun: RunGateContext = { employeeId: 0, taskId: null, projectId: 1, cwd: 'D:/repo', capabilityTier: 'standard', autonomy: 'standard' };
     const a = gate.evaluate({ toolName: 'bash', input: { command: 'git status' } }, assistantRun);
     assert.notEqual(a.block, true, '助手只读 git 不拦');

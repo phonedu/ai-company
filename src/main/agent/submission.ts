@@ -1,5 +1,5 @@
 /**
- * `OPT-AI-7`（M2-C）· **结构化提交的校验**（单一真源：工具侧与宿主侧共用）。
+ * ``· **结构化提交的校验**（单一真源：工具侧与宿主侧共用）。
  *
  * 口径：
  *  - `summary` 必填、非空、≤ 500 字；
@@ -77,7 +77,7 @@ export function validateSubmission(raw: unknown): SubmissionValidation {
   }
 
   const artifacts = checkTextArray('artifacts', record.artifacts, errors);
-  // BRK24（2026-10-16）：产物项 = **路径 / URL / 产出的文件名**——不得含空白/控制字符。
+  // （2026-10-16）：产物项 = **路径 / URL / 产出的文件名**——不得含空白/控制字符。
   // 狗粮实测：员工把「commit 86b8890」当产物路径提交 ⇒ 产物 tab 把提交号当文件列。
   // 非法项**逐条拒**并给人话指引（不静默改写、不阻塞其他项——模型可照提示重交）。
   const shapedArtifacts: string[] = [];

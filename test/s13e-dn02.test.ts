@@ -1,5 +1,5 @@
 /**
- * S13-E P1/D-N02：项目页提供「接入已有文件夹」（复用 project:attach），成功后切范围。
+ *  P1/：项目页提供「接入已有文件夹」（复用 project:attach），成功后切范围。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

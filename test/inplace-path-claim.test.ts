@@ -1,5 +1,5 @@
 /**
- * B0-7（ADV-1 P0-9）：inplace 项目路径并发保护恒失效的回归测试。
+ * （ADV-1 P0-9）：inplace 项目路径并发保护恒失效的回归测试。
  *
  * 旧实现：`spawnPlanWorkItems` 产**纯文本** brief → `parseTouchedPaths` 返回 [] ⇒ 所有件的
  * claim.paths=[] ⇒ `pathConflictWith` 恒不相交 ⇒ inplace（共享工作树）下两个任务可同时改同一文件。
@@ -57,7 +57,7 @@ test('B2-4/D-30：inplace 预言退役为提示——brief 不再带整树认领
     await driveToExecuting(engine, taskId);
     const wi = db.prepare("SELECT * FROM work_items WHERE task_id = ?").get(taskId) as { id: number; brief: string };
     assert.ok(wi, 'inplace 首件已派生');
-    // B2-4：brief 纯文本（预言退役）＋提示在场；认领为空（不凭空拦）
+    // brief 纯文本（预言退役）＋提示在场；认领为空（不凭空拦）
     assert.ok(!wi.brief.trimStart().startsWith('{'), 'brief 不再是 JSON 认领载体');
     assert.match(wi.brief, /实测/, 'brief 保留「路径按实测」提示');
     assert.deepEqual(parseTouchedPaths(wi.brief) ?? [], [], '无预言认领');

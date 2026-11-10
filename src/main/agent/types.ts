@@ -1,14 +1,14 @@
 /**
  * `agent` 层接口 —— 会话运行时（EmployeeRuntime / Assistant）与 Pi SDK 之间的接缝。
  *
- * 设计目标（DEV §9）：运行时做成**接口**，单测用 **fake** 跑通；真实 Pi 实现
+ * 设计目标：运行时做成**接口**，单测用 **fake** 跑通；真实 Pi 实现
  * （`pi-runtime.ts`，import `@earendil-works/pi-coding-agent`）只在产品装配时接上。
  * 这样引擎/会话逻辑不依赖 Pi，也不在单测里花真金。
  */
 import type { Principal } from '../memory/index.js';
 import type { ContextTelemetry } from './context-telemetry.js';
 
-/** 归一化后的会话事件（Pi 事件 → 本形状，见 DEV §6.2 事件映射）。 */
+/** 归一化后的会话事件（Pi 事件 → 本形状，见事件映射）。 */
 export type AgentEvent =
   | { type: 'text_delta'; delta: string }
   | { type: 'thinking_delta'; delta: string }
@@ -25,7 +25,7 @@ export type AgentEvent =
     };
 
 /**
- * GAP7（M3-N-3）：本会话可加载的技能（员工勾选 ∪ 项目默认 ∪ 任务强制）。
+ * 本会话可加载的技能（员工勾选 ∪ 项目默认 ∪ 任务强制）。
  * 只传**名字/描述/路径**，不传全文——全文由模型按需调 `load_skill` 读取。
  */
 export interface SkillRef {
@@ -50,9 +50,9 @@ export interface AgentRunInput {
   model?: string;
   /** N5：本轮思考强度（缺省＝不动会话当前档——不臆造）。 */
   thinkingLevel?: 'off' | 'low' | 'medium' | 'high';
-  /** GAP7：本会话技能白名单（`load_skill` 只能读这里列出的技能）。 */
+  /** 本会话技能白名单（`load_skill` 只能读这里列出的技能）。 */
   skills?: readonly SkillRef[];
-  /** GAP6：本会话 MCP server 白名单（`mcp_list`/`mcp_call`/`tool_search` 只认这些名字）。 */
+  /** 本会话 MCP server 白名单（`mcp_list`/`mcp_call`/`tool_search` 只认这些名字）。 */
   mcps?: readonly string[];
 }
 
@@ -71,13 +71,13 @@ export interface AgentUsage {
   model?: string;
   inputTokens?: number;
   outputTokens?: number;
-  /** OPT-AI-8：底座 `getSessionStats().tokens.cacheRead/cacheWrite`（缓存命中/写入输入）。 */
+  /** 底座 `getSessionStats().tokens.cacheRead/cacheWrite`（缓存命中/写入输入）。 */
   cacheReadTokens?: number;
   cacheWriteTokens?: number;
-  /** OPT-AI-8：底座 `getSessionStats().cost`（USD 总额，已含缓存计价）。 */
+  /** 底座 `getSessionStats().cost`（USD 总额，已含缓存计价）。 */
   costUsd?: number;
   /**
-   * B0-8：本次用量是**会话累计**（Pi `getSessionStats()` 语义）还是**单轮**（fake/单轮运行）。
+   * 本次用量是**会话累计**（Pi `getSessionStats()` 语义）还是**单轮**（fake/单轮运行）。
    * 累计值必须由记账户做差值（同会话多轮/nudge/重试），否则重复入账。
    */
   cumulativeSessionStats?: boolean;
@@ -96,15 +96,15 @@ export interface AgentRunResult {
 /** 会话运行时：一次 `run` 会调用 `onEvent` 流式回调，并返回最终结果。 */
 export interface AgentRuntime {
   run(input: AgentRunInput, onEvent: (event: AgentEvent) => void): Promise<AgentRunResult>;
-  /** 打断/转向进行中的会话（FLOWS F4 steer 通道）。返回是否已投递。 */
+  /** 打断/转向进行中的会话（steer 通道）。返回是否已投递。 */
   steer(sessionKey: string, text: string): boolean;
   /**
-   * BRK17（挂载 3 余·取消小步）：**真中止**某会话（默认实现在 `pi-runtime`，透传 `AgentSession.abort()`）。
+   * （挂载 3 余·取消小步）：**真中止**某会话（默认实现在 `pi-runtime`，透传 `AgentSession.abort()`）。
    * 返回是否找到该会话（未找到 ⇒ false，如实）。可选：fake/旧运行时可不实现。
    */
   abortSession?(sessionKey: string): boolean;
   /**
-   * CTX-1 D3 用手动压缩入口（Pi `AgentSession.compact()`）：触发一次压缩并等完成。
+   * CTX-1 用手动压缩入口（Pi `AgentSession.compact()`）：触发一次压缩并等完成。
    * 返回是否找到会话；未实现/无法压缩 → false（如实，不假装压缩过）。
    */
   compactSession?(sessionKey: string): Promise<boolean>;
@@ -117,7 +117,7 @@ export interface AgentRuntime {
   dispose(): void;
 }
 
-// ───────────── OPT-AI-1：员工真会话上下文（接口定义；实现在 `agent/context.ts`） ─────────────
+// ─────────────：员工真会话上下文（接口定义；实现在 `agent/context.ts`） ─────────────
 
 /** 上下文组装输入（只读 db；纯函数）。 */
 export interface EmployeeContextInput {
@@ -128,11 +128,11 @@ export interface EmployeeContextInput {
   bossText?: string | null;
   /** R2-2（G7 回灌）：发给本员工、**尚未消费**的同事答复（执行器 pre-run 查、post-run 标读）。 */
   mailboxAnswers?: ReadonlyArray<{ from: number; answer: string }>;
-  /** BRK12：点名问本员工的未结提问（可调 `answer_colleague` 作答）。 */
+  /** 点名问本员工的未结提问（可调 `answer_colleague` 作答）。 */
   mailboxAsks?: ReadonlyArray<{ askDedupeKey: string; from: number; question: string; blocking: boolean }>;
-  /** D-17：L2/L3 事实层的可见角色；`null`＝不注入事实（verifier）；缺省＝按 employee 本人。 */
+  /** L2/L3 事实层的可见角色；`null`＝不注入事实（verifier）；缺省＝按 employee 本人。 */
   memoryPrincipal?: Principal | null;
-  /** D-17：评审会话不读员工 L1 摘要/历史检索（critic/verifier 默认 true）。 */
+  /** 评审会话不读员工 L1 摘要/历史检索（critic/verifier 默认 true）。 */
   skipEmployeeMemory?: boolean;
   /**
    * CTX1-6：是否在 user 段追加「当前计划复述」（计划步骤/验收摘要/剩余预算/最近失败）。
@@ -156,13 +156,13 @@ export interface EmployeeContext {
       memory: boolean;
       /** N5 尾项：项目记忆短简报（最近任务索引）有真实内容。 */
       memoryBrief: boolean;
-      /** D-17：L2/L3 事实层有真实内容注入。 */
+      /** L2/L3 事实层有真实内容注入。 */
       facts?: boolean;
-      /** OPT-AI-9：有真实技能内容注入。 */
+      /** 有真实技能内容注入。 */
       skills: boolean;
-      /** OPT-AI-11：有检索命中。 */
+      /** 有检索命中。 */
       retrieval: boolean;
-      /** OPT-AI-12：few-shot 是否注入。 */
+      /** few-shot 是否注入。 */
       fewShot: boolean;
       baseline: boolean;
       /** CTX1-6：user 段是否带计划复述。 */
@@ -172,11 +172,11 @@ export interface EmployeeContext {
     };
     projectRoot: string;
     cwd: string;
-    /** GAP7：本会话技能白名单（仅员工勾选 ∪ 项目默认 ∪ 任务强制；不泄他人技能）。 */
+    /** 本会话技能白名单（仅员工勾选 ∪ 项目默认 ∪ 任务强制；不泄他人技能）。 */
     skillRefs?: readonly SkillRef[];
-    /** B6：任务级强制技能名（null/缺省＝无）。 */
+    /** 任务级强制技能名（null/缺省＝无）。 */
     forcedSkill?: string | null;
-    /** GAP6：本会话可用的 MCP server 名（员工分配∩启用；不含未分配）。 */
+    /** 本会话可用的 MCP server 名（员工分配∩启用；不含未分配）。 */
     mcpRefs?: readonly string[];
     /** CTX1-2：分层遥测（纯投影；contextWindow 未知 → utilization=null，渲染层显 `—`）。 */
     telemetry?: ContextTelemetry;

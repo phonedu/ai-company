@@ -1,12 +1,12 @@
 /**
- * S13-G（2026-10-29）：四项延后改进的可执行锚。
+ * （2026-10-29）：四项延后改进的可执行锚。
  *
  * 判据：
- *   D-N06 合并目标分支可配：迁移 022 落列；设置了目标分支就只认它；非法分支名拒且不落库；
+ *    合并目标分支可配：迁移 022 落列；设置了目标分支就只认它；非法分支名拒且不落库；
  *         merge 的 not_on_base 文案要说清「配置了多少」而不是永远说 main/master。
- *   D-N07 合并冲突结构化：store 把 conflicts 留在 taskDetail（成功即清空）；
+ *    合并冲突结构化：store 把 conflicts 留在 taskDetail（成功即清空）；
  *         详情面板有 `merge-conflict-panel` / 文件列表 / 重试按钮。
- *   D-N09 diff 审查进度：localStorage 键 + 「下一处未看」按钮存在（读写口径同源）。
+ *    diff 审查进度：localStorage 键 + 「下一处未看」按钮存在（读写口径同源）。
  *   C3 项目变更历史：`project:get` 回带 changesets（读面仍走同一通道，不新增 IPC）。
  */
 import test from 'node:test';

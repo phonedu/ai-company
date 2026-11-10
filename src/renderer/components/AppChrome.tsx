@@ -6,8 +6,8 @@ import { OverviewRail } from './RightRailView.js';
 import type { CostSummaryDTO } from '../types.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// OPT-M7-1「假契约 / 死读数 / 结果上屏」· 壳层（**纯组件**）
-//   出处：UI.md §1（顶栏）；设计件 §5.1/§4.1（壳层重排 v4，2026-10-16 替换批）。
+// OPT-「假契约 / 死读数 / 结果上屏」· 壳层（**纯组件**）
+//   出处：（顶栏）；设计件 §5.1/§4.1（壳层重排 v4，2026-10-16 替换批）。
 //   三块（2026-10-16 壳层重排）：
 //     ① **顶栏 48px**：〔左：折叠钮 ＋ 品牌〕〔中：搜索盒（Ctrl K；命令面板未实现 ⇒ disabled＋理由）〕
 //        〔右：员工不可用提示 ＋ 右栏折叠钮 ＋ **自绘窗口三键**（— ▢ ✕，`ui:win-*`）〕；
@@ -34,7 +34,7 @@ export interface AppChromeProps {
   todoCount: number | null;
   /** G8：员工运行时状态（来自主进程 `evt:agent`）；`failed` 时顶栏出「不可用」提示。 */
   agent?: AgentStatusDTO | null;
-  /** OPT-EXT-13：今日成本聚合（`cost:summary`）；`null` / `costRows===0` → 显 `—`（**不写假 0**）。 */
+  /** 今日成本聚合（`cost:summary`）；`null` / `costRows===0` → 显 `—`（**不写假 0**）。 */
   cost?: CostSummaryDTO | null;
   /** R3-2：槽位真读数（`scheduler:slots`，占用/上限）；`null`/缺省 → 显 `—`（**不写假 0**）。 */
   slots?: { running: number; total: number } | null;
@@ -49,7 +49,7 @@ export interface AppChromeProps {
   maximized?: boolean;
   /** 2026-10-18：点搜索盒 → 打开命令面板（壳持有开合态）。 */
   onOpenSearch?: () => void;
-  /** 2026-10-17（B2）：右栏内容由壳注入（任务上下文 / 全局概览）；缺省回落今日概览。 */
+  /** 2026-10-17：右栏内容由壳注入（任务上下文 / 全局概览）；缺省回落今日概览。 */
   rightRail?: ReactNode;
 }
 
@@ -101,7 +101,7 @@ export function AppChrome({
           <span className="topbar__brand">AI 一人公司</span>
         </div>
         <div className="topbar__center">
-          {/* 2026-10-18（命令面板落地批，老板令）：搜索盒**可点** → 打开命令面板（Ctrl K）。 */}
+          {/* 2026-10-18（命令面板落地批，要求）：搜索盒**可点** → 打开命令面板（Ctrl K）。 */}
           <button
             type="button"
             className="topbar__search"
@@ -177,7 +177,7 @@ export function AppChrome({
 
       {/* 底栏状态条 26px（壳层重排 v4）：生命体征与窗口控制同层——不随侧栏折叠丢信息。 */}
       <footer className="statusbar" data-testid="statusbar">
-        {/* 成本：OPT-EXT-13 接入真数据源（`cost:summary`）；**无数据显 `—`**（不写假 0）。 */}
+        {/* 成本： 接入真数据源（`cost:summary`）；**无数据显 `—`**（不写假 0）。 */}
         <span
           className="statusbar__item"
           data-testid="statusbar-cost"

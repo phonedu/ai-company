@@ -1,7 +1,7 @@
 /**
  * 附件暂存文件的**纯路径规则**（file-import 与 attachment 解析共用）。
  *
- * 铁律（D1）：renderer 只拿 `fileToken`，永远不拿路径；本模块只在主进程用。
+ * 铁律：renderer 只拿 `fileToken`，永远不拿路径；本模块只在主进程用。
  * 文件名由 token + 经过白名单化的扩展名生成，不信任原始文件名。
  */
 import { existsSync } from 'node:fs';

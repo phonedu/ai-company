@@ -1,5 +1,5 @@
 /**
- * `escalate_to_boss` customTool（R2-2/G9）——员工把**需要老板拍板**的事升级到人。
+ * `escalate_to_boss` customTool（R2-2/G9）——员工把**需要要求**的事升级到人。
  *
  * ⚠️ **只做信号**：真正的落库（`reports.kind='ask'` 的 AskCard ＋ `task_events`）与任务状态
  * （`escalate` → `needs_decision`）由宿主（`employee-executor.ts` 观察 tool_call 结果）完成——
@@ -10,7 +10,7 @@
  */
 
 /**
- * SEC-D（2026-11-10，对抗测试实抓）：`isPermissionApproval` 只认 `[权限] ` 前缀，
+ * SEC-D（2026-11-10，对抗测试发现）：`isPermissionApproval` 只认 `[权限] ` 前缀，
  * 员工若把升级问题写成 `[权限] 会话工具 bash（consent:egress）…`，老板看到的就是一张「权限卡」，
  * 点批准会走 `applyApprovalAsGrant` ⇒ 伪造授权。宿主落卡前把前缀中和（保留原文可见）。
  */
@@ -34,7 +34,7 @@ export async function createEscalateToBossTool() {
       '这类问题请明确说「请在设置/文件管理器中处理」，不要写「我来改/我换到那里执行」之类你做不到的选项。',
     parameters: Type.Object({
       question: Type.String({ description: '要老板决定什么（一句话；带上选项更好）' }),
-      // RW-21 泛化（M5 真机 S9）：结构化选项直通决策卡按钮（此前只有 question 文本——老板没有可点的裁定通路）。
+      //  泛化（真机）：结构化选项直通决策卡按钮（此前只有 question 文本——老板没有可点的裁定通路）。
       options: Type.Optional(
         Type.Array(
           Type.Object({
@@ -44,7 +44,7 @@ export async function createEscalateToBossTool() {
           { description: '给老板的可点选项（2–4 个；每个都必须是你能力内做得到的动作）' },
         ),
       ),
-      // 多选（老板 2026-10-28 指令）：选项可同时勾选多项（如挑多个文件清理）时声明 multi；缺省 single。
+      // 多选（2026-10-28 指令）：选项可同时勾选多项（如挑多个文件清理）时声明 multi；缺省 single。
       selection: Type.Optional(
         Type.Union([Type.Literal('single'), Type.Literal('multi')], {
           description: '选项模式：single＝单选（缺省）／multi＝多选（老板可勾多项后一次提交）',

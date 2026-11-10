@@ -1,5 +1,5 @@
 /**
- * OPT-AI-10 · MCP server 库 DAO（`mcp_servers` 表；此前表在、零客户端/零写入者）。
+ *  · MCP server 库 DAO（`mcp_servers` 表；此前表在、零客户端/零写入者）。
  *
  * 口径：
  *  - 注册＝老板显式给 `{name, transport, command|url, args, env, exposure, has_external_actions}`；
@@ -46,7 +46,7 @@ export interface UpsertMcpServerInput {
   now?: number;
 }
 
-/** GAP6：按员工/项目引用（id 或名字）解析**启用中**的 MCP server；未登记/停用忽略。 */
+/** 按员工/项目引用（id 或名字）解析**启用中**的 MCP server；未登记/停用忽略。 */
 export function resolveEnabledMcpServers(db: SqliteDb, refs: readonly string[]): McpServerRow[] {
   const out: McpServerRow[] = [];
   const seen = new Set<number>();

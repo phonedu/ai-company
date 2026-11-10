@@ -1,5 +1,5 @@
 /**
- * M3-N-3 · GAP7/B1：技能解析、内置包、本地/URL 安装、启停/删除。
+ *  ·：技能解析、内置包、本地/URL 安装、启停/删除。
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';

@@ -1,9 +1,9 @@
 /**
- * B3-6（58 §4.3/§4.4；D-31②）：输出治理＋critic 限档＋verifier 补 diff。
+ * 输出治理＋critic 限档＋verifier 补 diff。
  *
  * 口径：
  *  - **critic 限档**：L0 免（现状）＋**L1 默认跳**（plan_drafted 直出批准卡——老板仍可在
- *    卡上打回，重规划链不变）；**L2 保留** critic。省下的双会话成本入台账。
+ *    卡上打回，重规划链不变）；**L2 保留** critic。省下的双会话成本入清单。
  *  - **输出治理**：交付纪律层新增「长文（>2000 字）直接 write 文件、submit 只给路径与要点」
  *    ——写进 DELIVERY_DISCIPLINE_LAYER（写进提示词＝所有模型同一口径）。
  *  - **verifier 补 diff**：verifier 材料在有 changeset 时附 diff 摘要（buildReviewContext

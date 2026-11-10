@@ -1,10 +1,10 @@
 /**
- * G1（M2）· 权限闸门**上下文解析共享件**。
+ * G1· 权限闸门**上下文解析共享件**。
  *
  * 目的：**引擎动作**（`engine/loop.ts#buildDefaultGate`）与**会话内工具调用**（`agent/session-tool-gate.ts`）
  * 用**同一套口径**解析 `GateContext`（能力档 ∩ 放行档 / L2 收紧 / 项目根），避免"两套口径"。
  *
- * 口径（与 OPT-M9-1 一致）：
+ * 口径（与 OPT- 一致）：
  *  - 能力档 = `employees.capability_tier`（缺省 `standard`，不自造）；
  *  - 放行档 = `resolvePermissionPolicy`（global ← project ← task，缺省 `defaultAutonomy` / `standard`）；
  *  - 项目根 = 项目 `root_dir`（缺省 `defaults.projectRoot` / `process.cwd()`）。
@@ -22,7 +22,7 @@ export interface GateDefaults {
 export interface GateSubject {
   /** 归属任务（可为 null：无任务上下文时用默认值）。 */
   taskId: number | null;
-  /** D-19：无任务但已绑定项目时（频道助手），项目上下文从这里取。 */
+  /** 无任务但已绑定项目时（频道助手），项目上下文从这里取。 */
   projectId?: number | null;
   /** 员工（缺省：取任务的 owner；再缺省用 `defaults.capabilityTier`/`standard`）。 */
   employeeId?: number | null;
@@ -59,12 +59,12 @@ export function resolveGateContext(db: SqliteDb, subject: GateSubject, defaults:
     cwd: subject.cwd,
     policy,
     capabilityTierSource: fromEmployee != null ? 'employee' : 'default',
-    // B3-2/D-31③：多文档根只读边界扩展（read_doc 等工具可访问已注册文档根）。
+    // /：多文档根只读边界扩展（read_doc 等工具可访问已注册文档根）。
     ...(projectId != null ? { docRoots: getProjectDocRootsForGate(db, projectId) } : {}),
   };
 }
 
-/** B3-2：查项目文档根。 */
+/** 查项目文档根。 */
 function getProjectDocRootsForGate(db: SqliteDb, projectId: number): string[] {
   try {
     return projectDocRoots(db, projectId);

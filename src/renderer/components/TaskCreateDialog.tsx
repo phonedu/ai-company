@@ -1,7 +1,7 @@
 /**
- * 建任务对话框（2026-10-17 建任务入口批，老板令「就按你的建议来」）——
+ * 建任务对话框（2026-10-17 建任务入口批，要求「就按你的建议来」）——
  *   两个上下文入口共用：**老板频道输入框旁** ＋ **项目树页右栏页头**。
- *   - 字段：目标 / 执行方式 / 谁来做 / 验收（一行一条）/ 预算；执行方式与负责人预填自项目分工（D-11）。
+ *   - 字段：目标 / 执行方式 / 谁来做 / 验收（一行一条）/ 预算；执行方式与负责人预填自项目分工。
  *   - 写入仍走 `store.createTask`（单一写入口径，与频道打字交办同路径）；成功回执交容器显示。
  *   - 项目上下文：项目页传 `projectId`（任务直接建到该项目）；老板频道不传默认项目，
  *     但**对话框内可选择软件内任意未归档项目**（2026-10-25 老板反馈）。
@@ -105,14 +105,14 @@ export function TaskCreateDialog({ projectId = null, projectName = null, initial
     setSubmitting(true);
     setError('');
     const budget = Number(budgetText.trim());
-    // M2 尾：截止时间（datetime-local → epoch ms；非法/已过去 → 响亮拒，不静默丢）。
+    //  尾：截止时间（datetime-local → epoch ms；非法/已过去 → 响亮拒，不静默丢）。
     const deadline = deadlineText.trim().length > 0 ? new Date(deadlineText).getTime() : null;
     if (deadlineText.trim().length > 0 && (!Number.isFinite(deadline) || (deadline as number) <= Date.now())) {
       setError('截止时间无效或已过去（请选一个未来时间）');
       setSubmitting(false);
       return;
     }
-    // M2 尾（D4）：依赖任务短号 → 任务 id（查不到 → 不猜，直接说清楚）。
+    //  尾：依赖任务短号 → 任务 id（查不到 → 不猜，直接说清楚）。
     const depTokens = depsText
       .split(/[,，、\s]+/)
       .map((token) => token.trim())

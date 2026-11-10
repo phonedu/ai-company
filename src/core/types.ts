@@ -54,7 +54,7 @@ export type WorkItemState =
   | 'interrupted'; // 崩溃/重启中断，编排器按策略自动重派或问用户
 
 /**
- * 单一「等待原因」枚举（1603 裁决；`PLAN §10` 第 4 条 / `B-5 G-9`）。
+ * 单一「等待原因」枚举（1603 决定；`` 第 4 条 / `B-5 G-9`）。
  * 调度/引擎的 `hold.reason` 与 UI 的「当前在等什么」**同源**——禁止各处自造字符串。
  */
 export type WaitingReason =
@@ -62,7 +62,7 @@ export type WaitingReason =
   | 'employee_busy' // 该员工已有 running 工作项（G-1 硬守卫的结果）
   | 'budget' // 预算/成本闸门
   | 'resource_lock' // 等外部资源锁（工具链/构建锁；G-9）
-  | 'path_conflict' // 路径所有权冲突（M1-2）
+  | 'path_conflict' // 路径所有权冲突
   | 'dependency' // 等前置任务/任务依赖（task_deps）
   | 'session_starting'
   /** N2：速率闸门——超`排队线`时新派发排队（在跑任务不打断）。 */

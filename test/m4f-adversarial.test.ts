@@ -1,5 +1,5 @@
 /**
- * M4-F-2 · 代码侧对抗演练（8 类）。
+ *  · 代码侧对抗演练（8 类）。
  *
  * 老板口径：每类「预期 vs 实际＋证据；失败如实」。本件只覆盖**不依赖真机/真模型**的部分；
  * 真断网、真微信、真 DOM 的对抗仍属 D3。每类顶部写预期，断言就是实际读数。
@@ -7,7 +7,7 @@
  * 与既有单测的分工：
  *  - 权限三层/注入零放宽 → `permission.test.ts`、`prompt-injection-defense.test.ts`（本件补组合与越界边界）；
  *  - 附件 token 穿越/超限 → `attachment-preview.test.ts`；
- *  - 丢弃幂等/只动台账 → `task-discard.test.ts`；
+ *  - 丢弃幂等/只动清单 → `task-discard.test.ts`；
  *  - 断网退避 → `im-wechat.test.ts`（CR12）＋`im-outbox.test.ts`（瞬时错误重试/上限 failed）；
  *    本件只断言「连接层错误被分类为可降级」，不重复长轮询时序。
  */

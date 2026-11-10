@@ -1,5 +1,5 @@
 /**
- * SQLite 连接（better-sqlite3）—— 主进程唯一写者（DEV §4/§7.4）。
+ * SQLite 连接（better-sqlite3）—— 主进程唯一写者（/§7.4）。
  *
  * 连接级 PRAGMA 在此设置（**不放进迁移 SQL**）：
  *  - `journal_mode = WAL`：更好并发读；且该 pragma 不能在事务内执行（迁移是「一个迁移 = 一个事务」）。

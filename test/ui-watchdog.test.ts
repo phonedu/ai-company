@@ -62,7 +62,7 @@ test('F-06：早探针常量口径保留；main 已由 F-05 启动状态机接�
   assert.equal(BLANK_EARLY_PROBE_MS, 6_000);
   assert.ok(BLANK_EARLY_PROBE_MS < BLANK_WINDOW_TIMEOUT_MS, '早探针必须早于兜底，才能缩短白屏暴露');
   const main = readFileSync('src/main/index.ts', 'utf8');
-  // F-05（2026-11-06）：about:blank 早探针会与真实加载互踩（abort 正常加载）——不得再接回。
+  // （2026-11-06）：about:blank 早探针会与真实加载互踩（abort 正常加载）——不得再接回。
   assert.ok(!main.includes('BLANK_EARLY_PROBE_MS'), '早探针不得再出现在 main（由启动页状态机取代）');
 });
 
@@ -76,7 +76,7 @@ test('BRK20 根因修复：pre-commit 失败判据（about:blank/空 URL 且未�
   assert.equal(isStuckOnPreCommit({ uiMounted: false, url: 'http://127.0.0.1:9/' }), false);
   // 已挂载 → 永不触发。
   assert.equal(isStuckOnPreCommit({ uiMounted: true, url: 'about:blank' }), false);
-  // F-05（2026-11-06）：该判据的语境已不存在——启动页是 data: URL、真实加载提交由状态机判定；
+  // （2026-11-06）：该判据的语境已不存在——启动页是 data: URL、真实加载提交由状态机判定；
   // about:blank 判据若接回会把启动页误判成白窗，故 main 不得再引用。
   const main = readFileSync('src/main/index.ts', 'utf8');
   assert.ok(!main.includes('isStuckOnPreCommit'), 'main 不得再接回 about:blank 判据');

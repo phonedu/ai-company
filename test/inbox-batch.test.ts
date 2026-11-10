@@ -84,7 +84,7 @@ test('样式守门：键帽／主次按钮／超时注（warn 点，warn 不作�
     assert.ok(at >= 0, `缺规则 ${sel}`);
     return css.slice(at, css.indexOf('}', at));
   };
-  // 卡片可读性批（老板 2026-10-28）：行内键帽退役（桌面点按钮即答；序号只在 IM 侧）。
+  // 卡片可读性批（2026-10-28）：行内键帽退役（桌面点按钮即答；序号只在 IM 侧）。
   assert.equal(css.includes('.inbox-row__key'), false, 'inbox-row__key 键帽应已退役');
   assert.match(rule('.inbox-row__btn--primary'), /background:\s*var\(--accent-strong\)/, '主钮＝实底');
   const timeout = rule(".inbox-row__timeout[data-near='true']::before");

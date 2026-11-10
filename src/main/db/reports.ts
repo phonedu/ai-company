@@ -1,12 +1,12 @@
 /**
  * `reports` DAO —— 三类卡片（report 汇报 / ask 决策 / alert 异常，schema.sql）。
- * T0.5 老板频道按 `reports.state` 渲染卡片；`dedupe_key` 供通知去重。
+ *  老板频道按 `reports.state` 渲染卡片；`dedupe_key` 供通知去重。
  */
 import type { SqliteDb } from './open.js';
 
 export interface ReportRow {
   id: number;
-  /** v8/BRK21：可空 = 全局卡（不属任何任务）。 */
+  /** v8/：可空 = 全局卡（不属任何任务）。 */
   task_id: number | null;
   kind: 'report' | 'ask' | 'alert' | string;
   payload: string;
@@ -15,9 +15,9 @@ export interface ReportRow {
   created_at: number;
   delivered_at: number | null;
   acknowledged_at: number | null;
-  /** OPT-M3-1：验证结论 pass|fail|partial（可空）。 */
+  /** OPT-：验证结论 pass|fail|partial（可空）。 */
   verdict: string | null;
-  /** OPT-M3-1：验证者员工 id（≠实现者，可空）。 */
+  /** OPT-：验证者员工 id（≠实现者，可空）。 */
   verifier_employee_id: number | null;
 }
 
@@ -90,7 +90,7 @@ export function getReport(db: SqliteDb, id: number): ReportRow | null {
 }
 
 /** 标记已阅（幂等：已 acknowledged 不覆盖）。除 `acknowledged_at` 外同步把 `state` 推到 `'acknowledged'`
- * （卡片 state 徽章与可操作性依赖它；数据不变量归 DB 层单一写者，1132 裁决）。 */
+ * （卡片 state 徽章与可操作性依赖它；数据不变量归 DB 层单一写者，1132 决定）。 */
 export function acknowledgeReport(db: SqliteDb, id: number, now: number = Date.now()): ReportRow {
   db.prepare(
     "UPDATE reports SET acknowledged_at = ?, state = 'acknowledged' WHERE id = ? AND acknowledged_at IS NULL",
@@ -109,7 +109,7 @@ export interface AcknowledgePendingAsksOptions {
  * RM-2（2026-10-19 真机）：任务已离开 `needs_decision`/`awaiting_approval` 后，把该任务仍 pending 的
  * ask 卡标已阅——老板在老板频道用一句话解决了问题，不应在「待我处理」里继续挂着。
  * 只标 `kind='ask'` 的 pending/delivered；report/alert 不动。
- * **默认排除权限卡**（D4：权限卡不改变任务状态，可能与本任务另一张决策卡同时待答）；
+ * **默认排除权限卡**（：权限卡不改变任务状态，可能与本任务另一张决策卡同时待答）；
  * 终态清理由调用方显式 `includePermission: true`。返回受影响行数。
  */
 export function acknowledgePendingAsksForTask(
@@ -143,7 +143,7 @@ export function acknowledgePendingAsksForTask(
 }
 
 /**
- * RM-2 接线（D4 must-fix 2）：按**任务当前状态**判断，而不是猜事件名。
+ * RM-2 接线（must-fix 2）：按**任务当前状态**判断，而不是猜事件名。
  * 任务已离开 `needs_decision`/`awaiting_approval` → 清同任务 pending ask；仍在等待 → 不动。
  * 对任何已提交 task 事件都可调用（派生事件同样适用）。
  */
@@ -160,7 +160,7 @@ export function acknowledgePendingAsksIfTaskSettled(
 }
 
 /**
- * GAP8：合并更新卡片 payload（当前用于批准卡上的计划全文）。
+ * 合并更新卡片 payload（当前用于批准卡上的计划全文）。
  * 只做浅合并：既有 title/question/options 等字段原样保留；坏 JSON → 以空对象为底（不抛）。
  */
 export function updateReportPayload(
@@ -181,7 +181,7 @@ export function updateReportPayload(
   return getReport(db, reportId) as ReportRow;
 }
 
-/** OPT-M3-1：把验证结论（verdict + verifier）记到报告行（reports）。 */
+/** OPT-：把验证结论（verdict + verifier）记到报告行（reports）。 */
 export function setReportVerdict(db: SqliteDb, reportId: number, verdict: string, verifierEmployeeId: number | null): ReportRow {
   db.prepare('UPDATE reports SET verdict = ?, verifier_employee_id = ? WHERE id = ?').run(
     verdict,

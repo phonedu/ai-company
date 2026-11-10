@@ -5,13 +5,13 @@
  * 原子自增：`INSERT ... ON CONFLICT(name) DO UPDATE SET value = value + 1 RETURNING value`
  * —— 单条 statement，等价于 `UPDATE counters SET value = value + 1 ... RETURNING value` 的初值语义。
  *
- * 【关键：序号永不回收 —— T0.2 断言③】
+ * 【关键：序号永不回收 —— 断言③】
  * `nextCounter` 是一次**独立提交**的写（没有调用方开启的事务时，statement 处于 autocommit）。
  * 这样即便随后的「任务 INSERT」事务回滚，counter 也已前进：**允许空洞，绝不允许回收**
  * （schema.sql / short-id.ts 的第一硬规则）。因此 `createTask`（tasks.ts）必须先分配、再开 INSERT 事务。
  *
- * 取舍说明：DEV §4 写作「分配必须与任务 INSERT 在同一事务」；但同一事务下 ROLLBACK 会连带回收序号，
- * 与「永不复用（允许空洞）」及 T0.2 断言③「事务回滚后序号不回收」冲突。此处按**安全不变式**实现，
+ * 取舍说明： 写作「分配必须与任务 INSERT 在同一事务」；但同一事务下 ROLLBACK 会连带回收序号，
+ * 与「永不复用（允许空洞）」及断言③「事务回滚后序号不回收」冲突。此处按**安全不变式**实现，
  * 并在交付报告中提出文档口径澄清（见 chat 13 报告）。
  */
 import type { CounterStore } from '../../core/short-id.js';

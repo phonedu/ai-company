@@ -1,5 +1,5 @@
 /**
- * G5（M2）· `agent_thinking` 采集：思考文本**脱敏 + 截断**后落 `task_events`（只本地、不进人类频道）。
+ * G5· `agent_thinking` 采集：思考文本**脱敏 + 截断**后落 `task_events`（只本地、不进人类频道）。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

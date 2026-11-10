@@ -1,5 +1,5 @@
 /**
- * S13-A · RW-29（老板真机：点块图标后文字变白、大面积文字重合）回归守卫。
+ *  · （老板真机：点块图标后文字变白、大面积文字重合）回归守卫。
  *
  * 根因：Crepe 结构 CSS（theme/common/*）只用 var(--crepe-color-*)；变量真源在
  * theme/frame（浅）/ frame-dark（深）——此前只引 common → 变量缺失 → 菜单/工具栏

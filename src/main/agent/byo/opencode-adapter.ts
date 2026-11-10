@@ -1,5 +1,5 @@
 /**
- * B3-1/D-31① · BYO 执行体 opencode 适配器——把 ACP 会话映射到员工接口。
+ * / · BYO 执行体 opencode 适配器——把 ACP 会话映射到员工接口。
  *
  * 四验收映射：
  *  ① 同一员工接口：prompt(brief) → ACP session/prompt → 回复文本 → submit_work_item 流程不变；
@@ -70,7 +70,7 @@ export class ByoExecutor {
     return { ok: true, text, sessionId: this.sessionId };
   }
 
-  /** 恢复会话（D-31 四验收④）：先停旧进程再重建（PoC 最小实现；真恢复需 session/load）。 */
+  /** 恢复会话（四验收④）：先停旧进程再重建（PoC 最小实现；真恢复需 session/load）。 */
   async resume(): Promise<void> {
     this.stop();
     await this.start();

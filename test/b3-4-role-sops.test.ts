@@ -1,5 +1,5 @@
 /**
- * B3-4/D-31：角色 SOP 资产库——6 预设三段资产、roleLayer 附着、draft_sop 确认卡。
+ * /：角色 SOP 资产库——6 预设三段资产、roleLayer 附着、draft_sop 确认卡。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

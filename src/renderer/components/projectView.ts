@@ -1,5 +1,5 @@
 /**
- * M2-A · 「项目分组 + 项目概览」**纯逻辑**（无 React/DOM/存储依赖，可单测）。
+ *  · 「项目分组 + 项目概览」**纯逻辑**（无 React/DOM/存储依赖，可单测）。
  *
  * 口径（3152 = 裁定 (A′)）：
  *  - **项目树分组**：以 `project:list` 为准（空项目也显示），再用 `task:list` 补任务与计数；
@@ -16,13 +16,13 @@ export interface ProjectGroup {
   tasks: TaskDTO[];
   /** = `tasks.length`（同源计数，供页面直接渲染，避免 UI 自己再数一遍导致不一致）。 */
   taskCount: number;
-  /** P2（D-N10）：第二读数——执行中/待你处理/失败，全部由同一份 tasks 派生（不新建空壳字段）。 */
+  /** P2：第二读数——执行中/待你处理/失败，全部由同一份 tasks 派生（不新建空壳字段）。 */
   runningCount: number;
   waitingCount: number;
   failedCount: number;
 }
 
-/** P2（D-N10）：组内第二读数（执行中 / 待老板处理 / 失败）——纯派生，与 taskCount 同源。 */
+/** P2：组内第二读数（执行中 / 待确认处理 / 失败）——纯派生，与 taskCount 同源。 */
 const WAITING_STATES = new Set(['needs_decision', 'awaiting_approval']);
 export function taskStats(tasks: readonly TaskDTO[]): { runningCount: number; waitingCount: number; failedCount: number } {
   let runningCount = 0;
@@ -109,7 +109,7 @@ export function projectsFromList(
 }
 
 /**
- * 归档项目分组（M4-F-3 F3-12）：项目树折叠区用；任务计数＝该项目下**全部**任务（含已归档任务），
+ * 归档项目分组（-12）：项目树折叠区用；任务计数＝该项目下**全部**任务（含已归档任务），
  * 不写死 0。别处仍不显示归档项目（`projectsFromList` 保持原口径）。
  */
 export function archivedProjectsFromList(
@@ -194,7 +194,7 @@ export function projectActionState(project: { archived: number } | null | undefi
   return project.archived === 1 ? 'archived' : 'active';
 }
 
-// ── M2 §7 序 4 / M3-DOC-2：文档健康（面板；纯函数可测）──────────────────
+// ── §7 序 4：文档健康（面板；纯函数可测）──────────────────
 
 export interface DocsHealthResultLike {
   docRoot: string;
@@ -299,7 +299,7 @@ export function docsHealthView(input: {
   };
 }
 
-// ── M3-DOC-3：一键整理预览（纯函数；UI 只贴 diff）────────────────────
+// ──：一键整理预览（纯函数；UI 只贴 diff）────────────────────
 
 export interface DocsOrganizeChangeLike {
   path: string;
@@ -326,7 +326,7 @@ export function docsOrganizeDiff(change: DocsOrganizeChangeLike): { text: string
   return { text: lines.slice(0, MAX_LINES).join('\n'), truncated };
 }
 
-// ── 编制 v1（D-11）：项目三项缺省（概览「编制」卡与建任务对话框预填共用的纯口径）──────────
+// ── 编制 v1：项目三项缺省（概览「编制」卡与建任务对话框预填共用的纯口径）──────────
 
 /** 全未设置时的显式读法（**不臆造**默认人名/默认档；「按缺省链」＝规划者→项目默认员工→负责人→幕僚长）。 */
 export const STAFFING_UNSET_TEXT = '未设置——按项目默认';

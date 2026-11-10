@@ -1,5 +1,5 @@
 /**
- * B-4（M4）· 设置·高级「数据保留」纯视图：计数/按钮/二次确认 + 接线守卫。
+ * B-4· 设置·高级「数据保留」纯视图：计数/按钮/二次确认 + 接线守卫。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

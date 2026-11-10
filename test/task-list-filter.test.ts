@@ -1,5 +1,5 @@
 /**
- * M2-A「归档口径收口 + 列表长度策略」—— `tasks.listTasks` 过滤器（含"有牙"）。
+ * 「归档口径收口 + 列表长度策略」—— `tasks.listTasks` 过滤器（含"有牙"）。
  * 口径（3066）：默认排除 `archived=1`；`since` **只对终态任务**限"最近 7 天"，**活态不受限**；`limit` 显式。
  */
 import test from 'node:test';

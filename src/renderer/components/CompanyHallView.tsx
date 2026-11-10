@@ -1,5 +1,5 @@
 /**
- * 公司大厅 · **纯展示**（2026-10-17 双栏改版：老板令「不做跳转，一页两栏」）。
+ * 公司大厅 · **纯展示**（2026-10-17 双栏改版：要求「不做跳转，一页两栏」）。
  *
  * 中栏＝左列 **部门/员工名单**（选中行 panel-2）＋ 右栏 **员工 · 当前任务**（只读；
  * 改人去设置）／**部门协作**／**实时活动流**（左列底部按钮切换）。点人＝右栏切换，**不跳页**。
@@ -10,7 +10,7 @@
  * `hall-departments` / `hall-department` / `hall-dept-name` / `hall-employee` / `hall-emp-status` /
  * `hall-ungrouped` / `hall-empty` / `hall-error` / `hall-collab` / `hall-collab-edge` /
  * `hall-recruit` / `hall-roster` / `hall-open-collab`；
- * M3-P-5 新增：`hall-emp-activity` / `hall-emp-task` / `hall-open-activity` / `hall-activity` /
+ *  新增：`hall-emp-activity` / `hall-emp-task` / `hall-open-activity` / `hall-activity` /
  * `hall-activity-item`。
  */
 import { useState } from 'react';
@@ -91,7 +91,7 @@ function activityTime(ts: number): string {
   return new Date(ts).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-/** 名单行（M3-P-5：头像＋名/角色＋当前任务短号/时长/今日读数＋状态点；点行＝右栏切换）。 */
+/** 名单行（：头像＋名/角色＋当前任务短号/时长/今日读数＋状态点；点行＝右栏切换）。 */
 function EmployeeRow({
   employee,
   selected,
@@ -163,8 +163,8 @@ function EmployeeRow({
             ) : null}
           </span>
         ) : null}
-        {/* UG-08：当前动作（等你裁定/上一件…）——有才渲染，不摆占位。
-            老板 2026-10-25：空闲员工别千篇一律——显「空闲 · 上一件：X」，无历史显「空闲 · 暂无近期任务」。 */}
+        {/* 当前动作（等你裁定/上一件…）——有才渲染，不摆占位。
+            2026-10-25：空闲员工别千篇一律——显「空闲 · 上一件：X」，无历史显「空闲 · 暂无近期任务」。 */}
         {status === 'idle' ? (
           <span className="hall-row__action" data-testid="hall-emp-action" title={activity?.currentAction ?? '空闲'}>
             空闲 · {activity?.currentAction ?? '暂无近期任务'}
@@ -268,7 +268,7 @@ export function CompanyHallView({
   const busyCount = counts.running + counts.waiting + counts.stuck;
   const selected = data.employees.find((employee) => employee.id === selectedEmployeeId) ?? null;
 
-  // 2026-11-04 SplitLayout 接入（批次 3）：窄窗堆叠＋名单折叠头（缺省收起）；S11 的 34vh 截断退役。
+  // 2026-11-04 SplitLayout 接入（批次 3）：窄窗堆叠＋名单折叠头（缺省收起）； 的 34vh 截断退役。
   return (
     <div data-testid="company-hall" style={{ height: '100%' }}>
       <SplitLayout
@@ -402,7 +402,7 @@ export function CompanyHallView({
           <div className="hall__card" data-testid="hall-idle">
             <h3 className="hall__grouptitle">全员空闲</h3>
             <p className="hall__muted">现在没有在跑的任务。每个人最近的情况：</p>
-            {/* 老板 2026-10-25 D5：全员空闲时右栏大栏不要空着——列出每人「空闲 · 上一件：X」。 */}
+            {/* 2026-10-25：全员空闲时右栏大栏不要空着——列出每人「空闲 · 上一件：X」。 */}
             <ul className="hall-idle-list" data-testid="hall-idle-list">
               {(data?.employees ?? []).map((employee) => (
                 <li key={employee.id} data-testid="hall-idle-employee">

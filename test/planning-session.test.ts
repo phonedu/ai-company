@@ -64,8 +64,8 @@ function routingRuntime(
               {
                 id: 'v1',
                 name: 'submit_review',
-                // F-02（2026-11-06）：计划步骤常有未 done 的项——pass 必须带 planStepsNote 交代；
-                // 不交代会被宿主改为 fail（该规则由 g4-review-sessions 的 F-02 用例单测）。
+                // （2026-11-06）：计划步骤常有未 done 的项——pass 必须带 planStepsNote 交代；
+                // 不交代会被宿主改为 fail（该规则由 g4-review-sessions 的用例单测）。
                 input: { verdict: 'pass', planStepsNote: '计划步骤：按实际交付调整，未完成步骤不影响验收。' },
                 isError: false,
               },
@@ -211,7 +211,7 @@ test('R3-1-B 端到端（验收②）：L0 任务**无人工事件**走 inbox→
     assert.match(items[0]!.brief, /验收：|计划：/, '简报带验收或计划（有则写，无则省——不写空行）');
     assert.match(items[0]!.brief, /执行要求：计划已批准.*submit_work_item/, '简报必须写明直接执行并提交（MiMo 实测：不写会复述计划/等指令）');
     assert.ok(fake.runs.some((r) => r.sessionKey?.startsWith('employee:7')), '员工会话真跑了（真开工，不是只建行）');
-    // D3 全链：自动接受 → 聚合 → verifying → **免验自动 pass**（`verificationNeeded:false` 不派 verifier）→ done
+    //  全链：自动接受 → 聚合 → verifying → **免验自动 pass**（`verificationNeeded:false` 不派 verifier）→ done
     assert.ok(
       !fake.runs.some((r) => r.sessionKey?.startsWith('role:verifier')),
       'L0（无事可验）**不派 verifier 会话**（派了也没人可当 verifier≠实现者）',
@@ -280,7 +280,7 @@ test('重规划 v+1：打回 → **真再派规划**（新幂等键 revision=1�
 test('重规划安全阀：critic 连续打回达上限 → escalate 交老板（不无限重规划烧真会话）', async () => {
   const { db, projectId } = setup();
   try {
-    const task = createTask(db, new SqliteCounterStore(db), { projectId, title: '反复打回', goal: 'g', riskLevel: 2, ownerId: 7 }); // B3-6：L2 才有 critic 会话（安全阀依赖 critic 打回）
+    const task = createTask(db, new SqliteCounterStore(db), { projectId, title: '反复打回', goal: 'g', riskLevel: 2, ownerId: 7 }); // L2 才有 critic 会话（安全阀依赖 critic 打回）
     let engine: Engine | undefined;
     const fake = routingRuntime(['一步'], { critic: 'revise' }); // critic 永远打回
     const exec = createEmployeeExecutor({ db, runtime: new EmployeeSessionRuntime(fake), dispatch: (e) => engine!.dispatch(e) });
@@ -288,7 +288,7 @@ test('重规划安全阀：critic 连续打回达上限 → escalate 交老板�
 
     await engine.dispatch({ scope: 'task', id: task.id, event: 'triage', actor: 'boss', payload: {} });
 
-    // B3-6：L2 critic 打回链长——等安全阀触发（needs_decision）
+    // L2 critic 打回链长——等安全阀触发（needs_decision）
     for (let i = 0; i < 100; i += 1) {
       const stNow = (db.prepare('SELECT state FROM tasks WHERE id=?').get(task.id) as { state: string }).state;
       if (stNow === 'needs_decision') break;
@@ -430,7 +430,7 @@ test('R3-1-C L1 对照（B3-6/D-31②）：plan_drafted 后跳 critic 会话（�
 
     const row = db.prepare('SELECT state FROM tasks WHERE id = ?').get(task.id) as { state: string };
     assert.equal(row.state, 'awaiting_approval', 'L1：经合成 plan_reviewed 后仍等老板批准（与 L0 直通分岔由状态机决定）');
-    // B3-6/D-31②：L1 跳过 critic 会话——fake.runs 里不得有 role:critic（省双会话成本）
+    // /：L1 跳过 critic 会话——fake.runs 里不得有 role:critic（省双会话成本）
     assert.ok(!fake.runs.some((r) => r.sessionKey?.startsWith('role:critic')), 'L1 不开 critic 会话（D-31② 限档）');
     const reviewed = listTaskEvents(db, task.id).find((e) => e.kind === 'plan_reviewed');
     const rp = reviewed != null ? (JSON.parse(String(reviewed.payload ?? '{}')) as { skipped?: string }) : null;
@@ -486,12 +486,12 @@ test('D2＋D3 全链（L2 强制验证）：批准 → 派工 → 提交 → ver
     const st = (): string => (db.prepare('SELECT state FROM tasks WHERE id=?').get(task.id) as { state: string }).state;
     assert.equal(st(), 'awaiting_approval', 'L2：critic 过 → 等老板批准（不直通）');
 
-    // D2：老板批准 → ready（＋C2 建件）→ 下一拍派工
+    // 老板批准 → ready（C2 建件）→ 下一拍派工
     const approval = insertApproval(db, { taskId: task.id, question: '批准计划？', options: [{ key: 'approve' }], defaultAction: null });
     await handleTaskApprove(deps, { approvalId: approval.id, chosen: 'approve' }, AT);
     await engine.schedulePass();
 
-    // B2-6/D-30③：L2 pass 现迁 needs_decision（签收卡）——补老板签收步
+    // /：L2 pass 现迁 needs_decision（签收卡）——补签收步
     if (st() === 'needs_decision') {
       await engine!.dispatch({ scope: 'task', id: task.id, event: 'signoff', actor: 'boss', payload: { via: 'b26-regression' } });
       await engine!.schedulePass();
@@ -531,7 +531,7 @@ test('D3 "有牙"：L2 验证**无结论** → 件不得 done（未验证不得 
     assert.equal(item.state, 'submitted', 'verifier 没给结论 ⇒ 件停在 submitted（未验证不得 done）');
     const taskState = (db.prepare('SELECT state FROM tasks WHERE id=?').get(task.id) as { state: string }).state;
     assert.notEqual(taskState, 'done', '任务不得因"验证没结论"而完成');
-    // BRK3 修：**响亮＝看得见的卡**（不再是"靠 action_failed 日志兜底"的静默停摆）
+    //  修：**响亮＝看得见的卡**（不再是"靠 action_failed 日志兜底"的静默停摆）
     assert.equal(taskState, 'needs_decision', 'verifier 无结论 ⇒ 任务 escalate 到 needs_decision（不静默停在 verifying）');
     assert.ok(
       (db.prepare("SELECT COUNT(*) n FROM reports WHERE task_id=? AND kind='ask'").get(task.id) as { n: number }).n >= 1,
@@ -562,7 +562,7 @@ test('D4 闸门卡：L1 计划待批 → 真出决策卡（`kind=ask`）＋ 审�
       'L1：critic 过 → 等老板批准',
     );
 
-    // D4：`notify_approval` 动作 → 真卡（reports）＋ 审批行（approvals）＋ 通知台账（notifications）
+    // `notify_approval` 动作 → 真卡（reports）＋ 审批行（approvals）＋ 通知清单（notifications）
     const cards = db.prepare('SELECT kind, state FROM reports WHERE task_id = ?').all(task.id) as Array<{ kind: string; state: string }>;
     assert.equal(cards.length, 1, '恰一张卡（不再"闸门弹不出来"）');
     assert.equal(cards[0]!.kind, 'ask', '批准＝决策卡（ask）');
@@ -611,7 +611,7 @@ test('D4 闸门卡：L1 计划待批 → 真出决策卡（`kind=ask`）＋ 审�
 test('V3 修・有牙：critic 打回**不产出幽灵批准卡**；重规划 v+1 后（第二次 approve）恰一张真卡', async () => {
   const { db, projectId } = setup();
   try {
-    const task = createTask(db, new SqliteCounterStore(db), { projectId, title: 'L2 打回', goal: 'g', riskLevel: 2, ownerId: 7 }); // B3-6：critic 打回链依赖真 critic 会话（L2 才开）
+    const task = createTask(db, new SqliteCounterStore(db), { projectId, title: 'L2 打回', goal: 'g', riskLevel: 2, ownerId: 7 }); // critic 打回链依赖真 critic 会话（L2 才开）
     let engine: Engine | undefined;
     // critic：第一次 revise（打回）→ 重规划后第二次 approve（收敛）；规划器两版
     let criticRound = 0;
@@ -633,7 +633,7 @@ test('V3 修・有牙：critic 打回**不产出幽灵批准卡**；重规划 v+
 
     await engine.dispatch({ scope: 'task', id: task.id, event: 'triage', actor: 'boss', payload: {} });
 
-    // B3-6：L2 全链更长（planner→critic revise→重规划→critic approve→批准卡）——等会话落定
+    // L2 全链更长（planner→critic revise→重规划→critic approve→批准卡）——等会话落定
     for (let i = 0; i < 100; i += 1) {
       const stNow = (db.prepare('SELECT state FROM tasks WHERE id=?').get(task.id) as { state: string }).state;
       const nApprovals = (db.prepare('SELECT COUNT(*) n FROM approvals WHERE task_id=?').get(task.id) as { n: number }).n;
@@ -701,7 +701,7 @@ test('BRK3 全链（真引擎）：planner 无计划 → 任务 needs_decision �
   try {
     const task = createTask(db, new SqliteCounterStore(db), { projectId, title: '不会规划', goal: 'g', riskLevel: 1, ownerId: 7 });
     let engine: Engine | undefined;
-    // planner 不调 submit_plan（empty toolCalls）⇒ 无有效计划 ⇒ escalate（BRK3 修）
+    // planner 不调 submit_plan（empty toolCalls）⇒ 无有效计划 ⇒ escalate（修）
     const fake = makeFakeAgentRuntime([{ text: '不会规划', toolCalls: [] }]);
     const exec = createEmployeeExecutor({ db, runtime: new EmployeeSessionRuntime(fake), dispatch: (e) => engine!.dispatch(e) });
     engine = new Engine(db, exec, { autoSchedule: true, now: () => AT });

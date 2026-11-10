@@ -225,7 +225,7 @@ test('⑥ 真仓集成：账本完备（新孤儿 0）＋无回归＋账本无�
   const census = censusEvents(defs, files, uiImplementedEvents(TASK_ACTIONS_TABLE), auditScanExcluded);
   const validPairs = new Set(defs.map((d) => `${d.scope}:${d.event}`));
   const sites = collectDispatchSites(files, auditScanExcluded);
-  // 探针与 ⑦ 推送三腿都需要 renderer（BRK19 锚 / BRK13 UI 面读数 / 信封路由在 src/renderer）
+  // 探针与 ⑦ 推送三腿都需要 renderer（锚 / UI 面读数 / 信封路由在 src/renderer）
   const probeFiles: SourceFile[] = [
     ...files,
     ...walk('src/renderer').map((p) => ({ path: p, text: readFileSync(join(root, p), 'utf8') })),
@@ -250,7 +250,7 @@ test('⑥ 真仓集成：账本完备（新孤儿 0）＋无回归＋账本无�
   const probeResults = runProbes(PROBES, probeFiles);
 
   // 防真空绿：扫描确有量（探测器失效时这些下限先红）。
-  // 2026-10-19：GAP1 cron 已接线后真实 findings 降到 7；下限随事实下调（不伪造条目凑数）。
+  // 2026-10-19： cron 已接线后真实 findings 降到 7；下限随事实下调（不伪造条目凑数）。
   assert.ok(files.length >= 100, `扫描文件数异常：${files.length}`);
   assert.ok(census.length >= 40, `事件普查异常：${census.length}`);
   assert.ok(findings.length >= 7, `孤儿普查异常：${findings.length}`);

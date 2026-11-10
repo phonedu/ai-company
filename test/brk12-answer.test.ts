@@ -1,5 +1,5 @@
 /**
- * BRK12（M3-R-5）：员工真互答——被问员工看到点名问、用 answer_colleague 作答；阻塞件真唤醒。
+ * 员工真互答——被问员工看到点名问、用 answer_colleague 作答；阻塞件真唤醒。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

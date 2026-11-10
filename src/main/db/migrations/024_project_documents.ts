@@ -1,6 +1,6 @@
 /** 024：迁移内联常量（打包安全；与 024_project_documents.sql 逐字一致）。 */
-export const SQL_024_PROJECT_DOCUMENTS = `-- 024_project_documents.sql — B3-2/D-31③：多文档根注册层（素材/知识目录挂项目）。
--- 为什么：57 §4 方向①——项目唯一 root_dir 无法挂素材/知识等第二目录；只做多文档根（多代码根不做）。
+export const SQL_024_PROJECT_DOCUMENTS = `-- 024_project_documents.sql —：多文档根注册层（素材/知识目录挂项目）。
+-- 为什么：方向①——项目唯一 root_dir 无法挂素材/知识等第二目录；只做多文档根（多代码根不做）。
 CREATE TABLE IF NOT EXISTS project_documents (
   id         INTEGER PRIMARY KEY,
   project_id INTEGER NOT NULL REFERENCES projects(id),

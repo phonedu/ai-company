@@ -1,5 +1,5 @@
 /**
- * M2-A · 项目概览（`UI §534` 的**可做部分**；3152 裁定 (A′)；D-5 ③：项目级操作归位本页）。
+ *  · 项目概览（`UI §534` 的**可做部分**；3152 裁定 (A′)；D-5 ③：项目级操作归位本页）。
  * **只渲染有真数据的部分**：项目名/别名 + 项目级操作（归档）+ 该项目任务（按状态分组）+ 同源计数；
  * 其余（路径/接入模式/产物库/IM 绑定/快捷入口）**只留一行说明**，**不摆空壳卡片**（空态不伪装）。
  * 数据源 = `store.tasks.list`（`task:list`）＋ `store.projectActions.list`（`project:list`，真实归档状态）。
@@ -60,11 +60,11 @@ import { ProjectTriggers } from './ProjectTriggers.js';
 import { ProjectMemory } from './ProjectMemory.js';
 import { WAITING_REASON_TEXT, waitingSummary } from './waitingReason.js';
 
-/** 终态集（FLOWS：done/failed/cancelled 才可归档）——自左栏任务行退役后，归档入口在本页任务行。 */
+/** 终态集（：done/failed/cancelled 才可归档）——自左栏任务行退役后，归档入口在本页任务行。 */
 const TERMINAL_STATES: ReadonlySet<string> = new Set(['done', 'failed', 'cancelled']);
 
 
-/** UI-2 S1：任务行相对时间（`tasks.updated_at`；无值显 —）。 */
+/**  任务行相对时间（`tasks.updated_at`；无值显 —）。 */
 function relativeTime(ts: number | undefined, now = Date.now()): string {
   if (ts == null) return '—';
   const diff = Math.max(0, now - ts);
@@ -78,7 +78,7 @@ function relativeTime(ts: number | undefined, now = Date.now()): string {
   return new Date(ts).toLocaleDateString('zh-CN');
 }
 
-/** UI-2 S1：项目状态 chip（派生自任务真值；归档优先，不臆造）。 */
+/**  项目状态 chip（派生自任务真值；归档优先，不臆造）。 */
 function projectStatusOf(tasks: ReadonlyArray<TaskDTO>, archived: boolean): { label: string; tone: string } {
   if (archived) return { label: '已归档', tone: 'done' };
   if (tasks.length === 0) return { label: '空', tone: 'empty' };
@@ -98,7 +98,7 @@ export function ProjectOverview(): ReactElement {
   const staffingSnap = useSnapshot(staffingDefaults);
   const skillsSnap = useSnapshot(skillsLibrary);
   const companySnap = useSnapshot(companyConfig);
-  // 项目分工 v1（D-11）：编辑态＝本地草稿（初值从项目 DTO 取；保存走 store，成功即退出编辑）。
+  // 项目分工 v1：编辑态＝本地草稿（初值从项目 DTO 取；保存走 store，成功即退出编辑）。
   /** 验收后复查 A：项目别名编辑（新项目/既有项目都从这里写入；`#别名` 解析同源）。 */
   const [aliasEditing, setAliasEditing] = useState(false);
   const [aliasDraft, setAliasDraft] = useState('');
@@ -106,9 +106,9 @@ export function ProjectOverview(): ReactElement {
   const [aliasError, setAliasError] = useState('');
   /** CR14：空归档项目删除的二次确认。 */
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-  // P0/C1（S13-E）：归档前让老板选处理方式（不再一键静默暂停）。
+  // P0/C1：归档前让老板选处理方式（不再一键静默暂停）。
   const [archiveConfirm, setArchiveConfirm] = useState(false);
-  // S13-G / C3：项目变更历史（project:get 扩展的 changesets；只读）。
+  //  / C3：项目变更历史（project:get 扩展的 changesets；只读）。
   const [history, setHistory] = useState<Array<{
     id: number; taskId: number; shortId: string | null; branch: string | null; headSha: string | null;
     state: string; filesChanged: number; insertions: number; deletions: number;
@@ -142,12 +142,12 @@ export function ProjectOverview(): ReactElement {
   const [staffingError, setStaffingError] = useState('');
   const [docsCheckSaving, setDocsCheckSaving] = useState(false);
   const [docsCheckError, setDocsCheckError] = useState('');
-  /** D-19 P1：频道助手项目写权限草稿（保存后以 project:list 真值为准）。 */
+  /**  P1：频道助手项目写权限草稿（保存后以 project:list 真值为准）。 */
   const [writeModeDraft, setWriteModeDraft] = useState<'read-only' | 'confirm' | 'auto'>('confirm');
   const [writeModeSaving, setWriteModeSaving] = useState(false);
   const [writeModeError, setWriteModeError] = useState('');
   const [writeModeNotice, setWriteModeNotice] = useState('');
-  /** B3（M3-N-3）：项目默认技能草稿（技能名数组；保存后以 project:list 真值为准）。 */
+  /** 项目默认技能草稿（技能名数组；保存后以 project:list 真值为准）。 */
   const [projectSkillsDraft, setProjectSkillsDraft] = useState<string[] | null>(null);
   const [projectSkillsSaving, setProjectSkillsSaving] = useState(false);
   const [projectSkillsError, setProjectSkillsError] = useState('');
@@ -155,11 +155,11 @@ export function ProjectOverview(): ReactElement {
   /** 2026-10-17（建任务入口批）：页头「＋建任务」→ 结构化表单（预填本项目）；成功回执本页显示。 */
   const [createOpen, setCreateOpen] = useState(false);
   const [createNotice, setCreateNotice] = useState('');
-  // UI-2 S1：页签容器（任务/设置；产物/运行/记忆随 S3 接入）＋任务搜索＋行下展开（store 承载，深链可写）。
+  //  页签容器（任务/设置；产物/运行/记忆随接入）＋任务搜索＋行下展开（store 承载，深链可写）。
   const [tab, setTab] = useState<'tasks' | 'settings'>('tasks');
-  // UI-2 S2：项目设置的组（默认「模型」；只做显示过滤，卡片与读写口径不动）。
+  //  项目设置的组（默认「模型」；只做显示过滤，卡片与读写口径不动）。
   const [settingsGroup, setSettingsGroup] = useState<'model' | 'staffing' | 'permission' | 'skills' | 'docs' | 'time' | 'memory' | 'advanced'>('model');
-  // UI-2 S2 复核 P1（2026-11-09）：项目模型策略／默认预算／合并目标分支的**编辑面**随设置页「项目模型」
+  //   复核（2026-11-09）：项目模型策略／默认预算／合并目标分支的**编辑面**随设置页「项目模型」
   // 被 5d54615 一起删掉了（只剩只读摘要 + 指向已不存在的入口）。编辑搬回「设置·模型」卡，读写口径不变。
   const [modelEditing, setModelEditing] = useState(false);
   const [modelPolicyDraft, setModelPolicyDraft] = useState<'fixed' | 'employee_first' | 'assistant'>('employee_first');
@@ -171,7 +171,7 @@ export function ProjectOverview(): ReactElement {
   const [modelNotice, setModelNotice] = useState('');
   const [modelError, setModelError] = useState('');
   const modelFormRef = useRef<HTMLDivElement | null>(null);
-  // 复核 P2（2026-11-10）：752 高的窗口里表单底部「保存」会落在折线以下——打开时滚到可见。
+  // 复核（2026-11-10）：752 高的窗口里表单底部「保存」会落在折线以下——打开时滚到可见。
   useEffect(() => {
     if (modelEditing) modelFormRef.current?.scrollIntoView({ block: 'nearest' });
   }, [modelEditing]);
@@ -218,7 +218,7 @@ export function ProjectOverview(): ReactElement {
     setProjectSkillsNotice('');
   }, [project?.id]);
 
-  // D-19 P1：写权限草稿跟随真值；切换项目时清回执（保存后的回执保留）。
+  //  P1：写权限草稿跟随真值；切换项目时清回执（保存后的回执保留）。
   useEffect(() => {
     setWriteModeDraft(project?.assistantWriteMode ?? 'confirm');
   }, [project?.id, project?.assistantWriteMode]);
@@ -253,7 +253,7 @@ export function ProjectOverview(): ReactElement {
     setCreateNotice('');
   }, [sessionSnap.selectedProjectId]);
 
-  // UI-2 S1 深链：频道/待办/命令面板点任务 → 项目页后展开对应行（一次消费）。
+  //   深链：频道/待办/命令面板点任务 → 项目页后展开对应行（一次消费）。
   useEffect(() => {
     if (pendingTaskId == null) return;
     const projectId = sessionSnap.selectedProjectId;
@@ -315,8 +315,8 @@ export function ProjectOverview(): ReactElement {
     setAliasEditing(false);
   }
 
-  /** 项目分工 v1（D-11）：保存三项缺省（成功退出编辑；失败块内红字，不静默）。 */
-  /** UI-2 S2 复核 P1：项目模型策略（策略/默认模型/允许清单整体写；口径同设置页旧实现）。 */
+  /** 项目分工 v1：保存三项缺省（成功退出编辑；失败块内红字，不静默）。 */
+  /**   复核：项目模型策略（策略/默认模型/允许清单整体写；口径同设置页旧实现）。 */
   async function submitModelPolicy(): Promise<void> {
     const projectId = sessionSnap.selectedProjectId;
     if (projectId == null || modelSaving) return;
@@ -369,7 +369,7 @@ export function ProjectOverview(): ReactElement {
     setModelNotice('项目默认任务预算已保存（只影响之后新建且未填预算的任务）');
   }
 
-  /** S13-G/D-N06：合并目标分支（空＝沿用 main/master）。 */
+  /** /：合并目标分支（空＝沿用 main/master）。 */
   async function submitModelBranch(): Promise<void> {
     const projectId = sessionSnap.selectedProjectId;
     if (projectId == null || modelSaving) return;
@@ -408,7 +408,7 @@ export function ProjectOverview(): ReactElement {
       setStaffingError(res.error ?? '保存失败');
     }
   }
-  /** M3-DOC-4：项目级文档检查开关（只影响新建任务；已有任务运行时按当前开关记未检查）。 */
+  /** 项目级文档检查开关（只影响新建任务；已有任务运行时按当前开关记未检查）。 */
   async function toggleDocsCheck(enabled: boolean): Promise<void> {
     if (sessionSnap.selectedProjectId == null || docsCheckSaving) return;
     setDocsCheckSaving(true);
@@ -418,7 +418,7 @@ export function ProjectOverview(): ReactElement {
     if (!res.ok) setDocsCheckError(res.error ?? '保存失败');
   }
 
-  /** D-19 P1：保存频道助手项目写权限（main 校验；失败块内红字，不静默）。 */
+  /**  P1：保存频道助手项目写权限（main 校验；失败块内红字，不静默）。 */
   async function submitWriteMode(): Promise<void> {
     if (sessionSnap.selectedProjectId == null || writeModeSaving) return;
     setWriteModeSaving(true);
@@ -433,7 +433,7 @@ export function ProjectOverview(): ReactElement {
     setWriteModeNotice('已保存：下一次幕僚长频道会话生效');
   }
 
-  /** B3（M3-N-3）：保存项目默认技能集（校验在 main；失败块内红字，不静默）。 */
+  /** 保存项目默认技能集（校验在 main；失败块内红字，不静默）。 */
   async function submitProjectSkills(): Promise<void> {
     if (sessionSnap.selectedProjectId == null || projectSkillsDraft == null || projectSkillsSaving) return;
     setProjectSkillsSaving(true);
@@ -463,7 +463,7 @@ export function ProjectOverview(): ReactElement {
       {group ? (
         <>
           <header className="project-pane__head" data-testid="project-head">
-            {/* UI-2 S1：项目头（头像＝首字色环；状态 chip 派生自任务真值，不臆造）。 */}
+            {/*  项目头（头像＝首字色环；状态 chip 派生自任务真值，不臆造）。 */}
             <div className="project-head__identity" data-testid="project-identity">
               <span className="project-avatar" data-testid="project-avatar" data-avatar-tone={group.name.charCodeAt(0) % 5} aria-hidden="true">
                 {group.name.slice(0, 1)}
@@ -668,7 +668,7 @@ export function ProjectOverview(): ReactElement {
             )}
           </header>
 
-          {/* UI-2 S1：页签容器——任务 / 设置（产物/运行/记忆随 S3 接入，不摆空页签）。 */}
+          {/*  页签容器——任务 / 设置（产物/运行/记忆随接入，不摆空页签）。 */}
           <nav className="project-tabs" data-testid="project-tabs">
             <button type="button" className="project-tab" data-testid="project-tab-tasks" aria-selected={tab === 'tasks'} onClick={() => setTab('tasks')}>
               任务 <span className="project-tab__count">{group.tasks.length}</span>
@@ -678,7 +678,7 @@ export function ProjectOverview(): ReactElement {
             </button>
           </nav>
 
-          {/* P0/C1：归档选择卡（文档 F7：全部结束并归档 / 保留暂停任务并归档 / 先不归档） */}
+          {/* P0/C1：归档选择卡（文档：全部结束并归档 / 保留暂停任务并归档 / 先不归档） */}
           {archiveConfirm && sessionSnap.selectedProjectId != null ? (
             <div className="project-archive-confirm" data-testid="project-archive-confirm">
               <p className="project-archive-confirm__title">归档这个项目？未结束的任务要怎么处理？</p>
@@ -736,7 +736,7 @@ export function ProjectOverview(): ReactElement {
               >
                 打开目录
               </button>
-              {/* 2026-10-29 P2（D-N08）：批量归档——只归档已结束任务，逐个走既有 archiveTask（可续办恢复）。 */}
+              {/* 2026-10-29 P2：批量归档——只归档已结束任务，逐个走既有 archiveTask（可续办恢复）。 */}
               {(() => {
                 const terminal = group.tasks.filter((task) => TERMINAL_STATES.has(task.state) && task.archived !== 1);
                 if (terminal.length === 0) return null;
@@ -921,12 +921,12 @@ export function ProjectOverview(): ReactElement {
           </section>
           ) : (
           <section className="project-pane__card" data-testid="project-settings-panel">
-          {/* D-22：项目模型策略——摘要＋就地编辑都在本卡（UI-2 S2 复核 P1：设置页「项目模型」随 S2 退役，编辑面搬到这里）。 */}
+          {/* 项目模型策略——摘要＋就地编辑都在本卡（复核：设置页「项目模型」随退役，编辑面搬到这里）。 */}
           {project ? (
             <details className="project-settings" data-testid="project-settings" open>
               <summary className="project-settings__summary">项目设置</summary>
             <div className="project-settings__body" data-active-group={settingsGroup}>
-            {/* UI-2 S2：7 组配置——分段导航只**过滤显示**（卡片不动），默认只开「模型」。 */}
+            {/*  7 组配置——分段导航只**过滤显示**（卡片不动），默认只开「模型」。 */}
             <nav className="project-tabs project-settings__groupnav" data-testid="project-settings-groupnav">
               {([
                 ['model', '模型'],
@@ -1093,7 +1093,7 @@ export function ProjectOverview(): ReactElement {
               ) : null}
             </section>
 
-          {/* 项目分工 v1（D-11）：项目三项缺省（负责人／建任务后派给谁／默认档）——只读摘要＋就地编辑。
+          {/* 项目分工 v1：项目三项缺省（负责人／建任务后派给谁／默认档）——只读摘要＋就地编辑。
               未设置＝显式「未设置——按缺省链」（不臆造人名/档）；保存＝`project:staffing-set`，**只影响之后派发的工作项；已派发不变**。 */}
           <section className="project-pane__card" data-group="staffing" data-testid="project-staffing">
             <h3 className="project-view__state-title">项目分工</h3>
@@ -1196,7 +1196,7 @@ export function ProjectOverview(): ReactElement {
             ) : null}
           </section>
 
-          {/* D-19 P1：频道助手项目写权限（project-only 硬边界不变；项目内三态）。 */}
+          {/*  P1：频道助手项目写权限（project-only 硬边界不变；项目内三态）。 */}
           <section className="project-pane__card" data-group="permission" data-testid="project-assistant-write-mode">
             <h3 className="project-view__state-title">频道助手写权限</h3>
             <p className="project-view__docs-text">
@@ -1239,14 +1239,14 @@ export function ProjectOverview(): ReactElement {
             ) : null}
           </section>
 
-          {/* B-1（M4）：项目概览·定时——列表/创建/取消/下次时间；与频道命令同源。
-              UI-2 S2：外层包 data-group（组件本身不改），否则它会漏在每个组下面。 */}
+          {/* B-1：项目概览·定时——列表/创建/取消/下次时间；与频道命令同源。
+               ：外层包 data-group（组件本身不改），否则它会漏在每个组下面。 */}
           <div data-group="time"><ProjectTriggers projectId={sessionSnap.selectedProjectId} /></div>
 
-          {/* B-6（M4）：项目概览·项目记忆——老板显式写；pin/忘记/提升全局。 */}
+          {/* B-6：项目概览·项目记忆——老板显式写；pin/忘记/提升全局。 */}
           <div data-group="memory"><ProjectMemory projectId={sessionSnap.selectedProjectId} /></div>
 
-          {/* B3（M3-N-3）：项目默认技能集（员工勾选 ∪ 项目默认；只影响该项目下新会话装配）。 */}
+          {/* 项目默认技能集（员工勾选 ∪ 项目默认；只影响该项目下新会话装配）。 */}
           <section className="project-pane__card" data-group="skills" data-testid="project-default-skills">
             <h3 className="project-view__state-title">项目默认技能</h3>
             <p className="project-view__docs-text">
@@ -1316,7 +1316,7 @@ export function ProjectOverview(): ReactElement {
             ) : null}
           </section>
 
-          {/* GAP9（M3-N-5）：公司配置版本化——文件随仓库走；预览 diff 后应用；apply 前备份可回滚。 */}
+          {/* 公司配置版本化——文件随仓库走；预览 diff 后应用；apply 前备份可回滚。 */}
           <section className="project-pane__card" data-group="advanced" data-testid="company-config">
             <h3 className="project-view__state-title">公司配置版本化</h3>
             <p className="project-view__docs-text">
@@ -1410,7 +1410,7 @@ export function ProjectOverview(): ReactElement {
             ) : null}
           </section>
 
-          {/* M2 §7 序 4 / M3-DOC-2：文档健康面板（只读结构检查；无树/失败/未检查都如实，不显假 0）。 */}
+          {/*  §7 序 4：文档健康面板（只读结构检查；无树/失败/未检查都如实，不显假 0）。 */}
           <section className="project-pane__card" data-group="docs" data-testid="docs-health">
             <h3 className="project-view__state-title">文档健康</h3>
             <label className="project-view__docs-check">
@@ -1548,8 +1548,8 @@ export function ProjectOverview(): ReactElement {
             </details>
           ) : null}
 
-          {/* UI-2 S3 将迁「运行」页签；先随设置页保底可见。 */}
-          {/* S13-G / C3：变更历史（跨任务；只读人话版） */}
+          {/*   将迁「运行」页签；先随设置页保底可见。 */}
+          {/*  / C3：变更历史（跨任务；只读人话版） */}
           <section className="project-pane__card" data-testid="project-history">
             <h3 className="project-pane__cardtitle">变更历史（本项目 · 最近 50 条）</h3>
             {history.length === 0 ? (

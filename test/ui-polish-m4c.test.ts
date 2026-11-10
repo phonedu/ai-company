@@ -1,5 +1,5 @@
 /**
- * M4-C 体验打磨的代码锚（C-1/C-2/C-3/C-4）：
+ *  体验打磨的代码锚（C-1/C-2/C-3/C-4）：
  *  - C-1 字体/字阶：Noto Sans SC 资产＋OFL 记录＋字阶 token；
  *  - C-2 折叠：大厅活动流默认 8 条＋展开/收起＋显示读数；
  *  - C-3 夜间：暗色令牌块在场；不再有裸 `color: #fff`（收编到 `--on-accent`）；
@@ -41,7 +41,7 @@ test('C-2 大厅活动流：默认 8 条＋显示读数＋展开/收起（不统
 
 test('C-3 夜间/令牌：暗色块在场；裸 #fff 已收编到 --on-accent', () => {
   assert.match(styles, /@media \(prefers-color-scheme: dark\)/);
-  // 老板 2026-10-28 真机：深色中间区纯黑过生硬 → --bg 改近黑 #101013（令牌守卫同步）
+  // 2026-10-28 真机：深色中间区纯黑过生硬 → --bg 改近黑 #101013（令牌守卫同步）
   assert.match(styles, /--bg:\s*#16161a/);
   assert.match(styles, /--panel:\s*#202024/, 'S13-F F2：深色面板提亮');
   assert.match(styles, /--text:\s*#ffffff/);

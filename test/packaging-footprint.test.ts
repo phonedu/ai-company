@@ -1,5 +1,5 @@
 /**
- * P-1（M2 尾）：Pi 足迹裁剪守卫——只排除 DeepSeek-only 用法下永不加载的 provider SDK；
+ * P-1（尾）：Pi 足迹裁剪守卫——只排除 DeepSeek-only 用法下永不加载的 provider SDK；
  * **绝不排除** `@earendil-works/**`（loader/provider）与 `openai`（DeepSeek 经 openai-completions 走它）。
  */
 import test from 'node:test';

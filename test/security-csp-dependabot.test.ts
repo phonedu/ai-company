@@ -1,5 +1,5 @@
 /**
- * B0-10 起步（58 §3.3）：CSP 收紧 + Dependabot 登记的守门。
+ *  起步：CSP 收紧 + Dependabot 登记的守门。
  *
  * 口径：渲染层不需要任意 ws/wss（provider 调用在主进程）；仅开发 HMR 需要本机 ws。
  * 供应链更新走 Dependabot 周更；audit 硬门要等依赖升级落地后再加（不做假门）。

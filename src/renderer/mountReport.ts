@@ -28,7 +28,7 @@ export type MountReportOutcome = 'reported' | 'retry' | 'gave_up';
  * 尝试上报一次「壳已挂载」。
  *
  * @param getReport 取「上报函数」；**未就绪返回 `undefined`**（不要抛）。
- * @param state     可变状态（`done`/`attempts`，由调用方持有）。
+ * @param state 可变状态（`done`/`attempts`，由调用方持有）。
  * @param maxAttempts 尝试上限（默认 {@link MOUNT_REPORT_MAX_ATTEMPTS}）。
  */
 export function attemptMountReport(

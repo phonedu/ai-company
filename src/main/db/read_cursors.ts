@@ -1,5 +1,5 @@
 /**
- * 未读游标 DAO（M3-REM-1a/1c；口径真源＝`docs/work/spec-remote-preconditions.md` §4）。
+ * 未读游标 DAO（1a/1c；口径真源＝`docs/work/spec-remote-preconditions.md` §4）。
  *
  * 这是**服务端**的未读高水位，不是 renderer 的 `localStorage`：
  *  - `(principal, surface)` 唯一；游标只前进、幂等；
@@ -7,7 +7,7 @@
  *  - `channel:messages` 源＝`human_messages`，未读资格＝`out`（`in` 只推进 transcript 位置）；
  *  - 读**不改变** `reports.state` / `approvals` / 任务状态。
  *
- * 本批只开放 `boss` 的老板频道两个 surface；IM/mailbox 的 surface 已预留校验位置，
+ * 本次只开放 `boss` 的老板频道两个 surface；IM/mailbox 的 surface 已预留校验位置，
  * 等对应实现接入时再加白名单（不靠客户端任意拼接 surface）。
  */
 import type { SqliteDb } from './open.js';

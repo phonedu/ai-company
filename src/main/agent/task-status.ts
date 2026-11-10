@@ -1,5 +1,5 @@
 /**
- * MP1-F18：幕僚长只读任务状态快照（`task_status` 工具的数据面；纯查询、零写入）。
+ * 幕僚长只读任务状态快照（`task_status` 工具的数据面；纯查询、零写入）。
  *
  * 背景：老板问「T-xxxx 什么状态」是高频路径，但幕僚长上下文里没有任务状态、又无查询工具
  * ⇒ 只能如实答「查不到」。本模块直读真库给出紧凑快照——真值来源＝真库，空字段一律 `—`。
@@ -118,9 +118,9 @@ export function taskStatusSnapshot(db: SqliteDb, ref: string): TaskStatusSnapsho
   if (steps.length > 0) {
     lines.push(`计划（${doneSteps}/${steps.length} 已完）：`);
     for (const s of steps) lines.push(`  ${s.idx}. [${s.state}] ${s.text}`);
-    // RW-15（M5 真机带回）：done＝**工作项验收通过**（合并模型），不等于全部计划步骤已执行——
+    // （真机带回）：done＝**工作项验收通过**（合并模型），不等于全部计划步骤已执行——
     // 打回重规划后旧步骤被重算、或验收只覆盖交付项 ⇒ 剩余步骤留在 pending。快照必须写明口径，
-    // 否则读快照的模型会得出「自相矛盾、不建议采信」的误判（真机 S6 实录）。
+    // 否则读快照的模型会得出「自相矛盾、不建议采信」的误判（真机实录）。
     if (task.state === 'done' && doneSteps < steps.length) {
       lines.push(
         `口径说明：done＝交付项验收通过（合并模型），未到 ${steps.length} 步全执行——剩余 ${steps.length - doneSteps} 步因打回/重规划被后续版本替代或未纳入交付，不代表任务未完成。`,

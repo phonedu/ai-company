@@ -1,5 +1,5 @@
 /**
- * M3-N-2 / GAP4 产品面：open 变更集有回滚入口（二次确认），已回滚态显式；回执上屏。
+ *  / 产品面：open 变更集有回滚入口（二次确认），已回滚态显式；回执上屏。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

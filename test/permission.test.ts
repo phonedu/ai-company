@@ -1,5 +1,5 @@
 /**
- * OPT-M9-1 · 权限闸门（`permissionGate`）与 `permission_policies` DAO 验收。
+ * OPT- · 权限闸门（`permissionGate`）与 `permission_policies` DAO 验收。
  * 每条都能被弄红（改 tier/autonomy/policy 即变）。
  */
 import test from 'node:test';
@@ -57,7 +57,7 @@ test('OPT-M9-1: L2 自动收紧一档（loose→standard→strict）', () => {
   assert.equal(downgradeAutonomy('loose', 2), 'standard');
   assert.equal(downgradeAutonomy('standard', 2), 'strict');
   assert.equal(downgradeAutonomy('loose', 1), 'loose');
-  // MP1-F19：`echo hi` 属只读白名单（任何放行档都走快速通道），L2 收紧改用非只读命令作例子——
+  // `echo hi` 属只读白名单（任何放行档都走快速通道），L2 收紧改用非只读命令作例子——
   // 收紧意图不变：对**可能写/执行**的命令，L2 仍把 standard 收到 strict（逐次批）。
   const cmd = { name: 'bash', args: { cmd: 'node -e "1"' } };
   assert.equal(permissionGate(cmd, { ...base, autonomy: 'standard', riskLevel: 2 }).decision, 'ask', 'L2 把 standard 收紧到 strict');
@@ -144,7 +144,7 @@ test('MP1-F15 补丁：ask 挂起动作重复 drain 不重复写 permission_requ
     });
     const gate = (): { decision: 'ask'; reason: string; rule: string } => ({ decision: 'ask', reason: '需批准', rule: 'r1' });
     const noopExecutor = { execute: async (): Promise<void> => undefined };
-    // MP1-F15 后 tick 每秒都会排水挂起动作——同一条 ask 连续三次 drain
+    //  后 tick 每秒都会排水挂起动作——同一条 ask 连续三次 drain
     for (const now of [1000, 2000, 3000]) {
       await executePendingActions(db, noopExecutor, now, gate, undefined, undefined);
     }

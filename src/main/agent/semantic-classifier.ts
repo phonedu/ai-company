@@ -1,10 +1,10 @@
 /**
- * RW-50（2026-11-05）：真语义分类器——幕僚长「听得懂自然话」的地基。
+ * （2026-11-05）：真语义分类器——幕僚长「听得懂自然话」的地基。
  *
  * 背景：`deps.classify` 从未注入，`defaultClassify`（一律 'chat'）是唯一实现——
  * 频道/IM 自由文本派任务整条链失效（T8b 真机实证：连「建任务：…」都退化成闲聊）。
  *
- * 口径（RW-50 设计三原则）：
+ * 口径（设计三原则）：
  *  1. **轻量**：单次 JSON completion（无工具、无历史、短超时）——分诊不该比正文贵；
  *  2. **绝不误建**：任何失败（无 Key/超时/坏 JSON/未知 intent）→ 回落 `{intent:'chat'}`；
  *  3. **可换**：依赖全注入（fetch/secretsDir/db），测试可打桩。
@@ -71,7 +71,7 @@ export function createSemanticClassifier(options: SemanticClassifierOptions): Cl
       const baseUrl = BASE_URLS[cred.provider];
       if (baseUrl == null) return fallback;
 
-      // 项目列表（供 projectId 归属）＋当前频道范围（ RW-14 落库的 scope 键）
+      // 项目列表（供 projectId 归属）＋当前频道范围（落库的 scope 键）
       let projectLines = '';
       let scopeId: number | null = null;
       const db = options.db;

@@ -1,5 +1,5 @@
 /**
- * UI 体系 v1（2026-10-17 细节优化批 B1）——令牌与交互状态的可执行锚。
+ * UI 体系 v1（2026-10-17 细节优化批）——令牌与交互状态的可执行锚。
  *
  * 断言：
  *   ① 字阶 / 圆角 / 动效 / 浮层阴影令牌在场（设计件 §3.2 的实现锚）；
@@ -8,7 +8,7 @@
  *   ④ 滚动条收编为细轨 + 令牌色；
  *   ⑤ 浮层阴影只用 `--shadow-overlay`，旧硬编码不得回潮。
  *
- * 本门只锁“地基”；字阶/圆角的逐选择器收编由 B3 的扩门负责。
+ * 本门只锁“地基”；字阶/圆角的逐选择器收编由的扩门负责。
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -131,7 +131,7 @@ test('B3 选中态：局部列表与通知浮层不再用绿色左条 + 决策�
     const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const rules = [...css.matchAll(new RegExp(`${escaped}\\[aria-current='page'\\][\\s\\S]*?\\{([^}]*)\\}`, 'g'))];
     assert.ok(rules.length > 0, `${selector} 缺选中态规则`);
-    // 选中态必须有一条使用 Cupertino tint 底；深色主题可另有只改字色的覆盖规则（S13-E U-N02）。
+    // 选中态必须有一条使用 Cupertino tint 底；深色主题可另有只改字色的覆盖规则（U-N02）。
     const tinted = rules.some((r) => /background:\s*var\(--tint-soft\)/.test(r[1]));
     assert.ok(tinted, `${selector} 选中态应使用 Cupertino tint 底`);
   }

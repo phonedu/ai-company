@@ -1,5 +1,5 @@
 /**
- * P3（M3-R-7）· 命令级语义预检：在名字/参数粗判之前，把 shell 包裹拆开再按语义规则拦。
+ * P3· 命令级语义预检：在名字/参数粗判之前，把 shell 包裹拆开再按语义规则拦。
  *
  * 为什么需要：`tool_call` 闸门原先只看工具名 + `JSON.stringify(args)` 做正则；
  * `bash -c 'rm -rf /'`、`python -c "...rmtree('/')"`、`cmd /c del ...` 等包裹命令可绕过
@@ -8,7 +8,7 @@
  *  - ask：一般递归删除、远程脚本管道、内联代码里的危险调用、`.env` 读取；
  *  - 规则可分发：`COMMAND_PRECHECK_RULES` 是唯一清单（新增规则只改这里）。
  *
- * 边界：这是**启发式**，不是沙箱；真正隔离仍靠权限层/后续 `OPT-AI-15`。命中 deny 的
+ * 边界：这是**启发式**，不是沙箱；真正隔离仍靠权限层/后续 ``。命中 deny 的
  * 命令不会执行；命中 ask 的走既有审批/grant。
  */
 import type { GateResult, ToolCall } from './gate.js';
@@ -32,7 +32,7 @@ export const COMMAND_PRECHECK_RULES: readonly PrecheckRule[] = [
     id: 'command_precheck:disk',
     decision: 'deny',
     reason: '磁盘/分区破坏命令',
-    // 2026-11-09 真图出口实抓误伤：员工命令里只要出现英文单词 format（如 node -e "...format..."、
+    // 2026-11-09 真图出口发现误伤：员工命令里只要出现英文单词 format（如 node -e "...format..."、
     // ffmpeg 文案）就被判成「磁盘格式化」而拒绝。收敛为**真正的格式化调用**：
     // ① `format C:` / `format.com C:`（带目标盘符）；② mkfs/fdisk/diskpart 保持原样。
     re: /\b(?:mkfs(?:\.\w+)?|fdisk|diskpart)\b|format(?:\.com)?\s+[a-z]:/i,
@@ -59,9 +59,9 @@ export const COMMAND_PRECHECK_RULES: readonly PrecheckRule[] = [
     id: 'command_precheck:credentials',
     decision: 'deny',
     reason: '访问已知凭据库（SSH/AWS/公司 secrets/系统影子文件/git 凭据/应用库）',
-    // 换方向复核 P1-1（2026-11-09）：补 `.git-credentials`（明文存 git 密码）与 `aico.sqlite`
+    // 换方向复核-1（2026-11-09）：补 `.git-credentials`（明文存 git 密码）与 `aico.sqlite`
     // （应用库：含任务/消息/费用，bash 读它此前不拦，只对 read/write 工具有路径层保护）。
-    // 第三轮复核 P3-7：裸文件名（`cat aico.sqlite`）此前漏（前缀要求行首或斜杠，实参前是空格）⇒ 加 `\s`。
+    // 第三轮复核-7：裸文件名（`cat aico.sqlite`）此前漏（前缀要求行首或斜杠，实参前是空格）⇒ 加 `\s`。
     re: /(?:\.ssh[\\/](?:id_rsa|id_ed25519|authorized_keys|config)|\.aws[\\/](?:credentials|config)|\.aico[\\/]secrets|\.git-credentials|(?:^|[\s\\/])\.npmrc\b|(?:^|[\s\\/])id_rsa\b|\/etc\/shadow\b|cookies\b|login\s+data|(?:^|[\s\\/])aico\.sqlite(?:-wal|-shm)?\b|(?:^|[\s\\/])wechat\.json\b)/i,
   },
   {

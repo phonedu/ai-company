@@ -1,5 +1,5 @@
 /**
- * B-6（M4）· 频道记忆命令：解析 + 直通写库（默认项目/全局/忘记/提升/列表/搜索）。
+ * B-6· 频道记忆命令：解析 + 直通写库（默认项目/全局/忘记/提升/列表/搜索）。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

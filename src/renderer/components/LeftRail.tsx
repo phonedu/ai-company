@@ -7,7 +7,7 @@ import { NavIcon, type NavIconName } from './icons.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LeftRail（UI §1：**左栏是唯一导航**）——固定入口（纯导航）。
-//   2026-10-17（老板裁「左栏最下面的任务展示直接不要算了」＋「建任务放哪」的第二步）：
+//   2026-10-17（决定「左栏最下面的任务展示直接不要算了」＋「建任务放哪」的第二步）：
 //   **任务列表退役**（任务在项目树页右栏 / 归档页 / 命令面板），**建任务区也退役**
 //   （改由「老板频道输入框旁 ＋建任务」与「项目树页右栏页头 ＋建任务」两个上下文入口）。
 //   左栏只剩：六个导航项 ＋ 待我处理未读徽标。
@@ -46,7 +46,7 @@ const NAV_ACTIVE_STYLE: CSSProperties = {
 export function LeftRail(): ReactElement {
   const sessionSnap = useSnapshot(session);
   const inboxSnap = useSnapshot(inbox);
-  // M3-REM-1c：未读数来自服务端 `channel:cards` 游标；未加载 → 不显示；
+  // 1c：未读数来自服务端 `channel:cards` 游标；未加载 → 不显示；
   // 已加载但读数失败 → 显 `—`（不写假 0、不隐藏成“已清零”）。
   const inboxUnread = inboxSnap.unread;
   const inboxUnknown = inboxSnap.loaded && inboxSnap.unreadState === 'unknown';

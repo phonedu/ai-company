@@ -1,5 +1,5 @@
 /**
- * wave 2 数据写入面（1658）：D4 `task_deps` 写入 / C6·D5 `deadline` 写入 / B3 `budget_exceeded` 触发链。
+ * wave 2 数据写入面（1658）： `task_deps` 写入 / C6· `deadline` 写入 / `budget_exceeded` 触发链。
  * 每条都有"能被弄红"的断言。
  */
 import test from 'node:test';
@@ -48,7 +48,7 @@ test('D4: task_deps 写入面 → 阻塞任务依赖满足后自动激活（此�
     const a = mk(db, projectId, 'A');
     await drive(engine, a, TO_DONE); // A → executing → verifying
     await engine.dispatch(ev(a, 'verification_completed', { verdict: 'pass' }));
-    // B2-6/D-30③：L1+ pass 现迁 needs_decision（签收卡）——补老板签收步
+    // /：L1+ pass 现迁 needs_decision（签收卡）——补签收步
     if ((getTaskById(db, a) as { state: string }).state === 'needs_decision') {
       await engine.dispatch(ev(a, 'signoff', { via: 'b26-regression' }));
     }
@@ -101,7 +101,7 @@ test('B3: 成本写入触发点 → 预算超限发 budget_exceeded+task_paused�
   const { db, projectId } = fresh();
   try {
     const engine = new Engine(db, makeRecordingExecutor(), { now: () => 1_000 });
-    // RW-27（老板裁 A）后：预算低于最小规划额度会在**规划前**被拦（needs_decision＋预算不足卡），
+    // （决定 A）后：预算低于最小规划额度会在**规划前**被拦（needs_decision＋预算不足卡），
     // 走不到 executing——本用例验的是「执行期成本写入触发超预算暂停」，故预算给足够规划额度，
     // 超支由 recordCost 制造。
     const t = mk(db, projectId, 'T', { budgetTokens: 10_000 });

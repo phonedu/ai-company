@@ -1,5 +1,5 @@
 /**
- * G-A/B/C（M2 §7 序 3）· 产物引用（`task:reference-artifact`）——守据。
+ * G-A/B/C（§7 序 3）· 产物引用（`task:reference-artifact`）——守据。
  *
  * 口径（`work/plan-doc-and-cost-product.md` §4.1）：
  *  - **先 `copy`＋sha256**（link 后议不实现）；

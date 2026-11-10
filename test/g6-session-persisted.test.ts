@@ -1,5 +1,5 @@
 /**
- * G6（M2-C）· 会话落盘显式化：`isPersisted()` 不可用不臆造；未落盘 → 有界复查 + 响亮报错 + 回写标记可见。
+ * G6· 会话落盘显式化：`isPersisted()` 不可用不臆造；未落盘 → 有界复查 + 响亮报错 + 回写标记可见。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

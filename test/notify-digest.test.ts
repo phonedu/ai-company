@@ -1,5 +1,5 @@
 /**
- * M2-A 余 · 通知策略（静默时段）＋ 日报 —— 测试（每条可弄红）。
+ *  余 · 通知策略（静默时段）＋ 日报 —— 测试（每条可弄红）。
  *
  * 覆盖：静默窗判定（含跨午夜/空窗/边界）· 投递通道决策（紧急穿透）· notify() 真集成（投递行照写、
  * 只改 channel）· 日报内容（真数据推导、空就是空）· 日报幂等（一天一次）· 设置键边界校验。
@@ -183,13 +183,13 @@ test('M2-A 日报默认时间：未设 → main 侧取 540（09:00）；本测�
   }
 });
 
-// ── BRK21 / 迁移 008：全局卡（空库日报）────────────────────────────────────────
+// ── / 迁移 008：全局卡（空库日报）────────────────────────────────────────
 
 test('BRK21（008 后）：空库 emitDailyDigest 不抛 —— 全局卡 task_id=NULL、幂等只发一次（修复锚）', () => {
   const db = openMemoryDatabase();
   runMigrations(db);
   try {
-    // 空库（零任务/零项目）：此前哨兵 task_id=0 撞 `reports.task_id REFERENCES tasks(id)` ⇒ FK 炸（BRK21）
+    // 空库（零任务/零项目）：此前哨兵 task_id=0 撞 `reports.task_id REFERENCES tasks(id)` ⇒ FK 炸
     const first = emitDailyDigest(db, { now: AT });
     assert.equal(first.delivered, true, '空库日报必须真投递（BRK21：此前 FK 报错、当天永远收不到）');
     const rows = db.prepare('SELECT task_id, kind, dedupe_key FROM reports').all() as Array<{

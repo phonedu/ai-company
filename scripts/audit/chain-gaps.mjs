@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // ─────────────────────────────────────────────────────────────────────────────
-// `audit:chain` 跑器 —— 功能链条断点审计（老板 2026-10-15「第一步」令）。
+// `audit:chain` 跑器 —— 功能链条断点审计（2026-10-15「第一步」令）。
 // 把 `docs/work/research-feature-chain-gap.md` §6「复跑配方」＋五类孤儿探测机器化：
 // 一跑输出「BRK 存活表（锚探针）＋ 孤儿普查 ＋ 账本对账」；判断"链条还有没有断"＝跑一条命令。
 //
 //   用法（一律经 Node22 包装：`.\scripts\with-node22.ps1 pnpm audit:chain`）：
-//     pnpm audit:chain            # 人读报告
-//     pnpm audit:chain -- --json  # 机器可读（测试用）
+//     pnpm audit:chain # 人读报告
+//     pnpm audit:chain -- --json # 机器可读（测试用）
 //   退出码：0＝无红项（黄项＝「账本待更新/待复核」，不挡）；1＝新孤儿或回归；2＝缺编译产物。
 //
 // 口径：扫描域 src/main＋src/preload（排除 statemachine.ts 与本件自身）；整行注释不计读数；
@@ -52,7 +52,7 @@ for (const dir of ['src/main', 'src/preload']) {
 }
 const isExcluded = (p) => audit.auditScanExcluded(p);
 
-// 探针另含 renderer（BRK19 锚 / BRK13 UI 面读数在 src/renderer）；派发/生产类扫描仍只用 src/main＋src/preload。
+// 探针另含 renderer（锚 / UI 面读数在 src/renderer）；派发/生产类扫描仍只用 src/main＋src/preload。
 const probeFiles = [...files];
 for (const abs of walk(join(root, 'src/renderer'), [])) {
   probeFiles.push({ path: toRel(abs), text: readFileSync(abs, 'utf8') });

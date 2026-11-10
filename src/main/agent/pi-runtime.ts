@@ -7,7 +7,7 @@
  *  - **凭据自解析**（1158）：`env DEEPSEEK_API_KEY` → `~/.aico/secrets/<provider>_api_key`；
  *    只读、绝不打印明文/写库；缺则**明确报错**（不静默 mock）。
  *  - 会话池：`sessionKey → AgentSession`（`SessionManager.inMemory()`），同键串行复用（员工×任务隔离）。
- *  - 事件映射见 DEV §6.2（`message_update` / `tool_execution_start|end` / `agent_settled`）。
+ *  - 事件映射见 （`message_update` / `tool_execution_start|end` / `agent_settled`）。
  */
 import { mkdirSync } from 'node:fs';
 
@@ -67,8 +67,8 @@ export interface EnsureProviderKeyDeps {
 }
 
 /**
- * C4（M2）· 逐会话切换供应商前确保该供应商的 Key 已注入。
- * 抽成可注入依赖的纯逻辑，补 M2 §2 遗留的隔离单测（`ensureProviderKey` 此前只有真机证据）。
+ * C4· 逐会话切换供应商前确保该供应商的 Key 已注入。
+ * 抽成可注入依赖的纯逻辑，补§2 遗留的隔离单测（`ensureProviderKey` 此前只有真机证据）。
  */
 export async function ensureProviderKeyFor(provider: string, deps: EnsureProviderKeyDeps): Promise<void> {
   if (deps.keyed.has(provider)) return;
@@ -89,9 +89,9 @@ export function sessionCacheKey(sessionKey: string, cwd: string): string {
 }
 
 /**
- * GAP7：Pi 会话 id 与缓存键同一归一化规则（`load_skill` 按会话 id 查白名单）。
+ * Pi 会话 id 与缓存键同一归一化规则（`load_skill` 按会话 id 查白名单）。
  *
- * 2026-10-19 staging 真机：缓存键含项目 cwd（`...\\M3 Staging 验收`）时，原实现只把非法字符换成
+ * 2026-10-19 staging 真机：缓存键含项目 cwd（`...\\ Staging 验收`）时，原实现只把非法字符换成
  * `_`，归一化后**以 `_` 结尾**；Pi 要求会话 id 首尾必须是字母数字 → `dispatch_planning` 直接失败。
  * 这里额外裁掉首尾非字母数字，保证任何 cwd 都能生成合法 id。
  */
@@ -139,7 +139,7 @@ export interface PiAgentRuntimeOptions {
   /** customTool 等扩展工厂（如 `pi => pi.registerTool(createReportProgressTool())`）。 */
   extensionFactories?: Array<(pi: unknown) => void>;
   /**
-   * OPT-AI-1（RC-4）：会话**落盘目录**（用户数据目录，如 `<userData>/sessions`）。
+   * （RC-4）：会话**落盘目录**（用户数据目录，如 `<userData>/sessions`）。
    * 提供后按 `sessionKey` 派生稳定会话 id：已存在则 `SessionManager.open`（**重启继续**），否则 `create`；
    * 缺省仍用 `SessionManager.inMemory`（不落盘）。
    */
@@ -331,11 +331,11 @@ export function registerSystemPromptInjection(pi: unknown, getPrompt: () => stri
 }
 
 /**
- * RW-52（2026-11-05 真机定位）· 持久化会话恢复**丢新工具**的守卫。
+ * （2026-11-05 真机定位）· 持久化会话恢复**丢新工具**的守卫。
  *
  * SDK 实证（pi-coding-agent 1.3.0 `agent-session.js`）：持久化会话 resume 时
  * `_restoreToolsFromTranscript()` 把活动工具集**整体替换**为转录 system 消息的
- * `toolsAdded` 快照——快照之后才注册的工具（如 RW-51 的 `boss_inbox`）「已注册但
+ * `toolsAdded` 快照——快照之后才注册的工具（如的 `boss_inbox`）「已注册但
  * 永不激活」＝不声明给模型；旧工具照常；全新会话正常；重启/重构建无效（快照在
  * 会话文件里）。之后每轮 `declareToolChanges` 以该集为准算 delta ⇒ 差值恒空。
  *
@@ -381,7 +381,7 @@ export function usageModelName(applied: string | undefined, fallbackRef: string)
 }
 
 /**
- * OPT-AI-7 省回合一环：提交工具（`submit_work_item` / `submit_plan` / `submit_review`）已调用后，
+ *  省回合一环：提交工具（`submit_work_item` / `submit_plan` / `submit_review`）已调用后，
  * 同一轮再出现的工具调用一律 `block + terminate` —— 省掉"提交后模型还要再跑一轮工具"的往返。
  *
  * SDK 能力（实测 d.ts）：`ToolCallEventResult.terminate` 的语义是**当前批次被 block 时**提示 agent 停止；
@@ -447,7 +447,7 @@ export async function createPiAgentRuntime(options: PiAgentRuntimeOptions): Prom
   }
 
   // CTX1-5：按模型窗口推导压缩阈值（Pi 原生 compaction.modelOverrides；AICO_CTX_COMPACTION=off 可关）。
-  // S11 边界批结论：真机压缩未触发（deepseek 窗口 1M，压不到阈值）；触发条件与阈值推导由
+  //  边界批结论：真机压缩未触发（deepseek 窗口 1M，压不到阈值）；触发条件与阈值推导由
   // `test/s11-compaction-sim.test.ts` 用 Pi 官方 `shouldCompact` 做代码级模拟验证。
   const compactionOverrides = isCompactionTuningEnabled()
     ? deriveCompactionOverrides(
@@ -582,7 +582,7 @@ export async function createPiAgentRuntime(options: PiAgentRuntimeOptions): Prom
       return serialize(`${input.sessionKey}@${input.cwd ?? defaultCwd}`, async () => {
         const runCwd = input.cwd ?? defaultCwd;
         const runCacheKey = sessionCacheKey(input.sessionKey, runCwd);
-        // GAP7：本轮技能白名单（load_skill 只读本会话名单；无 → 清空，防上一轮泄漏）。
+        // 本轮技能白名单（load_skill 只读本会话名单；无 → 清空，防上一轮泄漏）。
         // 兼容 G2 旧会话 id（无 cwd 后缀）：默认 cwd 下两套 id 都登记。
         setSessionSkillRefs(sessionIdForCacheKey(runCacheKey), input.skills);
         setSessionMcpServers(sessionIdForCacheKey(runCacheKey), input.mcps);
@@ -728,7 +728,7 @@ export async function createPiAgentRuntime(options: PiAgentRuntimeOptions): Prom
           if (assistantError) throw new Error(assistantError);
           const finalText = text || (session.getLastAssistantText?.() ?? '');
           const stats = session.getSessionStats?.();
-          // OPT-AI-8：底座已算好 cost（含缓存计价）与 cacheRead/cacheWrite —— 直落，不再丢。
+          // 底座已算好 cost（含缓存计价）与 cacheRead/cacheWrite —— 直落，不再丢。
           const usageModel = usageModelName(appliedModels.get(cacheKey), `${provider}/${modelId}`);
           const usage = stats?.tokens
             ? {
@@ -738,7 +738,7 @@ export async function createPiAgentRuntime(options: PiAgentRuntimeOptions): Prom
                 cacheReadTokens: stats.tokens.cacheRead ?? 0,
                 cacheWriteTokens: stats.tokens.cacheWrite ?? 0,
                 ...(typeof stats.cost === 'number' ? { costUsd: stats.cost } : {}),
-                // getSessionStats() 是**全会话累计**（B0-8）：记账户据此做差值。
+                // getSessionStats() 是**全会话累计**：记账户据此做差值。
                 cumulativeSessionStats: true,
               }
             : { model: usageModel };
@@ -765,7 +765,7 @@ export async function createPiAgentRuntime(options: PiAgentRuntimeOptions): Prom
       return true;
     },
 
-    /** CTX-1 D3：手动压缩一次（Pi `AgentSession.compact()`；未找到 → false，不假装压过）。 */
+    /** CTX-1：手动压缩一次（Pi `AgentSession.compact()`；未找到 → false，不假装压过）。 */
     async compactSession(sessionKey: string): Promise<boolean> {
       const c = lastCwdBySessionKey.get(sessionKey) ?? defaultCwd;
       const session = (await getSession(sessionKey, c)) as { compact?: () => Promise<unknown> } | null;
@@ -775,7 +775,7 @@ export async function createPiAgentRuntime(options: PiAgentRuntimeOptions): Prom
     },
 
     /**
-     * BRK17（挂载 3 余·取消小步）：**真中止**该会话键下的所有实例（`AgentSession.abort()`；
+     * （挂载 3 余·取消小步）：**真中止**该会话键下的所有实例（`AgentSession.abort()`；
      * 键为 `${sessionKey}@${cwd}` 前缀匹配——取消时不需要知道当时 cwd）。未找到 ⇒ false（如实）。
      */
     abortSession(sessionKey: string): boolean {

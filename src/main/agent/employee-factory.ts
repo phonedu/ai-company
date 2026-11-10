@@ -1,5 +1,5 @@
 /**
- * OPT-AI-1 · 员工运行时**封装工厂**（2398② 拍板：装配方只调一个工厂，工具装配与持久化在工厂内）。
+ *  · 员工运行时**封装工厂**（2398② 拍板：装配方只调一个工厂，工具装配与持久化在工厂内）。
  *
  * 装配方（在 `src/main/index.ts`）：
  * ```ts
@@ -14,7 +14,7 @@
  * **无凭据（2402③）**：本工厂**抛错**（`createPiAgentRuntime` 缺凭据即抛）；**装配方不得回落录制桩**，
  * 应转为「不可用执行器」：`dispatch` 立即失败 + `work_item_failed{reason:'no_credential'}` + error 日志。
  *
- * **cwd 限制（如实）**：会话 cwd = 构造期 `cwd`（M1 默认 `inplace`，任务工作目录 == 项目根，成立）；
+ * **cwd 限制（如实）**：会话 cwd = 构造期 `cwd`（默认 `inplace`，任务工作目录 == 项目根，成立）；
  * **按 worktree/staging 的任务级 cwd 隔离留 M2**（需会话按 `(sessionKey,cwd)` 分区）。
  */
 import { join } from 'node:path';
@@ -57,7 +57,7 @@ export const EMPLOYEE_SYSTEM_PROMPT_PLACEHOLDER =
 export interface CreateEmployeeRuntimeOptions {
   /** SQLite 句柄。 */
   db: unknown;
-  /** 构造期 cwd（M1 默认 = 项目根；见文件头 cwd 限制）。 */
+  /** 构造期 cwd（默认 = 项目根；见文件头 cwd 限制）。 */
   cwd: string;
   /** 会话落盘目录（用户数据目录，如 `<userData>/sessions`）。 */
   sessionDir: string;
@@ -71,7 +71,7 @@ export interface CreateEmployeeRuntimeOptions {
   sessionToolGate?: boolean;
   /** G1：决策写入者（缺省 `persistSessionGateDecision`：deny→事件 / ask→事件+approvals）。 */
   onPermissionDecision?: (info: import('./session-tool-gate.js').GateDecisionInfo) => void;
-  /** B2-4/D-30：实测路径登记回调（引擎 `recordWorkItemTouchedPaths`；缺省不采集，如实降级）。 */
+  /** /：实测路径登记回调（引擎 `recordWorkItemTouchedPaths`；缺省不采集，如实降级）。 */
   onTouchedPaths?: (workItemId: number, paths: string[]) => void;
 }
 
@@ -100,11 +100,11 @@ export async function createEmployeeRuntime(options: CreateEmployeeRuntimeOption
     createEscalateToBossTool(),
     createSubmitPlanTool(),
     createLoadSkillTool(),
-    // RW-22（M5 真机 S9 批）：此前只 import 未挂载＝员工会话里根本没有 write_note——
+    // （真机批）：此前只 import 未挂载＝员工会话里根本没有 write_note——
     // K1 的「员工写项目笔记」通路是死功能（真机实锤：mcp_list 未分配、tool_search 无果、验证 fail）。
     createWriteNoteTool(options.db as never),
   ]);
-  // OPT-AI-10：MCP 工具（mcp_list 只读 / mcp_call 逐次过闸门）。
+  // MCP 工具（mcp_list 只读 / mcp_call 逐次过闸门）。
   const { mcpList, mcpCall, toolSearch } = await createMcpTools(options.db as never);
 
   // G1：会话内工具闸门（与引擎动作同一套解析；决策缺省由 agent 层落库，装配层可覆盖）。
@@ -117,7 +117,7 @@ export async function createEmployeeRuntime(options: CreateEmployeeRuntimeOption
           onDecision: options.onPermissionDecision ?? ((info) => persistSessionGateDecision(options.db as never, info)),
         });
 
-  // B2-4/D-30：实测路径采集器（与权限闸门同点位 `tool_call` 执行前；复用闸门登记的会话归属）。
+  // /：实测路径采集器（与权限闸门同点位 `tool_call` 执行前；复用闸门登记的会话归属）。
   const touchedPathRecorder = options.onTouchedPaths
     ? new TouchedPathRecorder({
         sessionFor: (sessionId) => {
@@ -130,10 +130,10 @@ export async function createEmployeeRuntime(options: CreateEmployeeRuntimeOption
 
   // RET-1 P3（A/B）：`AICO_REPO_MAP=on` 时注册确定性 repo_map（只读、零 LLM）。
   const repoMapTool = isRepoMapEnabled() ? await createRepoMapTool(options.cwd) : null;
-  // B3-8/D-31：只读文档工具（项目根内 .md/.txt 白名单；读边界由工具层自身把关）。
+  // /：只读文档工具（项目根内 .md/.txt 白名单；读边界由工具层自身把关）。
   const readDocTool = await createReadDocTool(options.cwd);
 
-  // RW-52 同因（2026-11-05）：员工会话同样落盘（persistDir）——注册与守卫共用**同一名单**
+  //  同因（2026-11-05）：员工会话同样落盘（persistDir）——注册与守卫共用**同一名单**
   // （名单取自工具对象本身，单一真值）；resume 快照丢新工具的机制与守卫口径见
   // `pi-runtime.ts registerToolActivationGuard`。全部为默认 `direct` 曝光（可声明给模型）。
   const employeeTools: unknown[] = [
@@ -141,23 +141,23 @@ export async function createEmployeeRuntime(options: CreateEmployeeRuntimeOption
     requestReview,
     submitWorkItem,
     askColleague,
-    answerColleague, // BRK12：被问员工作答（宿主校验归属并唤醒提问者）
+    answerColleague, // 被问员工作答（宿主校验归属并唤醒提问者）
     submitReview,
     escalateToBoss, // R2-2（G9）：升级给老板（宿主落 AskCard ＋ 任务转 needs_decision）
     submitPlan, // R3-1：规划会话的结构化计划信号（宿主发 `plan_drafted`）
-    loadSkill, // GAP7：按需加载本会话白名单内的技能全文
-    mcpList, // GAP6：本会话分配的 MCP server/工具发现（deferred 不预列）
-    toolSearch, // B5：按需发现 MCP 工具（含 deferred/codemode）
-    mcpCall, // GAP6：MCP 调用（external；逐次批准）
-    writeNote, // K1/RW-22：员工 write_note（当前任务项目的 .aico/notes/ 沉淀）
+    loadSkill, // 按需加载本会话白名单内的技能全文
+    mcpList, // 本会话分配的 MCP server/工具发现（deferred 不预列）
+    toolSearch, // 按需发现 MCP 工具（含 deferred/codemode）
+    mcpCall, // MCP 调用（external；逐次批准）
+    writeNote, // K1/：员工 write_note（当前任务项目的 .aico/notes/ 沉淀）
   ];
   if (repoMapTool) employeeTools.push(repoMapTool); // RET-1 P3：确定性仓库地图（A/B）
-  employeeTools.push(readDocTool); // B3-8/D-31：只读项目文档（白名单 .md/.txt）
-  // B4-1/B4-2/D-29：网络访问＋屏幕截图工具（external 类——每次弹卡批准）。
+  employeeTools.push(readDocTool); // /：只读项目文档（白名单 .md/.txt）
+  // //：网络访问＋屏幕截图工具（external 类——每次弹卡批准）。
   employeeTools.push(await createWebFetchTool());
   employeeTools.push(await createScreenshotTool(options.cwd)); // 截图目录按会话 cwd 逐次解析
-  // B4-4/B4-6/D-29：图像生成（spend 闸）＋导出适配器（write 闸＋路径层）。
-  // 裁决 7（2026-11-09 老板批「图片费用补上」）：出图成功按张入账——由会话 ctx 反查任务/工作项，
+  // //：图像生成（spend 闸）＋导出适配器（write 闸＋路径层）。
+  // 决定 7（2026-11-09 要求「图片费用补上」）：出图成功按张入账——由会话 ctx 反查任务/工作项，
   // 折 USD 后走 `recordCost`（与 LLM 用量同一张成本表、同一套预算读数）。
   employeeTools.push(
     await createImageGenerateTool(options.cwd, {
@@ -198,14 +198,14 @@ export async function createEmployeeRuntime(options: CreateEmployeeRuntimeOption
         registerToolActivationGuard(api, employeeTools.map((tool) => (tool as { name: string }).name));
         // G1：会话内工具调用过 `permissionGate`（同一套解析）。
         toolGate?.register(api as never);
-        // B2-4：实测路径采集（工具执行前登记；采集失败不反噬会话）。
+        // 实测路径采集（工具执行前登记；采集失败不反噬会话）。
         touchedPathRecorder?.register(api as never);
       },
     ],
   });
 
   const runtime = new EmployeeSessionRuntime(pi, { toolGate });
-  // D-22 assistant：选型缓存挂在 bundle 上（lazy 装配每次 execute 都会 createExecutor；
+  //  assistant：选型缓存挂在 bundle 上（lazy 装配每次 execute 都会 createExecutor；
   // 若 chooser 建在里面，每次派发都重建缓存，重试/重规划会重复真实选型并计费）。
   let chooser: ReturnType<typeof createAssistantModelChooser> | null = null;
   let chooserCostSink: EmployeeExecutorDeps['recordCost'];
@@ -248,7 +248,7 @@ export async function createEmployeeRuntime(options: CreateEmployeeRuntimeOption
         buildContext: options.buildContext,
         dispatch,
         recordCost,
-        // D-22：选择期 Key 硬校验（真凭据面；只看可用性，不返回明文）。
+        // 选择期 Key 硬校验（真凭据面；只看可用性，不返回明文）。
         modelKeyConfigured: isModelKeyAvailable,
         chooseAssistantModel,
       });
@@ -264,7 +264,7 @@ export function defaultSessionDir(userDataDir: string): string {
   return join(userDataDir, 'sessions');
 }
 
-// ───────────────────────── OPT-AI-1 · 懒装配（启动不被阻塞；2564/2570） ─────────────────────────
+// ───────────────────────── · 懒装配（启动不被阻塞；2564/2570） ─────────────────────────
 
 /** 装配状态（**三态可见**：装配中 / 就绪(credentialSource,model,耗时) / 失败(原因)）。 */
 export type AssemblyStatus =
@@ -299,14 +299,14 @@ export interface LazyEmployeeRuntime {
   /** 凭据变更后丢弃已装配运行时；下一次派发重新装配（保存/清除 Key 即时生效）。 */
   reset(): void;
   status(): AssemblyStatus;
-  /** BRK9（挂载 2）：老板插话（steer）——透传到已装配的员工会话；未装配/装配失败 ⇒ `false`（如实，不假装送出）。 */
+  /** （挂载 2）：老板插话（steer）——透传到已装配的员工会话；未装配/装配失败 ⇒ `false`（如实，不假装送出）。 */
   steer(sessionKey: string, text: string): boolean;
-  /** BRK17（挂载 3 余·取消小步）：**真中止**员工会话（任务级取消 → 停在该件上跑着的会话）；未装配 ⇒ `false`（如实）。 */
+  /** （挂载 3 余·取消小步）：**真中止**员工会话（任务级取消 → 停在该件上跑着的会话）；未装配 ⇒ `false`（如实）。 */
   abort(sessionKey: string): boolean;
   dispose(): void;
 }
 
-/** 内置不可用执行器：work_item `dispatch` 立即 `error{reason}`（工作项机真事件，BRK2）＋ 任务级 phase 派发
+/** 内置不可用执行器：work_item `dispatch` 立即 `error{reason}`（工作项机真事件）＋ 任务级 phase 派发
  *  **升级给老板**（`escalate`，规划静默修 2026-10-15）＋ error 日志（**绝不换桩**）。 */
 export function createUnavailableExecutorInline(
   reason: string,
@@ -434,12 +434,12 @@ export function createLazyEmployeeRuntime(options: CreateLazyEmployeeRuntimeOpti
       set({ state: 'idle' });
     },
     steer(sessionKey: string, text: string): boolean {
-      // BRK9：未装配/装配失败 ⇒ false（如实）；装配就绪 ⇒ 透传（会话不在飞也会 false——由 pi-runtime 判）。
+      // 未装配/装配失败 ⇒ false（如实）；装配就绪 ⇒ 透传（会话不在飞也会 false——由 pi-runtime 判）。
       if (!bundle || status.state !== 'ready') return false;
       return bundle.runtime.steer(sessionKey, text);
     },
     abort(sessionKey: string): boolean {
-      // BRK17（取消小步）：未装配/装配失败 ⇒ false（如实——停不了就别说停了）；就绪 ⇒ 透传真中止。
+      // （取消小步）：未装配/装配失败 ⇒ false（如实——停不了就别说停了）；就绪 ⇒ 透传真中止。
       if (!bundle || status.state !== 'ready') return false;
       return bundle.runtime.abort(sessionKey);
     },

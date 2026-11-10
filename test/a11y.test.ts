@@ -1,9 +1,9 @@
 /**
- * B5 可访问性守门（2026-10-17）——判据：
+ *  可访问性守门（2026-10-17）——判据：
  *   ① 图标钮有可读名称（aria-label），不只靠 title/SVG；
  *   ② 大厅员工行状态有文字（色点之外的第二编码，不只靠颜色）；
  *   ③ 四个浮层都接焦点圈（useFocusTrap）且声明 aria-modal；
- *   ④ 全局焦点/按压/禁用规则在 styles.css（B1 已锁，这里做集成引用）。
+ *   ④ 全局焦点/按压/禁用规则在 styles.css（已锁，这里做集成引用）。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -52,7 +52,7 @@ test('B5 四个浮层：焦点圈 + aria-modal', () => {
     assert.match(source, /useFocusTrap\(/, `${file} 未接 useFocusTrap`);
     assert.match(source, /aria-modal="true"/, `${file} 缺 aria-modal`);
   }
-  // UG-05：任务详情产物预览已抽到统一 PreviewDrawer；TaskDetail 必须委托它，不能自带第二套浮层。
+  // 任务详情产物预览已抽到统一 PreviewDrawer；TaskDetail 必须委托它，不能自带第二套浮层。
   const detail = readFileSync('src/renderer/components/TaskDetail.tsx', 'utf8');
   assert.match(detail, /<PreviewDrawer/, 'TaskDetail 未委托统一预览抽屉');
 });

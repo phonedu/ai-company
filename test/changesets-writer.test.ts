@@ -1,5 +1,5 @@
 /**
- * M2-C 第 5 项：`artifacts` 归属列 + `changesets` 写者（迁移 `003`）。
+ *  第 5 项：`artifacts` 归属列 + `changesets` 写者（迁移 `003`）。
  *
  * **本测试要证的是"真接通"**（C1 的教训：机制对了、没接线不算完）：
  * 跑一次**真 staging 流程**（真 temp git 仓库 + 真 worktree + 真提交）⇒ 库里出现
@@ -93,7 +93,7 @@ test('真 staging 流程：提交产物 → 完成 ⇒ changesets/changeset_file
     assert.equal(arts[0]!.path, 'a.ts');
     assert.match(String(arts[0]!.source), /^staging:/, '产物归属 = staging:<归一化 cwd>');
     assert.ok(arts[0]!.sha256 && arts[0]!.sha256.length === 64, '产物指纹（sha256）尽力而为地写上');
-    // D3 后：免验件（默认 L1 未命中抽验）**提交即自动接受** → finishWorkspace 按 touched_paths 提交 + 写 changeset
+    //  后：免验件（默认 L1 未命中抽验）**提交即自动接受** → finishWorkspace 按 touched_paths 提交 + 写 changeset
     //（时点前移：从"验证接受时"变成"提交即"——本测不再手写 review_accept）
     assert.notEqual(arts[0]!.changeset_id ?? null, null, 'D3：提交（自动接受）后 changeset 已产生并回挂');
 
@@ -279,7 +279,7 @@ test('`base_sha` 解析不到 ⇒ NULL + `action_failed` 留痕 + **不拿猜的
     const wtPath = join(base, 'T-1001');
     writeFileSync(join(wtPath, 'a.ts'), 'export const a = 9;\n\n\n\n');
     await engine.dispatch({ scope: 'work_item', id: wi.id, event: 'submit_work_item', actor: 'employee:1', payload: { result: { summary: 's' } } });
-    // D3：提交即自动接受（免验件）⇒ finishWorkspace 已跑（不再手写 review_accept）
+    // 提交即自动接受（免验件）⇒ finishWorkspace 已跑（不再手写 review_accept）
     const cs = listChangesetsByTask(db, task.id);
     assert.equal(cs.length, 1, '仍应写一条（state=open）');
     assert.equal(cs[0]!.base_sha, null, 'base_sha 解析不到 ⇒ NULL');

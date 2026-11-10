@@ -1,5 +1,5 @@
 /**
- * BRK20（启动偶发白窗）自我恢复判据（纯函数，可单测）。
+ * （启动偶发白窗）自我恢复判据（纯函数，可单测）。
  *
  * 口径：`did-finish-load` 后 N 秒内没收到渲染层 `ui:mounted` ⇒ 判为疑似白窗，**自动重载一次**；
  * 第二次仍无挂载 → 只响亮留痕（stderr/console），不再无限重载（防抖动）。收到 `ui:mounted` 即清账。
@@ -7,7 +7,7 @@
 export const BLANK_WINDOW_TIMEOUT_MS = 15_000;
 
 /**
- * BRK20 挂钟启动看门狗（pre-commit 失败专用；`did-finish-load` 在该失败模式下不触发）。
+ *  挂钟启动看门狗（pre-commit 失败专用；`did-finish-load` 在该失败模式下不触发）。
  * 复验实测（2026-10-25）：首捕现场 6s 首次重发撞上 network service 恢复窗口（ERR_ABORTED），
  * ⇒ **有界重试**：每 `STARTUP_RETRY_MS` 重发一次、共 `STARTUP_RETRY_MAX` 次；全败 ⇒ unrecovered。
  * 有界（不无限重试、不掩盖失败）；与既有 did-finish-load 看门狗并行、互不接管。
@@ -17,7 +17,7 @@ export const STARTUP_RETRY_MAX = 3;
 export const STARTUP_UNRECOVERED_MS = STARTUP_RETRY_MS * (STARTUP_RETRY_MAX + 1);
 
 /**
- * 早探针（2026-10-24，F-06）：15s 太长——首启白屏时老板已经以为卡死。
+ * 早探针（2026-10-24）：15s 太长——首启白屏时老板已经以为卡死。
  * `did-finish-load` 后 6s 主动执行一次页面探针（`window.api` + app-shell 节点）；
  * 探针确认空白才重载，避免把“慢启动但已在渲染”的正常窗口误杀。
  * 必须早于 `BLANK_WINDOW_TIMEOUT_MS`。
@@ -45,9 +45,9 @@ export function appendConsoleLine(lines: readonly string[], line: string, max = 
 }
 
 /**
- * BRK20 根因修复（2026-10-25 两次现场）：**pre-commit 失败**（真实导航从未提交，stderr 实证
+ *  根因修复（2026-10-25 两次现场）：**pre-commit 失败**（真实导航从未提交，stderr 实证
  * network service crashed）时 `did-finish-load` 不触发 ⇒ 挂在它上面的看门狗整条失明。
- * 本判据＝挂钟启动看门狗的触发条件：未挂载 且 URL 为空/about:blank（真实导航未提交）。
+ * 本判据＝挂钟启动看门狗的触发条件：未挂载且 URL 为空/about:blank（真实导航未提交）。
  * 纯函数（可单测）；已提交到真实 URL（含错误页）的失败由既有 did-finish-load 看门狗接管。
  */
 export function isStuckOnPreCommit(input: { uiMounted: boolean; url: string }): boolean {

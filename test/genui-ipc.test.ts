@@ -10,7 +10,7 @@ import { getReport } from '../src/main/db/reports.js';
 import { createSqliteChatRepo } from '../src/main/ipc/repo.js';
 import { handleCardAction, type IpcDeps } from '../src/main/ipc/ipc.js';
 
-// ─────────────── M1-5 · GenUI 卡片意图 IPC（`chat:card-action`，`06 §4.7`）───────────────
+// ─────────────── · GenUI 卡片意图 IPC（`chat:card-action`，``）───────────────
 // 验收：AC8（回写 human_messages + task_events 可审计）、AC3（非白名单 action 被拒）、恰好一次。
 // 用真内存库 + 真迁移 + 真 repo（与 ipcMain 同一实现）。
 

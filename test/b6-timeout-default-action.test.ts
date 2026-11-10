@@ -1,5 +1,5 @@
 /**
- * B6：`needs_decision` 的 AskCard 超时默认动作 —— **fail-closed 白名单**（`keep` / `pause`）。
+ * `needs_decision` 的 AskCard 超时默认动作 —— **fail-closed 白名单**（`keep` / `pause`）。
  *
  * 覆盖三件事（3435 裁定）：
  * ① 进 `needs_decision` **也排** askcard_timeout（含 `planTimersFromState` 重启重建）；

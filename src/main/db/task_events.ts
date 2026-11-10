@@ -1,5 +1,5 @@
 /**
- * `task_events` DAO —— 单一事实来源的写入/读取（DEV §4.2、FLOWS §3.1 硬约定 1）。
+ * `task_events` DAO —— 单一事实来源的写入/读取（、 硬约定 1）。
  *
  * 约定：状态迁移必须在**同一事务**内写一条 `task_events`（kind 见 schema v1 枚举）。
  * 本模块只负责行的读写，不含事务边界（事务由 `engine/loop.ts` 掌控）。

@@ -1,7 +1,7 @@
 /**
- * OPT-M10-1 · `notifications` DAO（投递记录；`schema.sql` 001 已建表）。
+ * OPT- · `notifications` DAO（投递记录；`schema.sql` 001 已建表）。
  *
- * 用途：给某个**通道**记录一次投递（幂等）。员工间 mailbox（`PLAN §G-6`）复用本表：
+ * 用途：给某个**通道**记录一次投递（幂等）。员工间 mailbox（``）复用本表：
  * `channel='employee:<id>'`（**绝不落 `im:*`/`desktop`** → 不污染人类频道）；
  * `dedupe_key='ask:<from>:<to>:<work_item>:<seq>'`（`UNIQUE` → 同键重放直接丢弃）。
  */

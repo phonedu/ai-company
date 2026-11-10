@@ -1,5 +1,5 @@
 /**
- * 验收后复查 B（BRK25）：答决策卡回 planning 必须真的重派规划；回 executing 不凭空派规划。
+ * 验收后复查 B：答决策卡回 planning 必须真的重派规划；回 executing 不凭空派规划。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

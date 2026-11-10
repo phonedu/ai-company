@@ -1,13 +1,13 @@
 /**
- * `EffectScopeManager` —— M1-1 受管工作单元（`docs/next/research-lessons-productization.md §2.1`、`PLAN §10`）。
+ * `EffectScopeManager` —— 受管工作单元（`docs/next/research-lessons-productization.md §2.1`、``）。
  *
- * 职责：登记/刷新**归属台账**、**超时兜底**、**显式回收**。
- * 铁律：**回收只按台账记录的 PID 树**（`taskkill /PID <root> /T /F`），**永不扫同名进程**；
+ * 职责：登记/刷新**归属清单**、**超时兜底**、**显式回收**。
+ * 铁律：**回收只按清单记录的 PID 树**（`taskkill /PID <root> /T /F`），**永不扫同名进程**；
  *      回收**恰好一次**（先原子置「已回收」，拿到者才 kill）；PID killer 可注入（单测不真杀）。
  *
- * 结合点（供会话池接线）：`EffectExecutor.execute('dispatch')` → `open(...)` 建会话 + 写台账；
+ * 结合点（供会话池接线）：`EffectExecutor.execute('dispatch')` → `open(...)` 建会话 + 写清单；
  * work item 进终态 → `reclaim(scopeKey, 'release')`；心跳由 `heartbeat(...)` 刷新，
- * 静默超时由本类的 `reclaimDue(now)` 兜底（对应 `timers` 中 `kind='effect_scope'` 的台账行）。
+ * 静默超时由本类的 `reclaimDue(now)` 兜底（对应 `timers` 中 `kind='effect_scope'` 的清单行）。
  */
 import { execFileSync } from 'node:child_process';
 
@@ -74,7 +74,7 @@ export class EffectScopeManager {
   private readonly clock: () => number;
   private readonly heartbeatTimeoutMs: number;
   private readonly killer: PidKiller;
-  /** 记录所有被要求 kill 的 PID（仅用于测试断言「只动台账里的 PID」）。 */
+  /** 记录所有被要求 kill 的 PID（仅用于测试断言「只动清单里的 PID」）。 */
   readonly killedPidsLog: number[] = [];
 
   constructor(private readonly db: SqliteDb, options: EffectScopeManagerOptions = {}) {
@@ -115,7 +115,7 @@ export class EffectScopeManager {
   }
 
   /**
-   * 显式回收：**先原子置「已回收」**（恰好一次），拿到者才按**台账 PID 树**回收。
+   * 显式回收：**先原子置「已回收」**（恰好一次），拿到者才按**清单 PID 树**回收。
    * 重复调用 / 已回收 → `{reclaimed:false, killedPids:[]}`（不重复 kill）。
    */
   reclaim(scopeKey: string, reason: ReclaimReason): ReclaimResult {
@@ -148,13 +148,13 @@ export class EffectScopeManager {
     return listEffectScopes(this.db, state);
   }
 
-  /** OPT-M9-3：归因读数（耗时 + 归属，按耗时降序）。 */
+  /** OPT-：归因读数（耗时 + 归属，按耗时降序）。 */
   attribution(now: number = this.clock()): ScopeDuration[] {
     return effectScopeAttribution(this.db, { now });
   }
 }
 
-// ───────────────────────── OPT-M9-3 · 长任务归因（耗时读数） ─────────────────────────
+// ───────────────────────── OPT- · 长任务归因（耗时读数） ─────────────────────────
 
 export interface ScopeDuration {
   scopeKey: string;
@@ -194,7 +194,7 @@ export function attributeDurations(scopes: EffectScope[], now: number): ScopeDur
     .sort((a, b) => (b.durationMs !== a.durationMs ? b.durationMs - a.durationMs : a.scopeKey < b.scopeKey ? -1 : 1));
 }
 
-/** 从台账读归因读数。 */
+/** 从清单读归因读数。 */
 export function effectScopeAttribution(db: SqliteDb, options: { now: number; state?: EffectScopeState }): ScopeDuration[] {
   return attributeDurations(listEffectScopes(db, options.state), options.now);
 }

@@ -12,7 +12,7 @@ import {
   validateDeviation,
 } from '../src/main/ipc/deviation.js';
 
-// ── OPT-M6-1：差异台账（复用 task_events，kind='deviation_recorded'）──
+// ── OPT-：差异清单（复用 task_events，kind='deviation_recorded'）──
 
 test('M6-1: validateDeviation —— owner 与里程碑必填', () => {
   assert.deepEqual(validateDeviation({ owner: 2, milestone: 'M1' }), { missingOwner: false, missingMilestone: false });

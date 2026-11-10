@@ -1,5 +1,5 @@
 /**
- * M3 联动修复 P1：grant 最小范围（rule + toolName + sessionKey）。
+ *  联动修复 P1：grant 最小范围（rule + toolName + sessionKey）。
  * 批准一次 mcp_call 不得顺带放行 web/git_push 等其它 external 工具。
  */
 import assert from 'node:assert/strict';

@@ -1,11 +1,11 @@
 /**
- * OPT-AI-1 · 员工**真会话执行器**（替换 `makeRecordingExecutor()` 桩）。
+ *  · 员工**真会话执行器**（替换 `makeRecordingExecutor()` 桩）。
  *
  * 口径（2285 裁定）：
  *  - **派发 `dispatch`（work_item）→ 员工真会话**：按 `work_items.employee_id` 取会话，cwd = 任务工作目录；
  *  - **回写**：会话**必须调 `submit_work_item`** → 发引擎事件 `submit_work_item`（→`submitted`）；
  *    **未提交** → 发 `agent_settled{submitted:false, lastOutput}`（→`failed`，**失败可见、不静默**）；
- *  - **`ask_colleague`**：会话内调用 → 走 M10-1 mailbox（`requestAsk`，不污染人类频道）；
+ *  - **`ask_colleague`**：会话内调用 → 走mailbox（`requestAsk`，不污染人类频道）；
  *  - **任务级 `dispatch_<phase>`**：`planning`＝**R3-1 规划会话**（本件接管：`dispatch_planning` → planner 会话
  *    → `submit_plan` → `plan_drafted`〔L0 直通 / L1·L2 进 critic 由状态机决定〕）；`critic/verifier`＝G4 评审会话。
  *
@@ -59,7 +59,7 @@ export interface EmployeeExecutorDeps {
   /** 事件回灌引擎（接线为 `(e) => engine.dispatch(e)`）；缺省则只记录不推进状态。 */
   dispatch?: (event: EngineEvent) => Promise<void> | void;
   /**
-   * M2-D（预算流式结算）：成本走**引擎**入口（写 `costs` ＋ `cost_recorded` ＋ 回写 `cost_tokens`
+   * （预算流式结算）：成本走**引擎**入口（写 `costs` ＋ `cost_recorded` ＋ 回写 `cost_tokens`
    * ＋ **超预算 → `budget_exceeded` → paused**）。装配方接成 `(i) => engine.recordCost(i)`；
    * 缺省/未接线 → 回退 `db/costs` 直写（**只记账、无预算闸**——日志明示）。
    */
@@ -79,12 +79,12 @@ export interface EmployeeExecutorDeps {
     now: number;
   }) => Promise<{ costTotal: number | null; budgetExceeded: boolean } | void> | { costTotal: number | null; budgetExceeded: boolean } | void;
   /**
-   * D-22 选择期 Key 硬校验：解析出模型后核对供应商 Key 是否可用（只读，不返回明文）。
+   *  选择期 Key 硬校验：解析出模型后核对供应商 Key 是否可用（只读，不返回明文）。
    * 生产装配传 `isModelKeyAvailable`；单测缺省视为可用（不读真实 secrets）。
    */
   modelKeyConfigured?: (model: string) => boolean;
   /**
-   * D-22 assistant：LLM 幕僚长选型（异步，带缓存）。缺省/失败 → 解析器回落确定性规则。
+   *  assistant：LLM 幕僚长选型（异步，带缓存）。缺省/失败 → 解析器回落确定性规则。
    * 生产装配传 `createAssistantModelChooser()`；单测可注入假实现。
    */
   chooseAssistantModel?: (input: AssistantChoiceInput) => Promise<AssistantChoice | null>;
@@ -101,7 +101,7 @@ interface ResolvedWorkItem {
 }
 
 /**
- * B2-3/D-30②（D4 复核 P1-b 提取为可测纯函数）：返工件会话键继承判定——
+ * /（复核-b 提取为可测纯函数）：返工件会话键继承判定——
  * **同员工**才继承「员工×任务×源件」会话键（前轮现场可见）；换员工改派不继承
  * （隔离优先，返回 undefined ⇒ 走新件自己的会话键）；无源件（retry_of 为空）同此。
  */
@@ -138,14 +138,14 @@ export function parsePlanningAction(action: PersistedAction): { taskId: number }
   return { taskId: action.taskId };
 }
 
-/** D-22：取任务所属项目的模型策略（无项目/坏值 → null＝旧行为）。 */
+/** 取任务所属项目的模型策略（无项目/坏值 → null＝旧行为）。 */
 function projectPolicyForTask(db: unknown, task: { project_id?: number | null } | null | undefined): ProjectModelPolicy | null {
   const projectId = task?.project_id;
   return typeof projectId === 'number' ? getProjectModelPolicy(db as never, projectId) : null;
 }
 
 /**
- * D-22 审计：只有**回落**或**硬约束拒绝**才写 `model_selected`（普通选择不刷事件）；
+ *  审计：只有**回落**或**硬约束拒绝**才写 `model_selected`（普通选择不刷事件）；
  * payload 带 source / 原因 / 允许清单，供任务详情与复盘查。
  */
 function recordModelTier(
@@ -186,7 +186,7 @@ function recordModelTier(
   }
 }
 
-/** D-22：硬约束拒绝 → 响亮失败（不静默改派）。 */
+/** 硬约束拒绝 → 响亮失败（不静默改派）。 */
 function rejectedModelError(tier: ModelTierResolution): Error | null {
   return tier.rejected ? new Error(`[agent] ${tier.rejected}`) : null;
 }
@@ -196,13 +196,13 @@ export const AGENT_THINKING_MAX = 2000;
 
 /**
  * 重规划安全阀（重规划 v+1 配套）：critic 最多把计划打回到第 `1 + MAX_PLAN_REVISIONS` 版；
- * 再打回不再重规划（每次都真烧两次会话），转 `escalate` 交老板裁定。
+ * 再打回不再重规划（每次都真烧两次会话），转 `escalate` 交要求。
  */
 export const MAX_PLAN_REVISIONS = 2;
 
 /**
- * 老板最近一次裁定后的**连续打回版数**（RW-21 残留收尾，M5 真机 S9 批）：
- * 旧口径＝累计 `plan_drafted` 总数——老板裁定「按评审意见再改」后预算不重置，critic 只消一轮
+ * 老板最近一次裁定后的**连续打回版数**（残留收尾， 真机批）：
+ * 旧口径＝累计 `plan_drafted` 总数——要求「按评审意见再改」后预算不重置，critic 只消一轮
  * 打回就立刻再升级（老板沦为橡皮章，真机 T-1015 round=4 实锤）。新口径＝最后一次
  * `decision_made` 之后的 plan_drafted 计数（无裁定过的任务照旧数全部）。
  */
@@ -246,12 +246,12 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
   // R3-1：规划上下文（可选注入；缺省用 buildPlanningContext）。
   const buildPlan = deps.buildPlanningContext ?? (buildPlanningContext as unknown as (db: unknown, input: PlanningContextInput) => EmployeeContext);
   const now = deps.now ?? (() => Date.now());
-  // D-22：选择期 Key 硬校验（不注入＝单测环境，视为可用；生产由 employee-factory 接真凭据面）。
+  // 选择期 Key 硬校验（不注入＝单测环境，视为可用；生产由 employee-factory 接真凭据面）。
   const keyConfigured = deps.modelKeyConfigured ?? (() => true);
   const gateModelKey = (tier: ModelTierResolution, project: ProjectModelPolicy | null): ModelTierResolution =>
     applyModelKeyGate(tier, { project, companyDefault: normalModelName(), keyConfigured });
 
-  /** D-22 硬拒可见：任务级会话（规划/评审）→ escalate（决策卡）；旧装配无 dispatch 时仍抛。 */
+  /**  硬拒可见：任务级会话（规划/评审）→ escalate（决策卡）；旧装配无 dispatch 时仍抛。 */
   async function rejectTaskModel(phase: string, taskId: number, role: string, rejected: Error): Promise<void> {
     if (!deps.dispatch) throw rejected;
     await deps.dispatch({
@@ -268,7 +268,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
     });
   }
 
-  /** D-22 硬拒可见：执行工作项 → work_item error（件 failed，任务聚合出异常卡）；旧装配无 dispatch 时仍抛。 */
+  /**  硬拒可见：执行工作项 → work_item error（件 failed，任务聚合出异常卡）；旧装配无 dispatch 时仍抛。 */
   async function rejectWorkItemModel(target: { taskId: number; workItemId: number }, rejected: Error): Promise<void> {
     if (!deps.dispatch) throw rejected;
     await deps.dispatch({
@@ -281,7 +281,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
   }
 
   /**
-   * D-22 assistant：先异步问幕僚长（同任务同角色只问一次），把结果交给同步解析器；
+   *  assistant：先异步问幕僚长（同任务同角色只问一次），把结果交给同步解析器；
    * 未启用/无候选/失败 → null，解析器走确定性规则。
    */
   async function assistantChoiceFor(
@@ -333,7 +333,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
   /**
    * G4 角色边界：critic 必须独立于规划者与（计划的）实现者。
    * 返回 null ⇒ 无独立人选；调用方派 `critic_unavailable` 升级，**不允许自评**。
-   * RW-12（M5 真机带回）：选人**优先专职评审角色**（role 含 review/critic/评审）——纯按 id 会
+   * （真机带回）：选人**优先专职评审角色**（role 含 review/critic/评审）——纯按 id 会
    * 让 dev 同事顶替专职评审员工（「评审≠执行」名存实亡）；无专职时回退按 id（既有行为）。
    */
   function pickIndependentCritic(input: {
@@ -351,9 +351,9 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
   }
 
   /**
-   * F-01（2026-11-05 终验真机）：critic 无人可选时**先自动补一名评审员工**（D-20 口径），返回其 id。
+   * （2026-11-05 终验真机）：critic 无人可选时**先自动补一名评审员工**（口径），返回其 id。
    * 只在「非幕僚长在职员工 < 2」且「名册里还没有专职评审」时补——已经有人/已有评审仍选不出来，
-   * 说明是独立性问题（都占满了），那才该升级老板裁定（不自评不变）。招募**可见**：发招募卡（不阻塞）。
+   * 说明是独立性问题（都占满了），那才该升级要求（不自评不变）。招募**可见**：发招募卡（不阻塞）。
    */
   function recruitReviewerIfMissing(taskId: number, taskShortId: string | null): number | null {
     const d = db as unknown as {
@@ -412,7 +412,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
     const baseKey = modelRefKey(base.model ?? '');
     const allowed = note.allowedModels ?? [];
     const allowedRefs = new Set(allowed.map((m) => modelRefKey(m)));
-    // D-22：运行期降级也受项目边界约束——清单外或缺 Key 的备选不得顶替（否则硬边界只在选择期成立）。
+    // 运行期降级也受项目边界约束——清单外或缺 Key 的备选不得顶替（否则硬边界只在选择期成立）。
     // 清单按规范引用比较（裸名/provider 前缀混写视为同一模型）；链内同引用只试一次。
     const chain = getFallbackChain()
       .filter(
@@ -434,7 +434,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
         lastError = error;
         const next = chain[hop];
         if (!isProviderUnavailableError(message) || next == null) throw error;
-        // B0-11：指数退避后再换模型（限流/5xx 不要立刻打满整链）。
+        // 指数退避后再换模型（限流/5xx 不要立刻打满整链）。
         const wait = providerBackoffMs(hop);
         if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
         console.warn(`[agent] 主模型不可用 → 降级（${note.role}）：${candidate} → ${next}（${message.slice(0, 140)}）`);
@@ -513,7 +513,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
   }
 
   /**
-   * B0-8（ADV-1 I1）：会话统计是**累计值**（Pi `getSessionStats()` 遍历全会话），同会话多轮
+   * （ADV-1 I1）：会话统计是**累计值**（Pi `getSessionStats()` 遍历全会话），同会话多轮
    * （nudge/重试/返工复用会话键）若全额入账就会重复计入。这里按 sessionKey 落**差值**：
    * 游标持久化在 settings（`cost.usageCursor.<hash>`）——重启后续跑同一落盘会话也不重记。
    * 非累计用量（fake/单轮）原样返回（既有行为不变）。
@@ -559,7 +559,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
   }
 
   /**
-   * OPT-AI-8：把一次会话的用量落库（**无用量不写行**——不臆造；项目归属由 task 解析）。
+   * 把一次会话的用量落库（**无用量不写行**——不臆造；项目归属由 task 解析）。
    * 记账失败**不阻断会话**，但**响亮报错**（P6：不许静默失败）。
    */
   async function persistUsage(usage: AgentUsage | undefined, taskId: number, workItemId: number | null, employeeId: number): Promise<void> {
@@ -570,7 +570,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
     const cacheWrite = usage.cacheWriteTokens ?? 0;
     const usd = usage.costUsd ?? 0;
     if (tokensIn + tokensOut + cacheRead + cacheWrite === 0 && usd === 0) return; // 零用量＝无事实可记
-    // B0-11：未定价模型（底座没给 cost）→ 留痕告警，不静默把花费当 $0（美元预算闸会失真）。
+    // 未定价模型（底座没给 cost）→ 留痕告警，不静默把花费当 $0（美元预算闸会失真）。
     if (usage.costUsd == null) {
       try {
         insertTaskEvent(db as never, {
@@ -599,7 +599,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
     };
     try {
       if (deps.recordCost) {
-        // M2-D：引擎入口（含预算闸门与 cost_recorded 事件）——生产装配必须走这条。
+        // 引擎入口（含预算闸门与 cost_recorded 事件）——生产装配必须走这条。
         await deps.recordCost(entry);
       } else {
         // 未接线：只记账（无预算闸）——**显式提示**（静默风险不许藏）。
@@ -638,7 +638,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
         .all(taskId) as Array<{ id: number; employee_id: number; verifier_employee_id: number | null; state: string }>;
       const target = rows.find((w) => w.verifier_employee_id != null && w.employee_id !== w.verifier_employee_id) ?? null;
       if (!target) {
-        // BRK3 修：派**任务机真事件** `escalate`（FLOWS §3.1.1「任意非终态」行 → `needs_decision` ＋ AskCard；
+        //  修：派**任务机真事件** `escalate`（「任意非终态」行 → `needs_decision` ＋ AskCard；
         // 此前派 `verification_blocked`——任务机没有这个事件 ⇒ 真引擎抛错、任务永停 `verifying`、无卡）。
         await deps.dispatch?.({ scope: 'task', id: taskId, event: 'escalate', actor: 'system', payload: { role, reason: 'no_verifier' } });
         return;
@@ -674,9 +674,9 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
         implementerEmployeeId = active ?? (typeof task.owner_id === 'number' ? task.owner_id : 0);
       }
       let picked = pickIndependentCritic({ plannerEmployeeId: plannerId, implementerEmployeeId });
-      // F-01（2026-11-05 终验真机）：空公司/单人公司派任务时，planning→critic 这一步会直接升级成
-      // 只有「取消任务」的死卡；而 D-20 的自动补评审（engine.ensureReviewer）只在**建工作项**阶段调用，
-      // 永远走不到。这里先按 D-20 口径**自动补一名评审员工**（可见招募卡）再重试选人；
+      // （2026-11-05 终验真机）：空公司/单人公司派任务时，planning→critic 这一步会直接升级成
+      // 只有「取消任务」的死卡；而的自动补评审（engine.ensureReviewer）只在**建工作项**阶段调用，
+      // 永远走不到。这里先按口径**自动补一名评审员工**（可见招募卡）再重试选人；
       // 仍无独立人选才升级老板（不自评不变）。
       if (picked == null || picked === plannerId || picked === implementerEmployeeId) {
         const recruited = recruitReviewerIfMissing(taskId, task?.short_id ?? null);
@@ -697,7 +697,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
       reviewerId = picked;
     }
 
-    // M3-DOC-4（P6）：宿主先跑 `acceptance[].check`。任一条失败＝硬门——跳过 verifier 模型，
+    // （P6）：宿主先跑 `acceptance[].check`。任一条失败＝硬门——跳过 verifier 模型，
     // 直接落 fail 报告并派 `verification_completed`（模型不得翻案；也省一次会话成本）。
     const machineChecks = role === 'verifier' ? await runAcceptanceChecksAsync(db as unknown as SqliteDb, taskId) : null;
     if (machineChecks?.failed) {
@@ -729,7 +729,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
     });
     // N5（`R3-3`）：评审会话档位（**任务级 > 员工显式 > role_map > 项目默认 > 普通档**；评审不降档——危险档保持强模型）。
     const pref = getEmployeeModelPref(db as never, reviewerId);
-    // D-22：项目模型策略＝边界与默认（fixed 压平员工偏好；允许清单外的任务模型直接拒）。
+    // 项目模型策略＝边界与默认（fixed 压平员工偏好；允许清单外的任务模型直接拒）。
     const project = projectPolicyForTask(db, task);
     const assistantChoice = await assistantChoiceFor(taskId, role, task, project);
     const employeeChoice = await assistantChoiceFor(taskId, 'employee', task, project);
@@ -816,7 +816,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
         { role, allowedModels: project?.allowedModels ?? [] },
       );
     } catch (error) {
-      // S1 同族（2026-10-24）：submit_review 成功后 SDK 可能 terminate，`prompt` 抛 terminated；
+      //  同族（2026-10-24）：submit_review 成功后 SDK 可能 terminate，`prompt` 抛 terminated；
       // 评审结论已提交，不能把 action 记失败、让任务卡在 verifying。
       const message = error instanceof Error ? error.message : String(error);
       if (reviewSucceeded && reviewInput && /terminated/i.test(message)) {
@@ -842,11 +842,11 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
     const result = run.result;
     finalizeContextMetric(reviewMetricId, result.usage, reviewSession);
 
-    await persistUsage(usageDelta(result.usage, reviewSession), taskId, workItemId, reviewerId); // OPT-AI-8/B0-8：评审会话同口径（差值）
+    await persistUsage(usageDelta(result.usage, reviewSession), taskId, workItemId, reviewerId); // /：评审会话同口径（差值）
     const call = result.toolCalls.find((t) => t.name === 'submit_review' && t.isError !== true);
     let raw = call ? String((call.input as { verdict?: unknown }).verdict ?? '') : '';
     let notes = call ? String((call.input as { notes?: unknown }).notes ?? '') : '';
-    // F-02（2026-11-06 老板裁「不设硬门，必须交代」）：独立字段，宿主可机器校验。
+    // （2026-11-06 决定「不设硬门，必须交代」）：独立字段，宿主可机器校验。
     const planStepsExplanation = call ? String((call.input as { planStepsNote?: unknown }).planStepsNote ?? '').trim() : '';
 
     if (role === 'critic') {
@@ -854,7 +854,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
         await deps.dispatch?.({ scope: 'task', id: taskId, event: 'plan_reviewed', actor: `employee:${reviewerId}`, payload: { role, verdict: 'approve', notes } });
       } else if (raw === 'revise') {
         // 安全阀（重规划 v+1 的配套）：每次打回都会真重规划（规划＋评审两次真会话）⇒
-        // critic 把第 3 版计划也打回时不再重规划，改派 `escalate` 交老板裁定（防无限烧钱；阈值＝常量）。
+        // critic 把第 3 版计划也打回时不再重规划，改派 `escalate` 交要求（防无限烧钱；阈值＝常量）。
         const round = countPlanDrafts(db as never, taskId);
         if (round > MAX_PLAN_REVISIONS) {
           console.warn(`[agent] critic 连续打回达上限（第 ${round} 版）→ 转 escalate 交老板（task=${taskId}）`);
@@ -871,18 +871,18 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
         await deps.dispatch?.({ scope: 'task', id: taskId, event: 'plan_reviewed', actor: `employee:${reviewerId}`, payload: { role, verdict: 'revise', notes } });
         await deps.dispatch?.({ scope: 'task', id: taskId, event: 'revise', actor: `employee:${reviewerId}`, payload: { role, notes } });
       } else {
-        // BRK3 修：无结论 → `escalate`（可见的决策卡；此前派任务级 `error`——任务机无此事件 ⇒ 静默停摆）。
+        //  修：无结论 → `escalate`（可见的决策卡；此前派任务级 `error`——任务机无此事件 ⇒ 静默停摆）。
         await deps.dispatch?.({ scope: 'task', id: taskId, event: 'escalate', actor: 'system', payload: { role, reason: 'no_verdict', raw } });
       }
       return;
     }
 
-    // verifier：pass / fail；无 verdict → `escalate`（**绝不默认通过**；BRK3 修：必须可见，不许静默停摆）
+    // verifier：pass / fail；无 verdict → `escalate`（**绝不默认通过**； 修：必须可见，不许静默停摆）
     if (raw !== 'pass' && raw !== 'fail') {
       await deps.dispatch?.({ scope: 'task', id: taskId, event: 'escalate', actor: 'system', payload: { role, reason: 'no_verdict', raw } });
       return;
     }
-    // F-02（2026-11-06 老板裁）：计划步骤未完成**不是硬门**，但必须交代。
+    // （2026-11-06 决定）：计划步骤未完成**不是硬门**，但必须交代。
     // 校验独立字段 `planSteps`（写在 notes 里不算，避免"结论里顺口提一句"冒充交代）：
     // pass + 有未完成步骤 + 未交代 → 宿主改为 fail（留痕，报告/事件可审计）。
     const reviewSteps = listPlanSteps(db as unknown as SqliteDb, taskId);
@@ -933,7 +933,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
   /**
    * R3-1：planning 会话（`inbox --triage--> planning` 的 `dispatch_planning` 动作的消费者）。
    * 产出口径：会话**必须调 `submit_plan`** → `plan_drafted{steps}`（L0 → `ready` 直通；L1/L2 → 启动 critic，
-   * 由状态机决定）；**无有效计划 → 派 `escalate`**（BRK3 修：任务进 `needs_decision` ＋ 决策卡——可见、不静默；
+   * 由状态机决定）；**无有效计划 → 派 `escalate`**（修：任务进 `needs_decision` ＋ 决策卡——可见、不静默；
    * 此前派任务级 `error`——任务机无此事件 ⇒ 真引擎抛错、任务永停 `planning`）。
    * 选人：`tasks.owner_id`（缺省＝幕僚长 0）。
    */
@@ -957,7 +957,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
     const ctx = buildPlan(db, { taskId, plannerEmployeeId: plannerId, bossText: null });
     // N5（`R3-3`）：规划会话档位（规划**不降档**——贵模型想、便宜模型干）。
     const pref = getEmployeeModelPref(db as never, plannerId);
-    const project = projectPolicyForTask(db, task); // D-22：项目边界/默认
+    const project = projectPolicyForTask(db, task); // 项目边界/默认
     const assistantChoice = await assistantChoiceFor(taskId, 'planner', task, project);
     const resolvedTier = resolveSessionModel({
       role: 'planner',
@@ -1021,7 +1021,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      // S1 同族（2026-10-24）：submit_plan 成功后 SDK 可能 terminate；计划已提交，不能丢。
+      //  同族（2026-10-24）：submit_plan 成功后 SDK 可能 terminate；计划已提交，不能丢。
       if (planSucceeded && planInput && /terminated/i.test(message)) {
         console.log(`[agent] 规划会话在提交后终止（task=${taskId}：${message.slice(0, 120)}）——按已提交计划收场`);
         run = {
@@ -1056,10 +1056,10 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
     const result = run.result;
     finalizeContextMetric(planMetricId, result.usage, planSession);
 
-    await persistUsage(usageDelta(result.usage, planSession), taskId, null, plannerId); // OPT-AI-8/B0-8：规划会话同口径（差值）
+    await persistUsage(usageDelta(result.usage, planSession), taskId, null, plannerId); // /：规划会话同口径（差值）
     const call = result.toolCalls.find((t) => t.name === 'submit_plan' && t.isError !== true);
     const rawSteps = call ? (call.input as { steps?: unknown }).steps : undefined;
-    // B2-3/D-30②：结构化多件随 plan_drafted 带给引擎（校验在引擎 spawn 侧再做一次——双保险）。
+    // /：结构化多件随 plan_drafted 带给引擎（校验在引擎 spawn 侧再做一次——双保险）。
     const rawWorkItems = call ? (call.input as { workItems?: unknown }).workItems : undefined;
     const workItems = rawWorkItems != null ? normalizePlanWorkItems(rawWorkItems) : null;
     const steps = Array.isArray(rawSteps)
@@ -1070,7 +1070,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
           .slice(0, PLAN_STEPS_MAX)
       : [];
     if (steps.length === 0) {
-      // BRK3 修：无有效计划 → `escalate`（任务 `needs_decision` ＋ 决策卡；可见、不静默停摆）。
+      //  修：无有效计划 → `escalate`（任务 `needs_decision` ＋ 决策卡；可见、不静默停摆）。
       await deps.dispatch?.({ scope: 'task', id: taskId, event: 'escalate', actor: 'system', payload: { role: 'planner', reason: 'no_plan' } });
       return;
     }
@@ -1082,7 +1082,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
       payload: {
         steps,
         plannerEmployeeId: plannerId,
-        // B2-3：合法结构化多件才透传；非法→不透传（引擎回落单件），响亮留痕不静默。
+        // 合法结构化多件才透传；非法→不透传（引擎回落单件），响亮留痕不静默。
         ...(workItems != null && workItems.ok
           ? { workItems: workItems.items }
           : workItems != null && !workItems.ok
@@ -1099,7 +1099,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
       if (!target) {
         const review = parseReviewAction(action);
         if (review) {
-          // B3-6/D-31②：critic 限档——L1 默认**跳过 critic 会话**（直接合成 approve 的
+          // /：critic 限档——L1 默认**跳过 critic 会话**（直接合成 approve 的
           // plan_reviewed，payload.skipped='risk_tier' 如实留痕；链路/打回/批准卡全不变，
           // 省下 L1 的双会话成本）。L2 照旧真开 critic 会话。
           if (review.role === 'critic') {
@@ -1128,7 +1128,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
       const employeeId = wi.employee_id;
       // R2-2（G7 回灌）：本轮要带进简报的未读答复（会话收尾后标读——见下方 markAnswersRead）。
       const pendingAnswers = listUnreadAnswers(db as never, { taskId: target.taskId, employeeId });
-      // BRK12：点名问本员工的未结提问（跨任务；askDedupeKey 供 answer_colleague 使用）。
+      // 点名问本员工的未结提问（跨任务；askDedupeKey 供 answer_colleague 使用）。
       const pendingAsks = listOpenAsksForEmployee(db as never, employeeId).map((a) => ({
         askDedupeKey: a.askDedupeKey,
         from: a.from,
@@ -1142,10 +1142,10 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
         bossText: null,
         // R2-2（G7 回灌）：pre-run 取未读答复进简报；会话收尾后标读（崩溃则下轮重读，不静默丢失）。
         mailboxAnswers: pendingAnswers.map((a) => ({ from: a.from, answer: a.answer })),
-        // BRK12：被问员工看到问题与 askDedupeKey。
+        // 被问员工看到问题与 askDedupeKey。
         mailboxAsks: pendingAsks,
       });
-      // G2：派发 payload 带的任务工作区 cwd（M1-4 worktree/staging）优先；否则用上下文默认（项目根）。
+      // G2：派发 payload 带的任务工作区 cwd（worktree/staging）优先；否则用上下文默认（项目根）。
       const payloadCwd =
         action.payload && typeof action.payload === 'object' && typeof (action.payload as { cwd?: unknown }).cwd === 'string'
           ? ((action.payload as { cwd: string }).cwd)
@@ -1165,7 +1165,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
         | null
         | undefined;
       const pref = getEmployeeModelPref(db as never, employeeId);
-      const project = projectPolicyForTask(db, taskRow); // D-22：项目边界/默认
+      const project = projectPolicyForTask(db, taskRow); // 项目边界/默认
       const assistantChoice = await assistantChoiceFor(target.taskId, 'employee', taskRow, project);
       const resolvedTier = resolveSessionModel({
         role: 'employee',
@@ -1220,7 +1220,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
       let run: { aborted: true } | { aborted: false; result: AgentRunResult };
       // BRK-R6：会话有动静就刷新工作项心跳（最多每 30s 一次，避免每个 token 写库）。
       let lastHeartbeatAt = 0;
-      // S1 修复：submit_work_item 成功后 SDK 可能立刻 terminate，提交事件尚未落库；
+      //  修复：submit_work_item 成功后 SDK 可能立刻 terminate，提交事件尚未落库；
       // 记录工具成功事实与参数，catch 里据此补发，避免把已完成的件写成 failed。
       let submitInput: Record<string, unknown> | null = null;
       let submitSucceeded = false;
@@ -1239,7 +1239,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
         if (e.type === 'tool_call_end' && e.toolName === 'submit_work_item' && !e.isError) submitSucceeded = true;
         if (e.type === 'tool_call_start') {
           toolStarts.set(e.toolCallId, now()); // G3
-          // RET-F-08：开始事件落 input（白名单/截断），让 DB 能回答“读了哪些文件/跑了什么命令”。
+          // RET-：开始事件落 input（白名单/截断），让 DB 能回答“读了哪些文件/跑了什么命令”。
           try {
             insertTaskEvent(db as never, {
               taskId: target.taskId,
@@ -1274,7 +1274,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
           }
         }
       };
-      // B2-3/D-30②：返工件会话继承——血缘源件存在且同员工 → 沿用「员工×任务×源件」会话键
+      // /：返工件会话继承——血缘源件存在且同员工 → 沿用「员工×任务×源件」会话键
       // （前轮现场可见，57 P1-7/P2-2）；换员工改派不继承（隔离优先，新会话）。
       const srcForSession = wi.retry_of != null ? getWorkItem(db as never, wi.retry_of) : undefined;
       const inheritedSessionKey = reworkInheritedSessionKey(srcForSession, employeeId, target.taskId);
@@ -1296,9 +1296,9 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
           onEvent,
           { role: 'employee', allowedModels: project?.allowedModels ?? [] },
         );
-        // OPT-AI-8：每次会话（含补提交那一次）都入账——金额与行数如实。
+        // 每次会话（含补提交那一次）都入账——金额与行数如实。
         if (!r.aborted) {
-          // B0-8：会话键跨轮稳定 ⇒ 累计统计必须按差值入账（nudge/重试不重复计入）。
+          // 会话键跨轮稳定 ⇒ 累计统计必须按差值入账（nudge/重试不重复计入）。
           const sessionKey = employeeSessionKey({ employeeId, taskId: target.taskId, workItemId: target.workItemId });
           await persistUsage(usageDelta(r.result.usage, sessionKey), target.taskId, target.workItemId, employeeId);
         }
@@ -1338,7 +1338,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
         // CTX1-2：一次会话（含补提交第二轮）结束后，以最后一轮 usage 回填 cache 读数。
         metricUsage = 'result' in run ? run.result.usage : undefined;
       } catch (error) {
-        // BRK17（挂载 3 余·取消小步）：老板取消会**真中止会话**（`AgentSession.abort()`）→ `prompt` 抛出。
+        // （挂载 3 余·取消小步）：老板取消会**真中止会话**（`AgentSession.abort()`）→ `prompt` 抛出。
         // 件已被**取消路径中断**（`interrupted`）时这不是「执行失败」：如实留一行说明按中止语义收场
         //（不再走 settle——回写会撞未知迁移）。其余状态照旧抛出（失败可见，不吞）。
         const message = error instanceof Error ? error.message : String(error);
@@ -1355,7 +1355,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
           );
           return;
         }
-        // S1 修复（2026-10-24）：工具已成功但宿主事件尚未落库时，SDK 的 terminate 会抢在提交前面。
+        //  修复（2026-10-24）：工具已成功但宿主事件尚未落库时，SDK 的 terminate 会抢在提交前面。
         // 不能只看 DB 状态；捕获到的成功 submit 是权威事实：先给正常事件一个落库窗口，落不下来就补发。
         if (submitSucceeded && submitInput) {
           const checked = validateSubmission(submitInput);
@@ -1392,7 +1392,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
         }
         // N5 余账（2026-10-16，401 可视）：会话级失败（Key 无效 401/模型不可用且**兜底链也救不回**等）
         // → 件按真值表进 failed（`running --error--> failed`）⇒ 任务级失败聚合 ⇒ **异常卡**
-        //（BRK2 通路）——此前只有 `action_failed` 日志，卡/横幅皆无（"Key 无效（401）不可见"）。无
+        //（通路）——此前只有 `action_failed` 日志，卡/横幅皆无（"Key 无效（401）不可见"）。无
         // `dispatch` 可报时照旧抛（action_failed 可见，绝不静默）。
         if (!deps.dispatch) throw error;
         const providerHint = isProviderUnavailableError(message) ? '模型/凭据不可用：' : '';
@@ -1510,7 +1510,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
               },
             });
           }
-          // B2-5/D-30：目标空闲 → 派轻量 reply 件唤醒（busy/exists 如实留痕不静默）。
+          // /：目标空闲 → 派轻量 reply 件唤醒（busy/exists 如实留痕不静默）。
           if (rec.delivered) {
             try {
               const wake = spawnReplyWorkItem(db as never, {
@@ -1540,12 +1540,12 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
           recordToolError('ask_colleague', ask.id, error instanceof Error ? error.message : String(error));
         }
       }
-      // BRK12：被问员工作答（只认「问我的」未结 ask）；阻塞式提问的对方工作项在此真唤醒。
+      // 被问员工作答（只认「问我的」未结 ask）；阻塞式提问的对方工作项在此真唤醒。
       const answered = result.toolCalls.filter((t) => t.name === 'answer_colleague' && t.isError !== true);
       for (const call of answered) {
         const askDedupeKey = String((call.input as { askDedupeKey?: unknown }).askDedupeKey ?? '').trim();
         const rawAnswer = String((call.input as { answer?: unknown }).answer ?? '').trim();
-        // B2-5：结构化答复（结论/依据/产物引用/追问）组装；旧单句原样
+        // 结构化答复（结论/依据/产物引用/追问）组装；旧单句原样
         const text = formatStructuredAnswer({
           answer: rawAnswer,
           conclusion: String((call.input as { conclusion?: unknown }).conclusion ?? '').trim() || undefined,
@@ -1590,7 +1590,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
           recordToolError('answer_colleague', call.id, error instanceof Error ? error.message : String(error));
         }
       }
-      // BRK5（挂载 1 余）：`report_progress` → `progress_reported` 事件 ＋ `plan_steps` 真投影
+      // （挂载 1 余）：`report_progress` → `progress_reported` 事件 ＋ `plan_steps` 真投影
       //（复用**单一投影逻辑** `projectProgressReported`，actor＝员工；此前无消费者 ⇒ 回执「宿主会把这一步投影进
       //  任务进度条」是假承诺、进度条不动）。参数非法**响亮**（tool_call 标 error，与幕僚长侧同口径）且不阻断提交。
       const progress = result.toolCalls.filter((t) => t.name === 'report_progress' && t.isError !== true);
@@ -1619,8 +1619,8 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
           });
         }
       }
-      // BRK5：`request_review` → 落 `review_requested` 事件（**指派/强制度仍由引擎 `requestReview` 在派工时按
-      //  `risk_level` 决定**——v1 口径，与 `FLOWS` verify 分级一致；员工显式请求不改强制度）。
+      // `request_review` → 落 `review_requested` 事件（**指派/强制度仍由引擎 `requestReview` 在派工时按
+      //  `risk_level` 决定**——v1 口径，与 `` verify 分级一致；员工显式请求不改强制度）。
       const reviews = result.toolCalls.filter((t) => t.name === 'request_review' && t.isError !== true);
       for (const rr of reviews) {
         const reason = (rr.input as { reason?: unknown }).reason;
@@ -1656,7 +1656,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
       }
       const persistedPayload = result.persisted === false ? { sessionPersisted: false } : {};
 
-      // 阻塞式 mailbox（M2 尾）：本轮有 blocking ask ⇒ 件从 running 进 blocked，**不再 settle**
+      // 阻塞式 mailbox（尾）：本轮有 blocking ask ⇒ 件从 running 进 blocked，**不再 settle**
       //（settle 会把件判成 failed/submitted，两者都在说谎）。答复到达后由 mailbox:answer 派
       // `answer_received` 回 queued，下一轮简报带未读答复继续。
       if (blockingAskKeys.length > 0) {
@@ -1674,14 +1674,14 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
         return;
       }
 
-      // BRK17（挂载 3 余·取消小步）：**收尾竞态**——会话跑完了、但件已被取消路径**中断**
+      // （挂载 3 余·取消小步）：**收尾竞态**——会话跑完了、但件已被取消路径**中断**
       //（`interrupted`：真实中止到达与模型收尾同时发生）⇒ 不再回写 settle/escalate
       //（回写会撞未知迁移或把已中止的件改回 failed——两样都在说谎）。
       const wiAtSettle = getWorkItem(db as never, target.workItemId);
       if (wiAtSettle?.state === 'interrupted') {
         console.log(`[agent] 件已被中断（work_item ${target.workItemId}：interrupted）——跳过 settle 回写`);
       } else if (submit) {
-        // OPT-AI-7：宿主侧**再审一遍**（工具侧已校验——这里防绕过/防旧工具）；非法 → 失败路径 + 带原因（不静默）
+        // 宿主侧**再审一遍**（工具侧已校验——这里防绕过/防旧工具）；非法 → 失败路径 + 带原因（不静默）
         const checked = validateSubmission(submit.input);
         if (checked.ok) {
           await deps.dispatch?.({
@@ -1707,7 +1707,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
           });
         }
       } else {
-        // 未提交 → agent_settled{submitted:false} → failed（reason='agent_settled'，M8-2① 既有）；附带最后输出，失败可见。
+        // 未提交 → agent_settled{submitted:false} → failed（reason='agent_settled'， 既有）；附带最后输出，失败可见。
         await deps.dispatch?.({
           scope: 'work_item',
           id: target.workItemId,
@@ -1717,12 +1717,12 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
         });
       }
 
-      // R2-2（G9 升级）＋BRK11（挂载 2，2026-10-15）：员工调 escalate_to_boss → dispatch `escalate`
+      // R2-2（G9 升级）＋（挂载 2，2026-10-15）：员工调 escalate_to_boss → dispatch `escalate`
       //（任务进 `needs_decision`；**卡由状态机侧唯一合成**——此前此处再内联一张 notify ⇒ 同题两张卡，审计抓）。
       // 提问文本/紧急度/归属随 payload 透传（状态机 `NOTIFY_PASSTHROUGH_KEYS` → 决策卡 payload）。
       // `notifyRevision = employeeId·1000+i`：同一 (员工,序号) 升级只出一张卡（幂等＝动作键）。
-      // 放在 submit 之后：升级＝最后一句话（等老板裁决），不被同轮的提交覆盖。
-      // BRK17（取消小步）：件已被中断时不再弹升级卡（任务已取消，弹了也没人回——不打扰）。
+      // 放在 submit 之后：升级＝最后一句话（等要求），不被同轮的提交覆盖。
+      // （取消小步）：件已被中断时不再弹升级卡（任务已取消，弹了也没人回——不打扰）。
       if (wiAtSettle?.state !== 'interrupted') {
         const escalations = result.toolCalls.filter((t) => t.name === 'escalate_to_boss' && t.isError !== true);
         for (const [i, esc] of escalations.entries()) {
@@ -1731,7 +1731,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
           const question = neutralizeEscalationQuestion(String(rawInput.question ?? ''));
           if (!question) continue;
           const input = { ...rawInput, question };
-          // RW-21 泛化：工具传入的结构化选项直通决策卡按钮（脏数据丢弃——只留 key/label 都是非空字符串的项）。
+          //  泛化：工具传入的结构化选项直通决策卡按钮（脏数据丢弃——只留 key/label 都是非空字符串的项）。
           const rawOptions = Array.isArray(input.options) ? input.options : [];
           const options = rawOptions
             .filter((o): o is { key: string; label: string } => {
@@ -1740,7 +1740,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
             })
             .map((o) => ({ key: o.key.trim(), label: o.label.trim() }))
             .slice(0, 4);
-          // 多选（老板 2026-10-28 指令）：single/multi 声明透传；其余值丢弃（缺省单选）。
+          // 多选（2026-10-28 指令）：single/multi 声明透传；其余值丢弃（缺省单选）。
           const selection = input.selection === 'multi' || input.selection === 'single' ? input.selection : undefined;
           await deps.dispatch?.({
             scope: 'task',
@@ -1754,7 +1754,7 @@ export function createEmployeeExecutor(deps: EmployeeExecutorDeps): EffectExecut
               employeeId,
               workItemId: target.workItemId,
               via: 'escalate_to_boss',
-              urgent: true, // 员工被卡住＝紧急：静默期内也照常推（PLAN §151 优先级维）
+              urgent: true, // 员工被卡住＝紧急：静默期内也照常推（优先级维）
               notifyRevision: employeeId * 1000 + i,
             },
           });

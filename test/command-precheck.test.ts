@@ -1,5 +1,5 @@
 /**
- * P3（M3-R-7）命令级语义预检：包裹命令/内联代码/凭据访问在闸门前被拆开判定。
+ * P3命令级语义预检：包裹命令/内联代码/凭据访问在闸门前被拆开判定。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

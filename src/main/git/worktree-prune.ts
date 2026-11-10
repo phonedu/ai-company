@@ -1,11 +1,11 @@
 /**
- * M2-D · staging worktree 清理策略（`PLAN §929`「staging 沙盒清理策略」）。
+ *  · staging worktree 清理策略（``「staging 沙盒清理策略」）。
  *
  * 口径（**只清确定没人要的**，其余一律保留并**给出保留原因**——不静默删、不误删在办）：
  *  - **可清**：① 任务已终态（`done`/`failed`/`cancelled`）**且** `now - tasks.updated_at > maxAgeDays`；
  *    ② **孤儿**（worktree 存在但库里没有对应任务——任务永不复用短号，故孤儿只能是历史遗留）。
  *  - **保留**：任务非终态（可能还在跑）｜终态但未过期（留出合并/审查窗口）｜查不到任务的年龄信息。
- *  - 台账 = `git worktree list` 推导（`WorktreeManager.list()`；零 schema 变更），`remove` 保留分支。
+ *  - 清单 = `git worktree list` 推导（`WorktreeManager.list()`；零 schema 变更），`remove` 保留分支。
  *
  * 纯规划函数（`planWorktreePrune`，可 node 测）＋ 执行器（`pruneStagingWorktrees`，逐个 remove）。
  */

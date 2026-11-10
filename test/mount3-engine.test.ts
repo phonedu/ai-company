@@ -1,5 +1,5 @@
 /**
- * 挂载 3 首批（引擎/数据面）：`GAP5`（AGENTS.md 摄入）· `BRK13`（预算链核心）· `GAP10`（按员工归因）。每条可弄红。
+ * 挂载 3 首批（引擎/数据面）：``（AGENTS.md 摄入）· ``（预算链核心）· ``（按员工归因）。每条可弄红。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

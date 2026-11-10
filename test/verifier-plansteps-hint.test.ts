@@ -1,5 +1,5 @@
 /**
- * F-02 引导（B0 出口修复）：verifier 的 pass 若计划还有未完成步骤、却没填 `planStepsNote`，
+ *  引导（出口修复）：verifier 的 pass 若计划还有未完成步骤、却没填 `planStepsNote`，
  * 宿主会改判 fail 并返工（真机出口测试里 Thinking app 就卡在这）。修复＝在 verifier 上下文里
  * **显式列出未完成步骤并要求必填**，减少返工往返。
  */

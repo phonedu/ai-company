@@ -1,8 +1,8 @@
 /**
- * BRK16-a＋GAP11（挂载 3）· 产物读/打开/文件夹 ＋ 审计导出（`task:read-artifact` / `task:export`）——守据。
+ * -a＋（挂载 3）· 产物读/打开/文件夹 ＋ 审计导出（`task:read-artifact` / `task:export`）——守据。
  *
  * 口径：
- *  - **D1 铁律**：renderer 只给 `artifactId`/`taskId`（**不接受任何路径**）；读/开/导出路径全部由主进程推导；
+ *  - ** 铁律**：renderer 只给 `artifactId`/`taskId`（**不接受任何路径**）；读/开/导出路径全部由主进程推导；
  *  - 读：项目根包含性（`..`/绝对/URL 伪装一律拒）、二进制显式拒、超上限截断**如实标注**、实读 sha256
  *    与记录不一致显式 `sha256Mismatch`（内容仍如实展示）；
  *  - 开：经注入 `openPath`/`revealPath`（handler 不直接碰 electron）；缺注入 ⇒ `*_unavailable`（不假装已开）；
@@ -285,7 +285,7 @@ test('打开：注入件报错 → `open_failed` 且错误文案如实转述（�
   }
 });
 
-// ─────────────────────────── task:export（GAP11） ───────────────────────────
+// ─────────────────────────── task:export ───────────────────────────
 
 test('导出：单文件 JSON 档案（任务/事件/产物/报告/成本）落盘；同名覆盖（同任务恒一个档案文件）', async () => {
   const f = seed();

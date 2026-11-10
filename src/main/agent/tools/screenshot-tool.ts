@@ -1,5 +1,5 @@
 /**
- * B4-1/D-29 · Screenshot——截取屏幕/指定区域（走 external ask 闸门）。
+ * / · Screenshot——截取屏幕/指定区域（走 external ask 闸门）。
  *
  * 口径：Electron `desktopCapturer` 或系统命令截屏；截图落盘到项目临时目录；
  * 返回文件路径（员工上下文可引用图片路径给 vision 模型分析）。

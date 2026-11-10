@@ -1,15 +1,15 @@
 /**
- * T0.7 · 任务详情三 tab 最小版（计划与验收 / 时间线 / 行为日志）。
+ *  · 任务详情三 tab 最小版（计划与验收 / 时间线 / 行为日志）。
  *
- * 边界与定位（DEV §8 T0.7、DEV §7.1）：
+ * 边界与定位：
  *  - **纯展示组件**：只吃 props（`TaskDetailDTO`），不读写 valtio store、不碰 `window.api`/DB/fs；
  *    接线（取数 + 中栏视图切换）在 `store.ts` / `AppShell.tsx` 完成。
  *  - 数据源契约（一处写死，便于机器断言）：
- *      `plan`     = `plan_steps`（按 idx 排序）+ 验收项 `tasks.acceptance`
+ *      `plan` = `plan_steps`（按 idx 排序）+ 验收项 `tasks.acceptance`
  *      `timeline` = `task_events` 全量投影
  *      `behavior` = `task_events` 中 `kind='tool_call'` 子集（审计层，UI §9）
- *      `artifacts`= `artifacts` 表（`sha256` + **来源=kind/`work_item_id`产出者/`created_at`**）+ 各步证据 `plan_steps.evidence_ref`（M8-1；`commit` 恒显，数据源 `changesets` 属 M2 → 现为 `—`）
- *  - 条数一致性断言（DEV §8 T0.7 验收②）：每个 tab 的**行元素**都带固定 `data-testid`，
+ *      `artifacts`= `artifacts` 表（`sha256` + **来源=kind/`work_item_id`产出者/`created_at`**）+ 各步证据 `plan_steps.evidence_ref`（；`commit` 恒显，数据源 `changesets` 属→ 现为 `—`）
+ *  - 条数一致性断言（验收②）：每个 tab 的**行元素**都带固定 `data-testid`，
  *    `test/task-detail.test.ts` 用 `react-dom/server` 渲染真实组件后逐 tab 数 `data-testid` 出现次数，
  *    与查询返回条数（`counts`）比对——**不靠肉眼**。
  *
@@ -52,12 +52,12 @@ export interface AcceptanceItemDTO {
   text: string;
   /** 可选的可执行检查命令（schema.sql `tasks.acceptance`：[{text, check?}]）。 */
   check?: string;
-  /** 验收判定（由 `verification_completed` 投影；M0 缺省 pending）。 */
+  /** 验收判定（由 `verification_completed` 投影； 缺省 pending）。 */
   state?: 'pending' | 'pass' | 'fail';
   evidenceRef?: string | null;
 }
 
-/** M8-1：产物（`artifacts` 表；`path` **仅供参考展示**，渲染层不据此读盘（D1））。
+/** 产物（`artifacts` 表；`path` **仅供参考展示**，渲染层不据此读盘）。
  * **来源口径（1993 裁定 (b)，不加迁移）**：来源 = `kind` + **`workItemId`（谁产出）** + `at`（= `created_at`）。
  * `commit` 待从 `changesets` join（可得则显示前 8 位，不可得保持缺省）。 */
 export interface ArtifactDTO {
@@ -74,11 +74,11 @@ export interface ArtifactDTO {
   originArtifactId?: number | null;
   originProjectId?: number | null;
   originProjectName?: string | null;
-  /** M2 尾（G-A link）：`link:<originProjectId>` ＝ 链接（源随动）；NULL＝副本/自产。 */
+  /**  尾（G-A link）：`link:<originProjectId>` ＝ 链接（源随动）；NULL＝副本/自产。 */
   source?: string | null;
 }
 
-/** BRK16-a（挂载 3）：产物读预览（`task:read-artifact` `mode:'read'` 的回执；容器（store）传入）。 */
+/** -a（挂载 3）：产物读预览（`task:read-artifact` `mode:'read'` 的回执；容器（store）传入）。 */
 export interface ArtifactPreviewDTO {
   artifactId: number;
   name: string;
@@ -95,7 +95,7 @@ export interface ArtifactPreviewDTO {
   text: string;
   /** 超出读预览上限、已截断（如实标注，不假装全文）。 */
   truncated: boolean;
-  /** UG-05：图片/PDF 受控预览（`aico-file://preview/<短票>`）；文本不带 URL。 */
+  /** 图片/PDF 受控预览（`aico-file://preview/<短票>`）；文本不带 URL。 */
   previewKind?: 'image' | 'pdf';
   previewUrl?: string;
 }
@@ -142,30 +142,30 @@ export interface TaskHeadDTO {
   createdAt: number;
   updatedAt: number;
   acceptance: AcceptanceItemDTO[];
-  /** M2-A：项目接入模式（`inplace` ⇒ 不产生变更集）。 */
+  /** 项目接入模式（`inplace` ⇒ 不产生变更集）。 */
   projectAccessMode?: string | null;
   /** 009：任务级模型（NULL＝未指派）。 */
   model?: string | null;
-  /** M2 尾：截止时刻（epoch ms；NULL＝未设）。 */
+  /**  尾：截止时刻（epoch ms；NULL＝未设）。 */
   deadline?: number | null;
-  /** UG-01：所属项目名/别名（task:get 的 toStoredTask 带上）。 */
+  /** 所属项目名/别名（task:get 的 toStoredTask 带上）。 */
   projectName?: string | null;
   projectAlias?: string | null;
-  /** UG-01：最新工作项的执行员工（无件 ⇒ null；缺省＝旧数据不承诺）。 */
+  /** 最新工作项的执行员工（无件 ⇒ null；缺省＝旧数据不承诺）。 */
   executor?: { id: number; name: string | null } | null;
-  /** BRK13：预算 / 已耗 / 余额（未设 ⇒ null；不写假 0）。 */
+  /** 预算 / 已耗 / 余额（未设 ⇒ null；不写假 0）。 */
   budgetTokens?: number | null;
   costTokens?: number | null;
   budgetLeftTokens?: number | null;
 }
 
-/** UG-01：`task:get` 的负责人（建单/分工给的；与执行员工分开）。 */
+/** `task:get` 的负责人（建单/分工给的；与执行员工分开）。 */
 export interface TaskOwnerDTO {
   id: number;
   name: string;
 }
 
-/** UG-01：前置任务（短号 + 标题 + 状态；调度器真值）。 */
+/** 前置任务（短号 + 标题 + 状态；调度器真值）。 */
 export interface TaskDependencyDTO {
   id: number;
   shortId: string | null;
@@ -173,7 +173,7 @@ export interface TaskDependencyDTO {
   state: string;
 }
 
-/** UG-07：差异台账逐条投影（由 `task_events.deviation_recorded` 派生）。 */
+/** 差异清单逐条投影（由 `task_events.deviation_recorded` 派生）。 */
 export interface DeviationItemDTO {
   title: string;
   why: string | null;
@@ -190,7 +190,7 @@ export interface DeviationSummaryDTO {
   items?: DeviationItemDTO[];
 }
 
-/** UG-03：任务级模型选项（项目允许清单 + 只读模型目录投影）。 */
+/** 任务级模型选项（项目允许清单 + 只读模型目录投影）。 */
 export interface TaskModelOption {
   /** `provider/model`（写 `tasks.model` 的完整串）。 */
   value: string;
@@ -200,13 +200,13 @@ export interface TaskModelOption {
   keyConfigured?: boolean;
 }
 
-/** UG-03：保存类操作的统一回执（失败必须能显示原因）。 */
+/** 保存类操作的统一回执（失败必须能显示原因）。 */
 export interface TaskSettingResult {
   ok: boolean;
   error?: string;
 }
 
-/** UG-06：容器读一条变更集 diff 的回执（成功只给文本与 SHA，不给仓库路径）。 */
+/** 容器读一条变更集 diff 的回执（成功只给文本与 SHA，不给仓库路径）。 */
 export interface ChangesetDiffResult {
   ok: boolean;
   diff?: string;
@@ -227,7 +227,7 @@ export interface ChangesetDiffViewState {
   headSha?: string;
 }
 
-/** D-22：任务头「预计模型＋来源」（执行员工视角）。 */
+/** 任务头「预计模型＋来源」（执行员工视角）。 */
 export interface TaskModelResolutionDTO {
   model: string;
   source: string;
@@ -238,7 +238,7 @@ export interface TaskModelResolutionDTO {
   rejected?: string;
 }
 
-/** M2-A 变更集（变更区块）。 */
+/**  变更集（变更区块）。 */
 export interface ChangesetDTO {
   id: number;
   branch: string | null;
@@ -256,7 +256,7 @@ export interface ChangesetDTO {
     insertions: number;
     deletions: number;
     employeeId: number | null;
-    /** UG-06：产出员工名（查无 → null；不臆造）。 */
+    /** 产出员工名（查无 → null；不臆造）。 */
     employeeName?: string | null;
   }>;
 }
@@ -289,7 +289,7 @@ export interface ContextMetricDTO {
   cacheWriteTokens: number | null;
 }
 
-/** GAP12：评审/验证结论（`reports.verdict` 优先；timeline 事件补齐批注）。 */
+/** 评审/验证结论（`reports.verdict` 优先；timeline 事件补齐批注）。 */
 export interface ReviewDTO {
   eventId: number;
   ts: number;
@@ -306,35 +306,35 @@ export interface ReviewDTO {
 /** `task:get` 返回体（timeline/planSteps/behaviorLog 为该任务的查询结果）。 */
 export interface TaskDetailDTO {
   task: TaskHeadDTO;
-  /** UG-01：负责人（建单/分工；缺省/旧数据 ⇒ null → 显「未指定」）。 */
+  /** 负责人（建单/分工；缺省/旧数据 ⇒ null → 显「未指定」）。 */
   owner?: TaskOwnerDTO | null;
-  /** UG-01：前置任务（空/缺省 ＝ 无依赖）。 */
+  /** 前置任务（空/缺省 ＝ 无依赖）。 */
   dependsOn?: TaskDependencyDTO[];
-  /** UG-07：差异台账汇总（缺省/空 ＝ 无偏离；收尾 openWithoutOwner 必须为空）。 */
+  /** 差异清单汇总（缺省/空 ＝ 无偏离；收尾 openWithoutOwner 必须为空）。 */
   deviations?: DeviationSummaryDTO | null;
-  /** D-22：任务头「预计模型＋来源」；缺省＝旧数据（不渲染模型行）。 */
+  /** 任务头「预计模型＋来源」；缺省＝旧数据（不渲染模型行）。 */
   modelResolution?: TaskModelResolutionDTO | null;
   progress: { done: number; total: number };
   planSteps: PlanStepDTO[];
-  /** GAP12：critic/verifier 结论；缺省/空＝无评审结论（不渲染空组）。 */
+  /** critic/verifier 结论；缺省/空＝无评审结论（不渲染空组）。 */
   reviews?: ReviewDTO[];
-  /** GAP12：验证中被打回的最近 submitted 件（手动打回补全 workItemId 用）。 */
+  /** 验证中被打回的最近 submitted 件（手动打回补全 workItemId 用）。 */
   verificationWorkItemId?: number | null;
   timeline: TimelineItemDTO[];
   behaviorLog: BehaviorLogItemDTO[];
-  /** M1-3（`PLAN §10 第 4 条`）：引擎给出的等待原因；**空/缺省 = 不等待**（渲染层不显示占位）。 */
+  /** （` 第 4 条`）：引擎给出的等待原因；**空/缺省 = 不等待**（渲染层不显示占位）。 */
   waits?: TaskWaitDTO[];
-  /** M8-1：本任务产物（按 id 升序；空 = 无产物）。 */
+  /** 本任务产物（按 id 升序；空 = 无产物）。 */
   artifacts?: ArtifactDTO[];
-  /** OPT-AI-1（2303/2328）：原始交流**派生投影**（只读）；**缺省/空 = 无原始交流**（渲染层显式空态，不臆造）。 */
+  /** （2303/2328）：原始交流**派生投影**（只读）；**缺省/空 = 无原始交流**（渲染层显式空态，不臆造）。 */
   rawConversation?: RawItemDTO[] | null;
-  /** M2-A：本任务变更集（含文件明细）；**缺省/空 = 无**（`inplace` 显式说明）。 */
+  /** 本任务变更集（含文件明细）；**缺省/空 = 无**（`inplace` 显式说明）。 */
   changesets?: ChangesetDTO[] | null;
-  /** BRK17（挂载 3 余·取消小步）：工作项按状态计数——危险动作（取消）确认文案的真读数；缺省 ⇒ 不写数字。 */
+  /** （挂载 3 余·取消小步）：工作项按状态计数——危险动作（取消）确认文案的真读数；缺省 ⇒ 不写数字。 */
   workItemCounts?: Record<string, number> | null;
   /** CTX1-2：最近 N 轮上下文遥测（新的在前）；**缺省/空 = 还没有任何会话遥测**（显式空态，不写假 0）。 */
   contextMetrics?: ContextMetricDTO[] | null;
-  /** G-C（M2 §7 序 3）：可引用的**候选目标任务**（非归档、**不含本任务**）；缺省/空 → 引用控件不可用。 */
+  /** G-C（§7 序 3）：可引用的**候选目标任务**（非归档、**不含本任务**）；缺省/空 → 引用控件不可用。 */
   refTargets?: readonly ArtifactRefTarget[];
   /** G-C：把某产物引用到目标任务（**老板显式发起**）；缺省 → 行内按钮 disabled（不假装可点）。 */
   onReferenceArtifact?: (artifactId: number, targetTaskId: number, mode?: 'copy' | 'link') => void;
@@ -355,7 +355,7 @@ export type TaskDetailTab = 'plan' | 'timeline' | 'behavior' | 'artifacts' | 'co
 
 // ── 纯函数（可单测，无副作用）─────────────────────────────────────────────
 
-/** 进度条：`plan_steps` 中 state='done' 计数 / 总数（schema.sql 头注释、UI.md §7）。 */
+/** 进度条：`plan_steps` 中 state='done' 计数 / 总数（schema.sql 头注释）。 */
 export function progressOf(steps: readonly PlanStepDTO[]): { done: number; total: number } {
   let done = 0;
   for (const step of steps) if (step.state === 'done') done += 1;
@@ -553,7 +553,7 @@ export function formatDuration(ms: number): string {
   return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`;
 }
 
-/** BRK13（挂载 3）：任务头/成本面板的预算徽标文案（未设 ⇒「预算：未设」；不写假 0）。 */
+/** （挂载 3）：任务头/成本面板的预算徽标文案（未设 ⇒「预算：未设」；不写假 0）。 */
 export function budgetBadge(task: unknown): string {
   const t = (task ?? {}) as { budgetTokens?: number | null; costTokens?: number; budgetLeftTokens?: number | null };
   if (t.budgetTokens == null) return '预算：未设';
@@ -571,7 +571,7 @@ const RISK_HINT: Record<number, string> = {
   2: '全流程：另加人工批准',
 };
 
-/** D-22：模型来源人话（来源词与 core/model-tiers 的 ModelSource 一一对应）。 */
+/** 模型来源人话（来源词与 core/model-tiers 的 ModelSource 一一对应）。 */
 const MODEL_SOURCE_LABEL: Record<string, string> = {
   task: '任务指定',
   assistant: '幕僚长选择',
@@ -673,7 +673,7 @@ const TASK_DETAIL_CSS = `
 .td__more-menu .td__action{justify-content:flex-start;width:100%;background:transparent;text-align:left}
 .td__confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
 .td__confirm-text{flex:1;min-width:220px;font-size:var(--text-note);line-height:1.6;color:var(--text-dim)}
-/* UG-06：变更集文件行（status / 路径 / +− / 员工 / diff）。 */
+/* 变更集文件行（status / 路径 / +− / 员工 / diff）。 */
 .td__csfiles{display:flex;flex-direction:column;gap:4px;margin:0 0 4px 12px}
 .td__csfile{display:flex;align-items:center;gap:8px;padding:6px 10px;border-left:2px solid var(--border);background:var(--panel-2);border-radius:var(--radius-sm);font-size:var(--text-meta)}
 .td__csbadge{flex:0 0 20px;height:18px;display:inline-flex;align-items:center;justify-content:center;border-radius:var(--radius-sm);background:var(--fill);color:var(--text-dim);font-size:var(--text-meta);font-weight:600}
@@ -681,7 +681,7 @@ const TASK_DETAIL_CSS = `
 .td__csbadge[data-status='deleted']{background:color-mix(in srgb,var(--danger) 12%,transparent);color:var(--danger)}
 .td__csbadge[data-status='renamed']{background:color-mix(in srgb,var(--warn) 14%,transparent);color:var(--warn)}
 .td__csfilepath{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);font-size:var(--text-meta)}
-/* UG-06：全宽只读 diff 层（覆盖任务详情；Esc 只关这一层）。 */
+/* 全宽只读 diff 层（覆盖任务详情；Esc 只关这一层）。 */
 .td__diff-layer{position:absolute;inset:0;z-index:60;display:flex;flex-direction:column;background:var(--bg);min-height:0}
 .td__diff-head{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:.5px solid var(--separator);background:var(--panel)}
 .td__diff-title{flex:0 1 auto;max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--text-title);font-weight:600}
@@ -706,7 +706,7 @@ const TASK_DETAIL_CSS = `
 .td__artifact-fold summary{cursor:pointer}
 .td__artifact-raw{display:block;margin-top:4px;white-space:normal;word-break:break-all}
 .td__artifact-actions{display:flex;gap:8px;flex:0 0 auto;flex-wrap:wrap}
-/* GAP8 计划编辑：行内增删/排序（批准前）。输入框与按钮沿用详情行密度；保存组靠右。 */
+/*  计划编辑：行内增删/排序（批准前）。输入框与按钮沿用详情行密度；保存组靠右。 */
 .td__planeditor{display:flex;flex-direction:column;gap:8px}
 .td__planhint{color:var(--text-dim);font-size:var(--text-note);line-height:1.6}
 .td__editrow{align-items:center}
@@ -719,7 +719,7 @@ const TASK_DETAIL_CSS = `
 .td__spacer{flex:1}
 .td__action--primary{border-color:transparent;background:var(--accent-strong);color:var(--on-accent)}
 .td__plannotice{margin:0;color:var(--warn);font-size:var(--text-meta)}
-/* GAP12：评审/验证结论（左点色＋结论＋批注）＋打回批注编辑 */
+/* 评审/验证结论（左点色＋结论＋批注）＋打回批注编辑 */
 .td__review{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border:.5px solid var(--separator);border-radius:var(--radius-md);background:var(--panel)}
 .td__reviewhead{display:flex;align-items:flex-start;gap:8px}
 .td__reviewhead .td__dot{margin-top:6px}
@@ -728,7 +728,7 @@ const TASK_DETAIL_CSS = `
 .td__rejectlabel{font-size:var(--text-note);line-height:1.6;color:var(--text)}
 .td__rejecttextarea{min-height:76px;resize:vertical;padding:10px 12px;border:.5px solid transparent;border-radius:var(--radius-md);background:var(--fill);color:var(--text);font:inherit;font-size:var(--text-body)}
 .td__rejecttextarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--tint-soft)}
-/* UG-01（方案 A）：目标一行 + 项目/负责人/截止/依赖一行四格。 */
+/* （方案 A）：目标一行 + 项目/负责人/截止/依赖一行四格。 */
 .td__goal{margin:8px 0 0;font-size:var(--text-body);line-height:1.6;color:var(--text);word-break:break-word}
 .td__goallabel{margin-right:8px;color:var(--text-dim);font-size:var(--text-meta)}
 .td__context{display:flex;margin-top:8px;padding:10px 14px;border:.5px solid var(--separator);border-radius:var(--radius-md);background:var(--panel);min-width:0}
@@ -749,7 +749,7 @@ const TASK_DETAIL_CSS = `
   .td__contextcell:nth-child(odd){padding-left:0;border-left:0}
   .td__contextcell:nth-child(even){border-left:.5px solid var(--separator)}
 }
-/* UG-03：任务级设置（加预算 / 任务模型 / 强制技能）行内 popover。 */
+/* 任务级设置（加预算 / 任务模型 / 强制技能）行内 popover。 */
 .td__settings{position:relative;display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}
 .td__actions .td__settings{margin-top:0}
 .td__settingwrap{position:relative;display:inline-flex}
@@ -784,9 +784,9 @@ function acceptanceStateText(state: string | undefined): string {
   return '未跑';
 }
 
-/** M3-P-4：变更集状态人话（未知态如实回显）。 */
+/** 变更集状态人话（未知态如实回显）。 */
 /**
- * S13-G / D-N09：diff 审查进度的「已看」开关（localStorage 持久化，按 task+changeset+path）。
+ *  /：diff 审查进度的「已看」开关（localStorage 持久化，按 task+changeset+path）。
  */
 function diffReviewedKey(taskId: number, changesetId: number, path: string): string {
   return `aico:diff-reviewed:${taskId}:${changesetId}:${path}`;
@@ -833,7 +833,7 @@ function changesetStateText(state: string): string {
   return state;
 }
 
-/** UG-06：git 文件状态 → 单字母徽标（未知原样首字母，不臆造）。 */
+/** git 文件状态 → 单字母徽标（未知原样首字母，不臆造）。 */
 function changesetStatusLetter(status: string): string {
   if (status === 'added') return 'A';
   if (status === 'deleted') return 'D';
@@ -842,7 +842,7 @@ function changesetStatusLetter(status: string): string {
   return status.slice(0, 1).toUpperCase() || '?';
 }
 
-/** GAP12：评审结论点色（通过=done，打回/未通过=failed，部分=skipped，未知=pending）。 */
+/** 评审结论点色（通过=done，打回/未通过=failed，部分=skipped，未知=pending）。 */
 function reviewDotState(verdict: string | null): string {
   const tone = verdictTone(verdict);
   if (tone === 'ok') return 'done';
@@ -851,7 +851,7 @@ function reviewDotState(verdict: string | null): string {
   return 'pending';
 }
 
-/** GAP12：谁给的结论（内部角色说人话；未知演员如实显示）。 */
+/** 谁给的结论（内部角色说人话；未知演员如实显示）。 */
 function reviewActorLabel(review: ReviewDTO): string {
   if (review.actor === 'boss') return '你';
   if (review.role === 'critic') return '评审者';
@@ -873,7 +873,7 @@ function PlanPanel({
 }: {
   task: TaskHeadDTO;
   steps: readonly PlanStepDTO[];
-  /** GAP12：critic/verifier 结论（空 = 不渲染该组）。 */
+  /** critic/verifier 结论（空 = 不渲染该组）。 */
   reviews: readonly ReviewDTO[];
   /** 是否处于编辑态（由 TaskDetail 控制：操作条「改计划再批准」也能进入）。 */
   editing: boolean;
@@ -883,7 +883,7 @@ function PlanPanel({
   /** 返回 `null`＝成功；字符串＝失败回执（不静默）。 */
   onSavePlan?: (steps: string[], approve: boolean) => Promise<string | null>;
   onSaved: () => void;
-  /** GAP12：「查看证据」跳到产物/证据 tab。 */
+  /** 「查看证据」跳到产物/证据 tab。 */
   onOpenArtifacts?: () => void;
 }): ReactElement {
   const [draft, setDraft] = useState<string[]>([]);
@@ -1281,36 +1281,36 @@ function ArtifactsPanel({
   artifacts: readonly ArtifactDTO[];
   steps: readonly PlanStepDTO[];
   changesets?: readonly ChangesetDTO[] | null;
-  /** UG-07：差异台账（有 total 才渲染明细卡；不改空态判定口径以外的数据）。 */
+  /** 差异清单（有 total 才渲染明细卡；不改空态判定口径以外的数据）。 */
   deviations?: DeviationSummaryDTO | null;
-  /** UG-06：打开某个变更集文件的只读 diff；缺省 ⇒ 行尾 diff disabled。 */
+  /** 打开某个变更集文件的只读 diff；缺省 ⇒ 行尾 diff disabled。 */
   onOpenChangesetDiff?: (changesetId: number, path: string) => void;
   accessMode?: string | null;
   refTargets: readonly ArtifactRefTarget[];
   onReferenceArtifact?: (artifactId: number, targetTaskId: number, mode?: 'copy' | 'link') => void;
   referenceNotice?: string | null;
-  /** BRK16-a：产物操作（读/系统打开/在文件夹中显示；容器发 `task:read-artifact`）。 */
+  /** -a：产物操作（读/系统打开/在文件夹中显示；容器发 `task:read-artifact`）。 */
   onReadArtifact?: (artifactId: number, mode: 'read' | 'open' | 'reveal') => void;
-  /** GAP11：审计导出（容器发 `task:export`）；`openAction` 缺省 = 只导出。 */
+  /** 审计导出（容器发 `task:export`）；`openAction` 缺省 = 只导出。 */
   onExportArchive?: (openAction?: 'open' | 'reveal') => void;
   artifactPreview?: ArtifactPreviewDTO | null;
   /** 2026-10-17（浮层批）：预览抽屉关闭（✕ / 遮罩 / Esc）——容器清掉 store 里的预览。 */
   onCloseArtifactPreview?: () => void;
   artifactNotice?: string | null;
   exportNotice?: string | null;
-  /** M3-P-4：合并一个变更集（行内按钮）；缺省 → 按钮 disabled。 */
+  /** 合并一个变更集（行内按钮）；缺省 → 按钮 disabled。 */
   onMergeChangeset?: (changesetId: number) => Promise<boolean> | void;
-  /** M3-P-4：最近一次合并回执。 */
+  /** 最近一次合并回执。 */
   mergeNotice?: string | null;
-  /** S13-G/D-N07：结构化冲突文件列表（非空 ⇒ 面板可见）。 */
+  /** /：结构化冲突文件列表（非空 ⇒ 面板可见）。 */
   mergeConflicts?: readonly string[] | null;
-  /** S13-G/D-N07：发生冲突的变更集（重试按钮的目标）。 */
+  /** /：发生冲突的变更集（重试按钮的目标）。 */
   mergeConflictChangesetId?: number | null;
-  /** D-N07：冲突派回原员工修复（建续办任务）。 */
+  /** 冲突派回原员工修复（建续办任务）。 */
   onReworkConflict?: (changesetId: number) => Promise<string | null> | void;
-  /** M3-N-2：回滚一个变更集到其工作项检查点（行内二次确认；容器发 `task:rollback`）。 */
+  /** 回滚一个变更集到其工作项检查点（行内二次确认；容器发 `task:rollback`）。 */
   onRollbackChangeset?: (changesetId: number) => void;
-  /** M3-N-2：最近一次回滚回执。 */
+  /** 最近一次回滚回执。 */
   rollbackNotice?: string | null;
   /** B-2：丢弃一个变更集（行内二次确认；容器发 `task:discard`）。 */
   onDiscardChangeset?: (changesetId: number) => Promise<boolean> | void;
@@ -1321,7 +1321,7 @@ function ArtifactsPanel({
 }): ReactElement {
   // G-C：引用目标（受控；候选变化时回落第一个——不臆造选择）
   const [refTargetId, setRefTargetId] = useState<number | null>(refTargets[0]?.id ?? null);
-  /** M3-N-2：回滚是危险动作（丢弃该次提交）→ 行内二次确认；null＝不在确认。 */
+  /** 回滚是危险动作（丢弃该次提交）→ 行内二次确认；null＝不在确认。 */
   const [confirmRollbackId, setConfirmRollbackId] = useState<number | null>(null);
   /** B-2：丢弃是危险动作（该变更集永不合并）→ 行内二次确认；null＝不在确认。 */
   const [confirmDiscardId, setConfirmDiscardId] = useState<number | null>(null);
@@ -1330,7 +1330,7 @@ function ArtifactsPanel({
   const csList: readonly ChangesetDTO[] = changesets ?? [];
   const hasChangeset = csList.length > 0;
   const hasDeviations = deviations != null && deviations.total > 0;
-  // UG-04：输入附件（消息来的）与产出分组；同一批 `artifact-item` 行，计数契约不变。
+  // 输入附件（消息来的）与产出分组；同一批 `artifact-item` 行，计数契约不变。
   const inputArtifacts = artifacts.filter((artifact) => artifact.kind === 'input');
   const outputArtifacts = artifacts.filter((artifact) => artifact.kind !== 'input');
 
@@ -1382,7 +1382,7 @@ function ArtifactsPanel({
               : ''}
             {artifact.source?.startsWith('link:') ? ' · 链接（源随动）' : ''}
           </span>
-          {/* `commit` **恒显**（2023 冻结口径 (b)）：数据源 `changesets` 属 M2，暂无写者 → 显式 `—`，非缺失。
+          {/* `commit` **恒显**（2023 冻结口径 (b)）：数据源 `changesets` 属，暂无写者 → 显式 `—`，非缺失。
               审计细节**默认折叠**（设计板 §4.2：sha256 / commit 默认折叠）——展开即在，不省略。 */}
           <details className="td__artifact-fold">
             <summary className="td__meta">审计明细（sha256 / commit）</summary>
@@ -1405,7 +1405,7 @@ function ArtifactsPanel({
           >
             引用
           </button>
-          {/* M2 尾（G-A link）：老板显式发起的链接（不复制；源随动；读时按源项目根解析）。 */}
+          {/*  尾（G-A link）：老板显式发起的链接（不复制；源随动；读时按源项目根解析）。 */}
           <button
             type="button"
             data-testid={`artifact-link-${artifact.id}`}
@@ -1417,7 +1417,7 @@ function ArtifactsPanel({
           >
             链接
           </button>
-          {/* BRK16-a：读预览 / 系统打开 / 在文件夹中显示（未接线 ⇒ disabled，不假装可点）。 */}
+          {/* -a：读预览 / 系统打开 / 在文件夹中显示（未接线 ⇒ disabled，不假装可点）。 */}
           <button
             type="button"
             data-testid={`artifact-read-${artifact.id}`}
@@ -1450,14 +1450,14 @@ function ArtifactsPanel({
     );
   };
 
-  // **空态不伪装**（M8-1 验收）：产物/证据/变更**都为空**时才给一句总结空态。
+  // **空态不伪装**（验收）：产物/证据/变更**都为空**时才给一句总结空态。
   if (artifacts.length === 0 && evidence.length === 0 && !hasChangeset && !hasDeviations) {
     return (
       <div className="td__panel" data-testid="artifacts-panel" data-tab="artifacts">
         <p className="td__empty" data-testid="artifacts-empty">
           本任务暂无产物或证据。
         </p>
-        {/* GAP11：无产物也可导出档案（事件时间线＋成本仍在）——导出是任务级动作，不是产物级。 */}
+        {/* 无产物也可导出档案（事件时间线＋成本仍在）——导出是任务级动作，不是产物级。 */}
         {onExportArchive ? (
           <p style={{ margin: '4px 0', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button type="button" data-testid="task-export" onClick={() => onExportArchive()} title="导出任务档案（事件时间线＋产物＋成本，单一 JSON 文件）">
@@ -1476,7 +1476,7 @@ function ArtifactsPanel({
             {exportNotice}
           </p>
         ) : null}
-        {/* M2-A：变更面无 changeset 时**显式说明**（inplace 尤其，不给空白）。 */}
+        {/* 变更面无 changeset 时**显式说明**（inplace 尤其，不给空白）。 */}
         {accessMode === 'inplace' ? (
           <p className="td__empty" data-testid="changeset-inplace">
             本次为就地修改、无变更集。
@@ -1558,7 +1558,7 @@ function ArtifactsPanel({
       <div className="td__group td__group--card" data-testid="output-artifacts">
         <div className="td__row" style={{ alignItems: 'center', gap: 8 }}>
           <h3 className="td__grouptitle" style={{ flex: '1 1 auto' }}>产物（{outputArtifacts.length}）</h3>
-          {/* GAP11（审计导出）：任务/事件/产物/成本的单一文件档案（导出与"打开"是两件事，打开失败不回滚导出）。 */}
+          {/* （审计导出）：任务/事件/产物/成本的单一文件档案（导出与"打开"是两件事，打开失败不回滚导出）。 */}
           {onExportArchive ? (
             <>
               <button
@@ -1596,7 +1596,7 @@ function ArtifactsPanel({
             {exportNotice}
           </p>
         ) : null}
-        {/* G-C（M2 §7 序 3）：跨项目引用——把本任务产物引用到另一目标任务（老板显式发起；copy 快照＋sha256）。 */}
+        {/* G-C（§7 序 3）：跨项目引用——把本任务产物引用到另一目标任务（老板显式发起；copy 快照＋sha256）。 */}
         {outputArtifacts.length > 0 ? (
           <div
             className="td__row"
@@ -1626,7 +1626,7 @@ function ArtifactsPanel({
             ) : null}
           </div>
         ) : null}
-        {/* BRK16-a：读预览（最近一次「读」的内容；截断 / 指纹不一致如实标注）。 */}
+        {/* -a：读预览（最近一次「读」的内容；截断 / 指纹不一致如实标注）。 */}
         {artifactPreview ? (
           <PreviewDrawer
             variant="artifact"
@@ -1657,7 +1657,7 @@ function ArtifactsPanel({
                   : artifactPreview.previewKind === 'pdf'
                     ? 'pdf'
                     : 'text',
-              // 2026-11-05 老板裁「抽屉内只读渲染」：.md 产物渲染排版，不直接摊源码。
+              // 2026-11-05 决定「抽屉内只读渲染」：.md 产物渲染排版，不直接摊源码。
               markdown: /\.(md|markdown)$/i.test(artifactPreview.path || artifactPreview.name),
               url: artifactPreview.previewUrl,
               text: artifactPreview.text,
@@ -1710,7 +1710,7 @@ function ArtifactsPanel({
         )}
       </div>
 
-      {/* UG-07：差异台账明细（汇总来自 task_events；不新增表）。 */}
+      {/* 差异清单明细（汇总来自 task_events；不新增表）。 */}
       {hasDeviations ? (
         <div className="td__group" data-testid="deviations-panel">
           <h3 className="td__grouptitle">
@@ -1751,7 +1751,7 @@ function ArtifactsPanel({
         </div>
       ) : null}
 
-      {/* M2-A 变更（本次提交）—— 放进产物/证据 tab（3513 裁 (B)）；小标题明确，不让老板猜。 */}
+      {/*  变更（本次提交）—— 放进产物/证据 tab（3513 裁 (B)）；小标题明确，不让老板猜。 */}
       {hasChangeset ? (
         <div className="td__group td__group--card" data-testid="changeset-block">
           <h3 className="td__grouptitle">变更（本次提交）</h3>
@@ -2011,7 +2011,7 @@ function ArtifactsPanel({
   );
 }
 
-// ── 成本 tab（OPT-EXT-13）──────────────────────────────────────────────
+// ── 成本 tab──────────────────────────────────────────────
 function CostPanel({ cost }: { cost?: CostSummaryDTO | null }): ReactElement {
   const has = !!cost && cost.costRows > 0;
   return (
@@ -2051,7 +2051,7 @@ function CostPanel({ cost }: { cost?: CostSummaryDTO | null }): ReactElement {
               <span className="td__meta">${m.usd.toFixed(4)}</span>
             </div>
           ))}
-          {/* GAP10（挂载 3）：按员工归因（null=公司级如实列出；数据面＝costSummary.byEmployee）。 */}
+          {/* （挂载 3）：按员工归因（null=公司级如实列出；数据面＝costSummary.byEmployee）。 */}
           {(((cost ?? {}) as { byEmployee?: Array<{ employeeId: number | null; name: string | null; usd: number }> }).byEmployee ?? []).map(
             (e) => (
               <div
@@ -2079,7 +2079,7 @@ function BehaviorRows({ items }: { items: readonly BehaviorLogItemDTO[] }): Reac
         <p className="td__empty">还没有工具调用记录。</p>
       ) : (
         items.map((item) => {
-          // OPT-M7-1（结果上屏）：工具调用**失败要可见**（`payload.isError`），不静默。
+          // OPT-（结果上屏）：工具调用**失败要可见**（`payload.isError`），不静默。
           const failed = (item.payload as { isError?: unknown } | null | undefined)?.isError === true;
           return (
             <div
@@ -2120,7 +2120,7 @@ function BehaviorPanel({ items }: { items: readonly BehaviorLogItemDTO[] }): Rea
 
 const TABS: ReadonlyArray<{ key: TaskDetailTab; label: string }> = [
   { key: 'plan', label: '计划与验收' },
-  // M8-1：id 保持 `artifacts`；2026-10-23 UI 简化后标签改为「变更与产物」。
+  // id 保持 `artifacts`；2026-10-23 UI 简化后标签改为「变更与产物」。
   { key: 'artifacts', label: '变更与产物' },
   // 2026-10-23 UI 简化：时间线＋行为日志合并为「记录」；行为日志在面板内筛选。
   { key: 'timeline', label: '记录' },
@@ -2128,7 +2128,7 @@ const TABS: ReadonlyArray<{ key: TaskDetailTab; label: string }> = [
 
 const rootStyle: CSSProperties = { position: 'relative' };
 
-/** UG-03：任务级设置（加预算 / 任务模型 / 强制技能）行内 popover。 */
+/** 任务级设置（加预算 / 任务模型 / 强制技能）行内 popover。 */
 function TaskSettings({
   task,
   data,
@@ -2467,83 +2467,83 @@ export function TaskDetail({
   data: TaskDetailDTO | null;
   initialTab?: TaskDetailTab;
   onTabChange?: (tab: TaskDetailTab) => void;
-  /** M1-3：**已格式化**的等待文案（单一映射表产出；空则一条不显示）。 */
+  /** **已格式化**的等待文案（单一映射表产出；空则一条不显示）。 */
   waitTexts?: string[];
   /** D2/C3：点了**已实现**的详情操作（容器负责发 `task:transition`）。 */
   onAction?: (action: TaskActionDTO) => void;
-  /** G-C（M2 §7 序 3）：引用候选目标任务（容器取；缺省 → 引用控件不可用）。 */
+  /** G-C（§7 序 3）：引用候选目标任务（容器取；缺省 → 引用控件不可用）。 */
   refTargets?: readonly ArtifactRefTarget[];
   /** G-C：引用动作（容器发 `task:reference-artifact`）。 */
   onReferenceArtifact?: (artifactId: number, targetTaskId: number, mode?: 'copy' | 'link') => void;
   /** G-C：引用结果回执（人话）。 */
   referenceNotice?: string | null;
-  /** BRK16-a（挂载 3）：产物操作（读预览 / 系统打开 / 在文件夹中显示；容器发 `task:read-artifact`）。 */
+  /** -a（挂载 3）：产物操作（读预览 / 系统打开 / 在文件夹中显示；容器发 `task:read-artifact`）。 */
   onReadArtifact?: (artifactId: number, mode: 'read' | 'open' | 'reveal') => void;
-  /** GAP11：审计导出（容器发 `task:export`；`openAction` 缺省 = 只导出）。 */
+  /** 审计导出（容器发 `task:export`；`openAction` 缺省 = 只导出）。 */
   onExportArchive?: (openAction?: 'open' | 'reveal') => void;
-  /** BRK16-a：最近一次读预览。 */
+  /** -a：最近一次读预览。 */
   artifactPreview?: ArtifactPreviewDTO | null;
   /** 2026-10-17（浮层批）：预览抽屉关闭（✕ / 遮罩 / Esc）——容器清掉 store 里的预览。 */
   onCloseArtifactPreview?: () => void;
-  /** BRK16-a：最近一次产物操作回执。 */
+  /** -a：最近一次产物操作回执。 */
   artifactNotice?: string | null;
-  /** GAP11：最近一次导出回执（含落盘路径）。 */
+  /** 最近一次导出回执（含落盘路径）。 */
   exportNotice?: string | null;
-  /** OPT-EXT-13：本任务成本（`cost:summary{taskId}`）；无行 → 成本 tab 显「暂无成本记录」。 */
+  /** 本任务成本（`cost:summary{taskId}`）；无行 → 成本 tab 显「暂无成本记录」。 */
   cost?: CostSummaryDTO | null;
-  /** GAP8：保存编辑后的计划（容器发 `task:edit-plan`）；返回 `null`＝成功，字符串＝失败回执。 */
+  /** 保存编辑后的计划（容器发 `task:edit-plan`）；返回 `null`＝成功，字符串＝失败回执。 */
   onSavePlan?: (steps: string[], approve: boolean) => Promise<string | null>;
-  /** M3-P-4：合并一个变更集（容器发 `task:merge`）。 */
+  /** 合并一个变更集（容器发 `task:merge`）。 */
   onMergeChangeset?: (changesetId: number) => Promise<boolean> | void;
-  /** M3-P-4：最近一次合并回执（成功 commit / 冲突文件 / 拒绝原因）。 */
+  /** 最近一次合并回执（成功 commit / 冲突文件 / 拒绝原因）。 */
   mergeNotice?: string | null;
-  /** S13-G/D-N07：结构化冲突文件列表（非空 ⇒ 面板可见）。 */
+  /** /：结构化冲突文件列表（非空 ⇒ 面板可见）。 */
   mergeConflicts?: readonly string[] | null;
-  /** S13-G/D-N07：发生冲突的变更集（重试按钮的目标）。 */
+  /** /：发生冲突的变更集（重试按钮的目标）。 */
   mergeConflictChangesetId?: number | null;
-  /** D-N07：冲突派回原员工修复（建续办任务）。 */
+  /** 冲突派回原员工修复（建续办任务）。 */
   onReworkConflict?: (changesetId: number) => Promise<string | null> | void;
-  /** M3-N-2：回滚一个变更集（容器发 `task:rollback`）。 */
+  /** 回滚一个变更集（容器发 `task:rollback`）。 */
   onRollbackChangeset?: (changesetId: number) => void;
-  /** M3-N-2：最近一次回滚回执。 */
+  /** 最近一次回滚回执。 */
   rollbackNotice?: string | null;
   /** B-2：丢弃一个变更集（容器发 `task:discard`）。 */
   onDiscardChangeset?: (changesetId: number) => Promise<boolean> | void;
   /** B-2：最近一次丢弃回执。 */
   discardNotice?: string | null;
-  /** M4-D-1（P2）：按 ref 读取归档的工具大输出（缺省 → 展开按钮显式说未接线）。 */
+  /** （P2）：按 ref 读取归档的工具大输出（缺省 → 展开按钮显式说未接线）。 */
   onReadToolOutput?: (ref: string) => Promise<ToolOutputReadResult>;
-  /** UG-06：读一个变更集文件的只读 diff（缺省 ⇒ 行尾 diff disabled）。 */
+  /** 读一个变更集文件的只读 diff（缺省 ⇒ 行尾 diff disabled）。 */
   onReadChangesetDiff?: (changesetId: number, path: string) => Promise<ChangesetDiffResult>;
-  /** UG-03：任务级模型候选（容器从项目允许清单 + 只读模型目录投影；缺省 ⇒ 自由输入）。 */
+  /** 任务级模型候选（容器从项目允许清单 + 只读模型目录投影；缺省 ⇒ 自由输入）。 */
   modelOptions?: readonly TaskModelOption[];
-  /** UG-03：已启用技能名（强制技能下拉；缺省 ⇒ 只显示“不强制”）。 */
+  /** 已启用技能名（强制技能下拉；缺省 ⇒ 只显示“不强制”）。 */
   skillOptions?: readonly string[];
-  /** UG-03：加预算（容器走 `加预算 Txxx N` 命令；成功/失败回执统一）。 */
+  /** 加预算（容器走 `加预算 Txxx N` 命令；成功/失败回执统一）。 */
   onSetBudget?: (tokens: number) => Promise<TaskSettingResult>;
-  /** UG-03：任务级模型（null＝清除任务级模型）。 */
+  /** 任务级模型（null＝清除任务级模型）。 */
   onSetModel?: (model: string | null) => Promise<TaskSettingResult>;
-  /** UG-03：强制技能（null＝清除）。 */
+  /** 强制技能（null＝清除）。 */
   onSetSkill?: (skill: string | null) => Promise<TaskSettingResult>;
 }): ReactElement {
   const [tab, setTab] = useState<TaskDetailTab>(initialTab);
-  /** UG-01：上下文相对时间只在挂载时取一次（避免每次渲染跳字）。必须在 `if (!data)` 早退之前。 */
+  /** 上下文相对时间只在挂载时取一次（避免每次渲染跳字）。必须在 `if (!data)` 早退之前。 */
   const [contextNow] = useState(() => Date.now());
-  /** BRK17（D-9）：危险动作（`danger:true`，如「取消」）的**行内二次确认**当前动作；null＝不在确认。 */
+  /** （D-9）：危险动作（`danger:true`，如「取消」）的**行内二次确认**当前动作；null＝不在确认。 */
   const [confirmAction, setConfirmAction] = useState<TaskActionDTO | null>(null);
-  // S13-E P0/C2：结束任务且存在未合并变更集 → 先选「合并并结束/保留分支/丢弃」。
+  //  P0/C2：结束任务且存在未合并变更集 → 先选「合并并结束/保留分支/丢弃」。
   const [finishAction, setFinishAction] = useState<TaskActionDTO | null>(null);
-  /** GAP8：计划编辑态（批准前；操作条「改计划再批准」或计划面板「编辑计划」进入）。 */
+  /** 计划编辑态（批准前；操作条「改计划再批准」或计划面板「编辑计划」进入）。 */
   const [editingPlan, setEditingPlan] = useState(false);
-  /** GAP12：验证打回的批注编辑态（点 [打回] → 先写批注再确认；批注进返工项）。 */
+  /** 验证打回的批注编辑态（点 [打回] → 先写批注再确认；批注进返工项）。 */
   const [rejectAction, setRejectAction] = useState<TaskActionDTO | null>(null);
   const [rejectNotes, setRejectNotes] = useState('');
-  /** M3-P-4：没有可合并变更集时的行内提示（不假装点击有效）。 */
+  /** 没有可合并变更集时的行内提示（不假装点击有效）。 */
   const [mergeHint, setMergeHint] = useState<string | null>(null);
   const moreRef = useRef<HTMLDetailsElement | null>(null);
-  /** UG-06：全宽只读 diff 层（null＝不在 diff；切换任务自动清掉）。 */
+  /** 全宽只读 diff 层（null＝不在 diff；切换任务自动清掉）。 */
   const [diffView, setDiffView] = useState<ChangesetDiffViewState | null>(null);
-  /** D-N09：当前文件的行内批注（行键 → 文本）与展开中的行。 */
+  /** 当前文件的行内批注（行键 → 文本）与展开中的行。 */
   const [diffNotes, setDiffNotes] = useState<Record<string, string>>({});
   const [diffNoteOpen, setDiffNoteOpen] = useState<ReadonlySet<string>>(new Set());
   useEffect(() => {
@@ -2714,10 +2714,10 @@ export function TaskDetail({
   const diffRows: DiffRow[] = diffView?.diff ? parseUnifiedDiff(diffView.diff) : [];
   const progress = data.progress ?? progressOf(data.planSteps);
   const behavior = data.behaviorLog ?? behaviorLogOf(data.timeline);
-  // D2/C3：详情操作条（**FLOWS §3「详情可见操作」逐行落点**；未知 state → 空表 → 不渲染）。
+  // D2/C3：详情操作条（**「详情可见操作」逐行落点**；未知 state → 空表 → 不渲染）。
   const actions = taskActionsOf(data.task.state);
   const percent = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
-  // UG-03：任务设置是操作条的一部分（设计 D）；无状态动作时（如 needs_decision）单独占一行。
+  // 任务设置是操作条的一部分（设计 D）；无状态动作时（如 needs_decision）单独占一行。
   const settingsNode = (
     <TaskSettings
       task={task}
@@ -2737,7 +2737,7 @@ export function TaskDetail({
   };
   // 2026-10-23 UI 简化：整屏只留一个主操作，其余进「⋯」；危险动作仍在菜单内二次确认。
   const primaryAction = actions.find((action) => action.implemented && !action.danger) ?? actions[0] ?? null;
-  // UG-03：加预算从「未实现动作」升级为 TaskSettings 的行内 popover；操作条不再渲染灰色的同名按钮。
+  // 加预算从「未实现动作」升级为 TaskSettings 的行内 popover；操作条不再渲染灰色的同名按钮。
   // 2026-10-29 P2（F-N09）：「打回」在批准/验证两态是高频动作，不藏进 ⋯——与主按钮并列。
   const inlineSecondaryIds = new Set(['revise', 'reject']);
   const inlineSecondary = primaryAction
@@ -2765,14 +2765,14 @@ export function TaskDetail({
       aria-disabled={!action.implemented}
       title={action.implemented ? action.label : (action.reason ?? '未实现（M2）')}
       onClick={() => {
-        // GAP8：「改计划再批准」不发 transition（缺 steps），只打开计划编辑器；
+        // 「改计划再批准」不发 transition（缺 steps），只打开计划编辑器；
         // 保存时由 PlanPanel 走 `task:edit-plan`（可一并 approval）。
         if (action.opensPlanEditor) {
           select('plan');
           setEditingPlan(true);
           return;
         }
-        // M3-P-4：合并走独立 IPC（无任务机事件）。**只有唯一 open 变更集时**操作条才直接合并；
+        // 合并走独立 IPC（无任务机事件）。**只有唯一 open 变更集时**操作条才直接合并；
         // 多个时必须在下方逐条选，避免“默认合了最旧那条”。
         if (action.ipcAction === 'task:merge') {
           const open = (data.changesets ?? []).filter((cs) => cs.state === 'open');
@@ -2787,7 +2787,7 @@ export function TaskDetail({
           return;
         }
         if (!action.implemented || !action.event) return;
-        // GAP12：验证 [打回] 先写批注（必填），再带 `notes` + `workItemId` 发事件；
+        // 验证 [打回] 先写批注（必填），再带 `notes` + `workItemId` 发事件；
         // 批注会成为返工工作项的 brief（不是只写事件）。
         if (action.id === 'reject') {
           setRejectAction(action);
@@ -2862,7 +2862,7 @@ export function TaskDetail({
                 本次直通
               </span>
             ) : null}
-            {/* D-22：任务头显示预计模型与来源（执行员工视角）；回落/拒绝都如实说明。 */}
+            {/* 任务头显示预计模型与来源（执行员工视角）；回落/拒绝都如实说明。 */}
             {data.modelResolution ? (
               <span
                 className="td__reading"
@@ -2888,7 +2888,7 @@ export function TaskDetail({
                 {data.modelResolution.fallbackFrom ? '（已回落）' : ''}
               </span>
             ) : null}
-            {/* BRK13（挂载 3）：任务头显示预算（未设如实标注；加预算入口＝频道命令 `加预算 T1042 N`）。 */}
+            {/* （挂载 3）：任务头显示预算（未设如实标注；加预算入口＝频道命令 `加预算 T1042 N`）。 */}
             <span className="td__reading" data-testid="task-budget" title="预算 / 已耗 / 余额（token）">
               {budgetBadge(task)}
             </span>
@@ -2909,7 +2909,7 @@ export function TaskDetail({
             </span>
           </span>
         </div>
-        {/* UG-01（老板 2026-10-25 裁 A）：目标单独一行；项目 / 负责人 / 截止 / 依赖压成一行四格。 */}
+        {/* （2026-10-25 裁 A）：目标单独一行；项目 / 负责人 / 截止 / 依赖压成一行四格。 */}
         <p className="td__goal" data-testid="task-goal">
           <span className="td__goallabel">目标</span>
           {context.goal}
@@ -2973,7 +2973,7 @@ export function TaskDetail({
               <span className="td__barfill" style={{ width: `${percent}%` }} />
             </span>
             <span className="td__progresstext" data-testid="progress-text">
-              {/* F-02（2026-11-06 老板裁）：未完成步骤不是硬门，但必须可见/可交代——
+              {/* （2026-11-06 决定）：未完成步骤不是硬门，但必须可见/可交代——
                   完成后仍缺步时显式标出，避免「done 了但 7/12 步」像正常收尾。 */}
               {`${progress.done}/${progress.total} 步已完成`}
               {progress.done < progress.total
@@ -2982,7 +2982,7 @@ export function TaskDetail({
             </span>
           </div>
         ) : null}
-        {/* M1-3「当前在等什么」（UI §7）：**无等待时不渲染任何占位**（AC②）。 */}
+        {/* 「当前在等什么」（UI §7）：**无等待时不渲染任何占位**（AC②）。 */}
         {waitTexts && waitTexts.length > 0 ? (
           <div className="td__waits" data-testid="task-waits">
             {waitTexts.map((text, index) => (
@@ -2992,9 +2992,9 @@ export function TaskDetail({
             ))}
           </div>
         ) : null}
-        {/* D2/C3（FLOWS §3「详情可见操作」逐行落点）：**未实现的动作不许可点**（disabled + title）。
+        {/* D2/C3（「详情可见操作」逐行落点）：**未实现的动作不许可点**（disabled + title）。
             未知/无表的 state → 不渲染操作条（不臆造）。
-            BRK17（挂载 3 余·取消小步，D-9）：`danger:true`（取消）＝**行内二次确认**——点一次进确认条，
+            （挂载 3 余·取消小步，D-9）：`danger:true`（取消）＝**行内二次确认**——点一次进确认条，
             默认焦点在「返回」（安全默认）、Esc 退回；确认条文案的件数取**真读数**（workItemCounts）。 */}
         {/* P0/C2：结束任务前的变更集处理三选一 */}
         {finishAction != null ? (

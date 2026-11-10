@@ -1,5 +1,5 @@
 /**
- * B-7（M4）· N5 建议档：项目默认档优先；无默认档才启发式；不覆盖手选。
+ * B-7· N5 建议档：项目默认档优先；无默认档才启发式；不覆盖手选。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

@@ -1,12 +1,12 @@
 /**
- * 「受管工作单元（effect scope）· 归属台账」DAO —— M1-1（`docs/next/research-lessons-productization.md §2.1`、`PLAN §10`）。
+ * 「受管工作单元（effect scope）· 归属清单」DAO —— （`docs/next/research-lessons-productization.md §2.1`、``）。
  *
- * 一次工作项执行 = 一个受管的 effect scope，引擎持句柄并登记**归属台账**：
+ * 一次工作项执行 = 一个受管的 effect scope，引擎持句柄并登记**归属清单**：
  *   `{scopeKey, sessionKey, employeeId, workItemId, taskId, pidTree, tempDir, port, dbPath, userDataDir, startedAt, heartbeatAt}`。
  *
- * **存储选择（M1-minimal）**：台账**复用 `timers` 表**，但用**独立 `kind='effect_scope'`**（**不借 `session_heartbeat` 的语义**——
- * 后者是「会话卡死看门狗」，台账是「资源归属」，生命周期/语义不同；同表不同 kind ⇒ **依旧零 schema 变更**、仍白拿幂等键 + 超时）。
- * 依据 §2.1「回收 = 优雅终止 → 引擎 `timers` 超时兜底 → 按台账 PID 树 kill」。
+ * **存储选择（M1-minimal）**：清单**复用 `timers` 表**，但用**独立 `kind='effect_scope'`**（**不借 `session_heartbeat` 的语义**——
+ * 后者是「会话卡死看门狗」，清单是「资源归属」，生命周期/语义不同；同表不同 kind ⇒ **依旧零 schema 变更**、仍白拿幂等键 + 超时）。
+ * 依据 §2.1「回收 = 优雅终止 → 引擎 `timers` 超时兜底 → 按清单 PID 树 kill」。
  * 若将来字段增多，可平滑改为专用表（届时由 `schema.sql`/迁移 owner 落 v2）。
  *
  * 语义映射：`timers.fired_at === null` ⇒ scope `open`；非空 ⇒ 已 `reclaimed`（`fired_at` 即回收时刻）。
@@ -22,7 +22,7 @@ export interface OpenEffectScopeInput {
   sessionKey: string;
   employeeId: number;
   workItemId?: number | null;
-  /** 归属任务（`timers.task_id` FK 需要真实任务；工作项台账必有）。 */
+  /** 归属任务（`timers.task_id` FK 需要真实任务；工作项清单必有）。 */
   taskId: number;
   pidTree?: number[];
   tempDir?: string | null;
@@ -105,7 +105,7 @@ function readRow(db: SqliteDb, scopeKey: string): { id: number; task_id: number 
     | undefined;
 }
 
-/** 建/更新台账（幂等：同 `scopeKey` 只一行；已回收的不复活）。返回是否本次新建。 */
+/** 建/更新清单（幂等：同 `scopeKey` 只一行；已回收的不复活）。返回是否本次新建。 */
 export function openEffectScope(db: SqliteDb, input: OpenEffectScopeInput): { scope: EffectScope; created: boolean } {
   const payload: ScopePayload = {
     scopeKey: input.scopeKey,

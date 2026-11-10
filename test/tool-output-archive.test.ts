@@ -1,5 +1,5 @@
 /**
- * M4-D-1（P2）· 工具大输出归档/摘要/受控读取 + 时间线展开。
+ * （P2）· 工具大输出归档/摘要/受控读取 + 时间线展开。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

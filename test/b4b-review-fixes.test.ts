@@ -1,12 +1,12 @@
 /**
- * B4b 审查修复批（2026-11-09；四方向独立审查后）：
- *  - 安全 F1：审批卡带入参摘要（脱敏）——花钱/对外不再盲批；
- *  - 安全 F2：spend grant 用后即焚——「批准一次」＝真一次（external grant 仍会话内有效）；
- *  - 安全 F4/F5：export_format 经 junction 越根/敏感目标拒；派生输出已存在拒覆盖；
- *  - 安全 F11：`![alt](url)` 出 <img>（不安全协议降级为 alt 文本）；
- *  - 接线 F1：write_note 项目根取会话 cwd（不再取「全局最近 task_started」）；
- *  - 接线 F2：touched-path 采集认领内容工具产出；
- *  - 现状锁：缺 toolName 的旧 grant 仍兼容（收窄待 D-xx 裁决，不在本批改）。
+ *  审查修复批（2026-11-09；四方向独立审查后）：
+ *  - 安全：审批卡带入参摘要（脱敏）——花钱/对外不再盲批；
+ *  - 安全：spend grant 用后即焚——「批准一次」＝真一次（external grant 仍会话内有效）；
+ *  - 安全：export_format 经 junction 越根/敏感目标拒；派生输出已存在拒覆盖；
+ *  - 安全：`![alt](url)` 出 <img>（不安全协议降级为 alt 文本）；
+ *  - 接线：write_note 项目根取会话 cwd（不再取「全局最近 task_started」）；
+ *  - 接线：touched-path 采集认领内容工具产出；
+ *  - 现状锁：缺 toolName 的旧 grant 仍兼容（收窄待 D-xx 决定，不在本次改）。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

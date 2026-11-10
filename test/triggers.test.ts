@@ -1,5 +1,5 @@
 /**
- * GAP1（M3-N-1）：cron + 事件触发 v1——真 timer 存储、幂等、取消、重启保留。
+ * cron + 事件触发 v1——真 timer 存储、幂等、取消、重启保留。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -106,7 +106,7 @@ test('GAP1 事件触发：源任务完成→建一次；后续事件不重复；
     await svc.tick(NOW + 1);
     assert.equal(created.length, 0, '未完成不触发');
 
-    // GAP1 修复：只有源任务**已落库终态**才物化；先模拟任务机把状态推到 done。
+    //  修复：只有源任务**已落库终态**才物化；先模拟任务机把状态推到 done。
     db.prepare("UPDATE tasks SET state = 'done' WHERE id = ?").run(source.id);
     svc.onEngineEvent({ scope: 'task', id: source.id, event: 'finish_manual' });
     svc.onEngineEvent({ scope: 'task', id: source.id, event: 'finish_manual' });

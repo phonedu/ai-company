@@ -1,5 +1,5 @@
 /**
- * `costs` DAO（B3 触发链）—— 成本写入点（审计 B3：此前 `costs` 无写入触发点）。
+ * `costs` DAO（触发链）—— 成本写入点（审计：此前 `costs` 无写入触发点）。
  *
  * 一次结算 = 一个事务：写 `costs` 行 + 写 `task_events.kind='cost_recorded'`（payload 带 usage）
  * + 回写 `tasks.cost_tokens`（`budgetLeft = budget_tokens - cost_tokens` 的派生来源）。可审计（事件为准）。
@@ -90,7 +90,7 @@ export function listCosts(db: SqliteDb, taskId: number): Array<{ model: string; 
     .all(taskId) as Array<{ model: string; tokens_in: number; tokens_out: number; cache_read_tokens: number; cache_write_tokens: number; usd: number }>;
 }
 
-/** `OPT-EXT-13`「用量可视」：成本聚合（`cost:summary` 的数据源）。 */
+/** ``「用量可视」：成本聚合（`cost:summary` 的数据源）。 */
 export interface CostSummary {
   /** 计入的成本行数（**0 ⇒ 调用方显 `—`，不写假 0**）。 */
   costRows: number;
@@ -108,11 +108,11 @@ export interface CostSummary {
   usdPerHour: number;
   /** C2：**公司级开销**（task_id IS NULL）——无任务的共享成本单列，不混进任务成本。 */
   companyUsd: number;
-  /** GAP10（挂载 3）：**按员工归因**（任务级/全局同口径；"这次为什么贵"的数据面）。 */
+  /** （挂载 3）：**按员工归因**（任务级/全局同口径；"这次为什么贵"的数据面）。 */
   byEmployee: EmployeeCost[];
 }
 
-/** GAP10：按员工归因行（`null`=公司级/无归属，如实成组，不臆造）。 */
+/** 按员工归因行（`null`=公司级/无归属，如实成组，不臆造）。 */
 export interface EmployeeCost {
   employeeId: number | null;
   /** 员工名（已删/无归属 ⇒ null）。 */
@@ -208,7 +208,7 @@ export interface TaskCost extends CostSummary {
   byModel: ModelCost[];
 }
 
-/** `OPT-EXT-13` 成本 tab：单任务成本汇总 + 按模型拆分。无行 → `{costRows:0,tokens:0,usd:0,byModel:[]}`。 */
+/** `` 成本 tab：单任务成本汇总 + 按模型拆分。无行 → `{costRows:0,tokens:0,usd:0,byModel:[]}`。 */
 export function summarizeTaskCosts(db: SqliteDb, taskId: number, options: { now?: number } = {}): TaskCost {
   const total = summarizeRow(db, ' WHERE task_id = ?', [taskId], options.now ?? Date.now());
   const byModel = db

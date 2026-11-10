@@ -1,5 +1,5 @@
 /**
- * OPT-EXT-2 · 「待我处理」视图纯逻辑 + 未读游标（可见/同源/分组/未读/空态），含"有牙"。
+ *  · 「待我处理」视图纯逻辑 + 未读游标（可见/同源/分组/未读/空态），含"有牙"。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

@@ -1,5 +1,5 @@
 /**
- * OPT-AI-10 · 最小 MCP 客户端（stdio / http；**短连**：initialize → tools/list|call → 关闭）。
+ *  · 最小 MCP 客户端（stdio / http；**短连**：initialize → tools/list|call → 关闭）。
  *
  * 口径：
  *  - 不引第三方 MCP SDK（依赖白名单）；JSON-RPC 2.0 手写，stdio 用换行分隔 JSON；HTTP 用 `fetch`；

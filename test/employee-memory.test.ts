@@ -109,7 +109,7 @@ test('G11 端到端: 任务走完（done）→ 参与者员工的项目记忆出
      VALUES(?, NULL, 5, 'deepseek/deepseek-flash', 800, 400, 0.0021, ?)`,
   ).run(created.id, AT);
 
-  // D1：`handleTaskCreate` 已自动分诊（triage）→ 本列表从 `plan_drafted` 起（不再手工发 triage）
+  // `handleTaskCreate` 已自动分诊（triage）→ 本列表从 `plan_drafted` 起（不再手工发 triage）
   for (const [event, payload] of [
     ['plan_drafted', undefined],
     ['plan_reviewed', undefined],
@@ -121,7 +121,7 @@ test('G11 端到端: 任务走完（done）→ 参与者员工的项目记忆出
     const result = await handleTaskTransition(deps, { taskId: created.id, event, payload });
     assert.equal(result.ok, true, `task:transition ${event} 应成功`);
   }
-  // B2-6/D-30③：L1+ pass 现迁 needs_decision（签收卡）——补老板签收步
+  // /：L1+ pass 现迁 needs_decision（签收卡）——补签收步
   if ((repo.getTask(created.id) as { state: string } | undefined)?.state === 'needs_decision') {
     await engine.dispatch({ scope: 'task', id: created.id, event: 'signoff', actor: 'boss', payload: { via: 'b26-regression' } });
   }

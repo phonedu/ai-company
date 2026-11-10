@@ -1,5 +1,5 @@
 /**
- * 「公司大厅」主进程侧装配（M1 B0/B1 · 简单版公司布局）。
+ * 「公司大厅」主进程侧装配（B0/ · 简单版公司布局）。
  *
  * 老板口径：① **轻量部门**（**零迁移**配置，先固定三部门、后期可改）；② **不显示负责人**
  * （配置预留可选 `leadEmployeeId`）；③ 部门间协作**只用真实流向**（由 `work_items` 序列聚合，
@@ -49,7 +49,7 @@ export interface EmployeeDTO {
   departmentId: string;
   /** 2026-10-16（大厅批）员工卡读数——见 `EmployeeActivity`。 */
   activity?: EmployeeActivity;
-  /** GAP6：MCP 分配 refs（id 或名字；设置·MCP 分配矩阵只读用）。 */
+  /** MCP 分配 refs（id 或名字；设置·MCP 分配矩阵只读用）。 */
   mcpRefs?: string[];
 }
 
@@ -60,7 +60,7 @@ export interface EmployeeDTO {
  */
 export interface EmployeeActivity {
   /**
-   * 思考中＝有 running 件（任务不在等待态）；等你＝running 件的任务在等待老板；
+   * 思考中＝有 running 件（任务不在等待态）；等你＝running 件的任务在等待确认；
    * 卡住了＝最近一件 failed/interrupted 且任务未结束；空闲＝其余。
    */
   status: 'running' | 'waiting' | 'idle' | 'stuck';
@@ -229,7 +229,7 @@ function buildEmployeeActivity(db: SqliteDb, now: number): Map<number, EmployeeA
     put(row.employee_id, { todayArtifacts: row.n });
   }
 
-  // ⑦ UG-08（D4 must-fix）：**全员补齐真读数**——凡在册员工都过一遍（COUNT 本身是事实），
+  // ⑦ （must-fix）：**全员补齐真读数**——凡在册员工都过一遍（COUNT 本身是事实），
   //    不让「未出现在任何查询结果」的员工拿到 blank() 的无源 0；blank() 由此只在“确为 0”时产 0。
   const allEmployees = db.prepare('SELECT id FROM employees WHERE active = 1 OR id = 0').all() as Array<{ id: number }>;
   for (const { id } of allEmployees) {

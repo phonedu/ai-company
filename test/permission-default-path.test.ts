@@ -1,9 +1,9 @@
 /**
- * OPT-M9-1 接线修复（独立验证发现的"假完成"）：**默认引擎路径必须也过权限闸门**。
+ * OPT- 接线修复（独立验证发现的"假完成"）：**默认引擎路径必须也过权限闸门**。
  *
  * 口径：`Engine` 默认（不显式注入 gate）执行 pending 动作时也过 `permissionGate`：
  *  - `deny` → 动作 `failed` + `permission_decision`；
- *  - `ask`  → 动作留 `pending` + `permission_requested` + `approvals` 行（`[权限]` 前缀、无默认动作）；
+ *  - `ask` → 动作留 `pending` + `permission_requested` + `approvals` 行（`[权限]` 前缀、无默认动作）；
  *  - 有效权限 = 员工能力档 ∩ DB 三级放行档；L2 收紧一档；对外永不自动。
  */
 import test from 'node:test';

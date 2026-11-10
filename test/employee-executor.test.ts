@@ -1,5 +1,5 @@
 /**
- * OPT-AI-1 · 员工真会话执行器 + 会话生命周期（RC-1/RC-4）。
+ *  · 员工真会话执行器 + 会话生命周期（RC-1/RC-4）。
  * 口径：work_item `dispatch` → 员工会话；`submit_work_item` 才提交；未提交 `agent_settled`→failed（含最后输出）；
  * `ask_colleague` → mailbox。每条断言可被弄红。
  */
@@ -55,11 +55,11 @@ test('OPT-AI-1: 会话调 submit_work_item → 引擎事件 submit_work_item（p
     await exec.execute(dispatchAction(taskId, wiId));
     assert.equal(events.length, 1);
     assert.equal(events[0]!.event, 'submit_work_item');
-    // OPT-AI-7：宿主侧**归一化后**再落 payload（trim ＋ 空数组缺省 ＋ 契约外字段进 extra）
+    // 宿主侧**归一化后**再落 payload（trim ＋ 空数组缺省 ＋ 契约外字段进 extra）
     assert.deepEqual(events[0]!.payload, {
       result: { summary: 'ok', artifacts: [], evidence: [], assumptions: [], unclosed: [], extra: {} },
     });
-    // 会话输入：sessionKey 按 员工×任务×工作项；cwd = 项目根
+    // 会话输入：sessionKey 按员工×任务×工作项；cwd = 项目根
     assert.equal(fake.runs[0]!.sessionKey, employeeSessionKey({ employeeId: 7, taskId, workItemId: wiId }));
     assert.ok(fake.runs[0]!.cwd);
     assert.ok(fake.runs[0]!.systemPrompt && fake.runs[0]!.prompt);
@@ -394,7 +394,7 @@ test('OPT-AI-1 "有牙": 去掉 submit 分支 → 已提交的会话也被判失
   const { db, taskId, wiId } = setup();
   try {
     // 合成：模拟"submit 分支被删"（把 submit 视作未提交）→ 事件变成 agent_settled。
-    // 注意（OPT-AI-7）：输入必须是**合法提交**——空 `{}` 现在会走校验失败路径，测不到"分支在场"。
+    // 注意：输入必须是**合法提交**——空 `{}` 现在会走校验失败路径，测不到"分支在场"。
     const fake = makeFakeAgentRuntime([
       { text: 'x', toolCalls: [{ id: 't1', name: 'submit_work_item', input: { summary: 'ok' }, isError: false }] },
     ]);
@@ -427,7 +427,7 @@ test('OPT-AI-7 宿主兜底 "有牙"：非法提交（无 summary）→ agent_se
   }
 });
 
-// ── BRK5（挂载 1 余）：员工侧 `report_progress` / `request_review` 的**宿主消费者** ──
+// ── （挂载 1 余）：员工侧 `report_progress` / `request_review` 的**宿主消费者** ──
 // 此前两工具在员工会话注册、回执承诺"宿主会投影/指派"，但执行器只消费
 // submit_work_item/ask_colleague/escalate_to_boss ⇒ 报进度静默丢弃、进度条不动、回执是假承诺。
 
@@ -526,7 +526,7 @@ test('BRK5 "有牙"：report_progress 参数非法 → 不投影 ＋ tool_call �
   }
 });
 
-// ── RET-1 RET-F-08：员工 tool_call_start 落库（白名单/截断） ──
+// ── RET-1 RET-：员工 tool_call_start 落库（白名单/截断） ──
 
 test('RET-F-08: 员工 tool_call_start 落 task_events，只留 command/path 等白名单字段（不上传 content/密钥）', async () => {
   const { db, taskId, wiId } = setup();

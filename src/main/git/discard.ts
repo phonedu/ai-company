@@ -1,9 +1,9 @@
 /**
- * B-2（M4）· `task:discard` —— 丢弃一个变更集（不合并）。
+ * B-2· `task:discard` —— 丢弃一个变更集（不合并）。
  *
- * 口径（D-21 / M4-B-2）：
+ * 口径：
  *  - 真值表：`open → discarded`；`discarded` 幂等；`merged`/`rolled_back`/`superseded` 显式拒；
- *  - **只改台账**：不动主分支、不跑 git、不删 worktree/分支（保留作证据；retention 另行清理）；
+ *  - **只改清单**：不动主分支、不跑 git、不删 worktree/分支（保留作证据；retention 另行清理）；
  *  - **只影响该工作项**：按 changesetId 定位，不碰同任务其它变更集；
  *  - 成功后写 `changeset_discarded` 事件；二次调用不再写事件（幂等）。
  *

@@ -4,7 +4,7 @@
  * 只被产品装配（`main/index.ts`）按需调用：本文件静态 import Pi SDK，
  * **不要从 `agent/index.ts` 桶导出**（避免单测/启动加载 SDK）。
  *
- * M0 系统提示词：仅实做底座层①+角色层②的**最小可信版**；完整五层拼装（EMPLOYEES §2）
+ *  系统提示词：仅实做底座层①+角色层②的**最小可信版**；完整五层拼装
  * 与 persona/技能注入属 M1。
  */
 import type { SqliteDb } from '../db/open.js';
@@ -28,7 +28,7 @@ import {
   recordChannelAllowAudit,
 } from './session-tool-gate.js';
 
-/** M0 幕僚长系统提示词（底座纪律 + 角色规则；EMPLOYEES §2 ①② 的最小版）。 */
+/**  幕僚长系统提示词（底座纪律 + 角色规则； ①② 的最小版）。 */
 export const ASSISTANT_SYSTEM_PROMPT_M0 = [
   '你是这家 AI 一人公司的「幕僚长」（0 号员工），只对老板负责。',
   '',
@@ -65,19 +65,19 @@ export interface CreatePiAssistantOptions {
   persistDir?: string;
   /** P2：工具大输出归档根（缺省不归档）。 */
   toolOutputDir?: string;
-  /** RW-51：引擎（卡片作答推状态机用；缺省＝只落台账不推，与 task:approve 无引擎同口径）。
-   *  B2-1 起 index 传引擎实例——`tick`/`listDispatchHolds`/`schedulerSlots` 供 dispatch/list_holds 工具用（缺方法如实降级）。 */
+  /** 引擎（卡片作答推状态机用；缺省＝只落清单不推，与 task:approve 无引擎同口径）。
+   *   起 index 传引擎实例——`tick`/`listDispatchHolds`/`schedulerSlots` 供 dispatch/list_holds 工具用（缺方法如实降级）。 */
   engine?: AssistantEnginePort | null;
-  /** RW-51：待办读数变化（托盘/待办刷新）。 */
+  /** 待办读数变化（托盘/待办刷新）。 */
   onInboxChanged?: (() => void) | null;
-  /** RW-51：权限批准联动（批准→grant；index 注入与 deps 同源）。 */
+  /** 权限批准联动（批准→grant；index 注入与 deps 同源）。 */
   onGrant?: ((approvalId: number, chosen: string) => void) | null;
   /**
-   * B2-1：建任务回调（index 注入＝`handleTaskCreate(deps, input)`——工具层不做第二套门）。
+   * 建任务回调（index 注入＝`handleTaskCreate(deps, input)`——工具层不做第二套门）。
    * 缺省未接线 → create_task 工具如实说「未接线」，不臆造任务。
    */
   createTask?: (input: Record<string, unknown>) => Promise<{ id: number; shortId?: string | null; title?: string | null; state?: string }>;
-  /** B2-1：老板插话 → 在跑员工会话（index 注入＝`LazyEmployeeRuntime.steer`，与 `#短号` 同通路）。 */
+  /** 老板插话 → 在跑员工会话（index 注入＝`LazyEmployeeRuntime.steer`，与 `#短号` 同通路）。 */
   steerEmployee?: ((sessionKey: string, text: string) => boolean) | null;
   clock?: () => number;
   onTextDelta?: (delta: string) => void;
@@ -95,29 +95,29 @@ export async function createPiAssistantRuntime(options: CreatePiAssistantOptions
   const reportProgress = await createReportProgressTool();
   const requestReview = await createRequestReviewTool();
   const taskStatus = await createTaskStatusTool(options.db);
-  // RW-51：待办卡工具——老板自然话处理待办的地基（「把那张决策卡按推荐方案处理了」）。
+  // 待办卡工具——老板自然话处理待办的地基（「把那张决策卡按推荐方案处理了」）。
   const cardTools = await createBossCardTools({
     db: options.db,
     engine: options.engine ?? null,
     onInboxChanged: options.onInboxChanged ?? null,
     onGrant: options.onGrant ?? null,
   });
-  // RW-14（M5 真机带回）：note_write 落点跟随**频道范围**——渲染层 setChannelScope 把
+  // （真机带回）：note_write 落点跟随**频道范围**——渲染层 setChannelScope 把
   // channel.scope_project_id 写进 settings（0/缺省＝公司全局），这里每调用实时读。
-  // 旧实现硬编码 `() => null`（占位从未接线）⇒ 选了项目也落全局目录（真机 RW-14）。
+  // 旧实现硬编码 `() => null`（占位从未接线）⇒ 选了项目也落全局目录（真机）。
   const noteScopeProjectId = (): number | null => {
     const v = readSetting(options.db, 'channel.scope_project_id');
     return typeof v === 'number' && v > 0 ? v : null;
   };
   const noteWrite = await createNoteWriteTool(options.db, noteScopeProjectId);
   const noteSearch = await createNoteSearchTool(options.db, noteScopeProjectId);
-  // 老板 2026-11-05 裁「1 和 2 都做」②：幕僚长只读跨范围记忆检索（全局＋全部活跃项目）。
+  // 2026-11-05 裁「1 和 2 都做」②：幕僚长只读跨范围记忆检索（全局＋全部活跃项目）。
   const memorySearch = await createMemorySearchTool(options.db);
-  // B2-1（D-30）：幕僚长指挥四工具——create_task/dispatch/steer/list_holds。
+  // 幕僚长指挥四工具——create_task/dispatch/steer/list_holds。
   // 回调（createTask/steerEmployee）与引擎读数由 index.ts 注入；工具层不做第二套门。
-  // B3-8/D-31：幕僚长只读项目文档（跟随频道范围项目根；无项目时 cwd 只读根）。
+  // /：幕僚长只读项目文档（跟随频道范围项目根；无项目时 cwd 只读根）。
   const assistantReadDoc = await createReadDocTool(options.cwd ?? process.cwd());
-  // B3-4/D-31：draft_sop（角色 SOP 起草→确认卡）
+  // /：draft_sop（角色 SOP 起草→确认卡）
   const draftSopTool = await createDraftSopTool({ db: options.db, engine: options.engine ?? null });
   const commandTools = await createAssistantCommandTools({
     db: options.db,
@@ -127,7 +127,7 @@ export async function createPiAssistantRuntime(options: CreatePiAssistantOptions
     scopeProjectId: noteScopeProjectId,
   });
 
-  // D-19 P0：频道助手与员工会话走同一 `permissionGate`；项目根/只读上下文由每轮 `AssistantRuntime` 登记。
+  //  P0：频道助手与员工会话走同一 `permissionGate`；项目根/只读上下文由每轮 `AssistantRuntime` 登记。
   const toolGate = new SessionToolGate({
     db: options.db,
     onDecision: (info) => {
@@ -136,11 +136,11 @@ export async function createPiAssistantRuntime(options: CreatePiAssistantOptions
         persistSessionGateDecision(options.db, info, options.clock?.() ?? Date.now());
         return;
       }
-      // D-19 P1：无任务的频道对话也能出确认卡（approvals.task_id 允许为空）；
+      //  P1：无任务的频道对话也能出确认卡（approvals.task_id 允许为空）；
       // 批准后 grant 落到项目/会话，下一次调用即放行。
       persistChannelGateDecision(options.db, info, options.clock?.() ?? Date.now());
     },
-    // D-19 P1：频道助手实际放行的写/命令/外发落审计（任务会话不接）。
+    //  P1：频道助手实际放行的写/命令/外发落审计（任务会话不接）。
     onAllow: (info) => {
       if (info.run?.taskId == null) {
         recordChannelAllowAudit(options.db, info, options.clock?.() ?? Date.now());
@@ -148,7 +148,7 @@ export async function createPiAssistantRuntime(options: CreatePiAssistantOptions
     },
   });
 
-  // RW-52（2026-11-05）：注册与守卫共用**同一名单**（名单取自工具对象本身，单一真值）。
+  // （2026-11-05）：注册与守卫共用**同一名单**（名单取自工具对象本身，单一真值）。
   // 守卫修的是：持久化会话 resume 时 Pi 用转录 toolsAdded 快照整体替换活动工具集，
   // 快照之后注册的新工具（boss_inbox / boss_card_resolve）永不声明给模型（详见
   // `registerToolActivationGuard` 头注与 `test/pi-tool-activation.test.ts`）。
@@ -163,7 +163,7 @@ export async function createPiAssistantRuntime(options: CreatePiAssistantOptions
     memorySearch,
     assistantReadDoc,
     draftSopTool,
-    // B2-1：指挥四工具（与 RW-52 激活守卫同一名单——守卫自动覆盖新工具）。
+    // 指挥四工具（与激活守卫同一名单——守卫自动覆盖新工具）。
     commandTools.createTaskTool,
     commandTools.dispatchTool,
     commandTools.steerTool,

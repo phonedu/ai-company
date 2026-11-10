@@ -1,5 +1,5 @@
 /**
- * B-3（M4）· 项目档案导出 + 删除前清理（无孤儿行；只删归档且无任务）。
+ * B-3· 项目档案导出 + 删除前清理（无孤儿行；只删归档且无任务）。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

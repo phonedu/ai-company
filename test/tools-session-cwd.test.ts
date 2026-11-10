@@ -1,5 +1,5 @@
 /**
- * 自定义工具按**会话 cwd** 解析（B4b 效果终验设计期实抓）。
+ * 自定义工具按**会话 cwd** 解析（效果终验设计期发现）。
  *
  * 缺陷：员工运行时全局共享一份（生产 `cwd: process.cwd()`），经 extensionFactories 注册的自定义工具
  * 在装配期绑死该 cwd ⇒ 生产里 read_doc 读应用目录、screenshot/image_generate 写进应用目录、

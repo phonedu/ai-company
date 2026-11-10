@@ -1,6 +1,6 @@
 /**
- * T0.4（模型无关部分）测试：幕僚长会话运行时 + 工具事件落库 + plan_steps 投影。
- * 用 fake AgentRuntime（03 §9），不花真金、不碰网络。
+ * （模型无关部分）测试：幕僚长会话运行时 + 工具事件落库 + plan_steps 投影。
+ * 用 fake AgentRuntime，不花真金、不碰网络。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

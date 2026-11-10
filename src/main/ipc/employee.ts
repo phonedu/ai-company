@@ -1,11 +1,11 @@
 /**
- * 员工工位页数据面（`docs/UI.md` §2/§9；D-5 补位 ①）——`employee:get`。
+ * 员工工位页数据面（`docs/` §2/§9；D-5 补位 ①）——`employee:get`。
  *
  * 口径：
- *  - **只读 v1**：员工招募/编辑属 M1+ 未实现（`docs/DEV.md` §7.4 员工写入口径 A/B 两处）
+ *  - **只读 v1**：员工招募/编辑属 M1+ 未实现（`docs/` §7.4 员工写入口径 A/B 两处）
  *    → UI 侧未实现项如实 `disabled`，本文件**不写库**；
  *  - **不臆造**：成本无行 → `usd:null`（UI 显 `—`，不写假 0）；`employees.skills/mcps` 引用的
- *    `skills`/`mcp_servers` 表**尚无写入者**（OPT-AI-9/MCP 属 M2+）→ 解析不到名字就 `name:null`
+ *    `skills`/`mcp_servers` 表**尚无写入者**（/MCP 属）→ 解析不到名字就 `name:null`
  *    （UI 如实标注，不编名字）；记忆无行 → 空数组；
  *  - **记忆分区**：读 `employee_memory` 真行（v1 只有项目分区会被写；`project_id=0` 通用分区由
  *    后续"显式提升"动作负责，见 `src/main/db/memory.ts` 头注）。

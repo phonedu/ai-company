@@ -1,9 +1,9 @@
 /**
- * 频道 UX 三修（老板 2026-10-26 D5 复核反馈）：
+ * 频道 UX 三修（2026-10-26 复核反馈）：
  *   ① 回复慢无指示——「幕僚长正在处理…」常驻（末条=老板消息即等回复；回复/回执一到自消，带秒数）；
  *   ② 发消息长时间不出现——sendMessage 乐观上屏（不等 IPC 里的语义分类模型调用）；
  *   ③ 助手回复/决策卡到达不滚动——在底部时任何新内容都跟随（上翻读历史仍不抢）。
- * 附带：F-19 白名单放行 `cd 项目根 && ls`（模型最常用形态，见 readonly-bash ⑪组）。
+ * 附带： 白名单放行 `cd 项目根 && ls`（模型最常用形态，见 readonly-bash ⑪组）。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -28,7 +28,7 @@ test('② 乐观上屏：sendMessage 先插临时消息（负 id），loadChanne
 });
 
 test('③ 底部跟随：在底部时任何新内容都滚（不再只认老板自己的消息）；上翻仍不抢', () => {
-  // RW-24 后结构改为早退式（if (!atBottomRef.current) return;），语义不变：跟随只看是否在底部。
+  //  后结构改为早退式（if (!atBottomRef.current) return;），语义不变：跟随只看是否在底部。
   assert.ok(
     channel.includes('if (!atBottomRef.current) return;') || channel.includes('atBottomRef.current) {'),
     '跟随只看是否在底部',

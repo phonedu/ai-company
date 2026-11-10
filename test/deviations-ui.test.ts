@@ -1,5 +1,5 @@
 /**
- * UG-07 · 差异台账上屏：顶部 warning + 变更/产物 tab 明细卡；未结无主显式警告。
+ *  · 差异清单上屏：顶部 warning + 变更/产物 tab 明细卡；未结无主显式警告。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

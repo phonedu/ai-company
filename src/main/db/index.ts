@@ -1,4 +1,4 @@
-/** `src/main/db` 公共出口（迁移 + 台账 + 短号计数器 + tasks 最小 DAO）。 */
+/** `src/main/db` 公共出口（迁移 + 清单 + 短号计数器 + tasks 最小 DAO）。 */
 export { openDatabase, openMemoryDatabase, type SqliteDb, type OpenDatabaseOptions } from './open.js';
 export {
   loadMigrations,

@@ -29,7 +29,7 @@ export interface InsertApprovalInput {
 const COLUMNS =
   'id, task_id, report_id, question, options, default_action, timeout_at, chosen, decided_by, decided_at';
 
-/** 权限审批复用 `approvals`：`question` 以此前缀标识为**权限请求**（`PLAN §16.4`，微信里也能批）。 */
+/** 权限审批复用 `approvals`：`question` 以此前缀标识为**权限请求**（``，微信里也能批）。 */
 export const PERMISSION_QUESTION_PREFIX = '[权限] ';
 
 export function isPermissionApproval(question: string): boolean {
@@ -59,7 +59,7 @@ export function getApproval(db: SqliteDb, id: number): ApprovalRow | null {
 
 /**
  * 该任务**最新一条未决**审批卡（`chosen IS NULL`）；无则 `null`。
- * B6：超时消费端用它取**真实** `options` + `default_action`（不再硬编码 `approve` = 替老板做决定）。
+ * 超时消费端用它取**真实** `options` + `default_action`（不再硬编码 `approve` = 替老板做决定）。
  */
 export function latestPendingApproval(db: SqliteDb, taskId: number): ApprovalRow | null {
   return (
@@ -87,8 +87,8 @@ export interface AnswerApprovalInput {
 /**
  * 回答 AskCard。**幂等**：已 decided 的再调**不覆盖**，直接返回现状
  * （`task:approve` 的「只发一条 IPC / 不重复触发」靠它兜底）。
- * 联动：把对应的决策卡 `reports.state` 置 `'resolved'`（docs/UI.md §4.1「一处处理、两处消除」；
- * 数据不变量归 DB 层单一写者，1132 裁决）；同样幂等。
+ * 联动：把对应的决策卡 `reports.state` 置 `'resolved'`（docs/「一处处理、两处消除」；
+ * 数据不变量归 DB 层单一写者，1132 决定）；同样幂等。
  */
 export function answerApproval(db: SqliteDb, input: AnswerApprovalInput): ApprovalRow {
   const now = input.now ?? Date.now();

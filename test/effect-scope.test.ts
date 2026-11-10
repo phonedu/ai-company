@@ -1,10 +1,10 @@
 /**
- * M1-1 · 受管工作单元 + 归属台账 —— 验收单测（`docs/next/research-lessons-productization.md §2.1`；1553）。
+ *  · 受管工作单元 + 归属清单 —— 验收单测（`docs/next/research-lessons-productization.md §2.1`；1553）。
  *
  * 四条验收（每条都能被弄红）：
- *  ① 台账登记与回收**各恰好一次**（重放/重复调用不重复回收）；
+ *  ① 清单登记与回收**各恰好一次**（重放/重复调用不重复回收）；
  *  ② **超时兜底确实触发**（fake clock）；
- *  ③ 回收**只用台账里的 PID**（无关同名进程不受影响）；
+ *  ③ 回收**只用清单里的 PID**（无关同名进程不受影响）；
  *  ④ `timers` 幂等键/哨兵值口径一致（G-4：同 scope 只一行、dedupe_key 非空）。
  */
 import test from 'node:test';
@@ -113,7 +113,7 @@ test('M1-1③: 回收只用台账里的 PID（无关同名进程不受影响）'
     const mgr = new EffectScopeManager(db, { clock: () => 1_000, killer });
     const a = mgr.open({ sessionKey: 's1', employeeId: 7, workItemId: 42, attempt: 0, taskId, pidTree: [11111] });
     const b = mgr.open({ sessionKey: 's1', employeeId: 8, workItemId: 43, attempt: 0, taskId, pidTree: [22222] });
-    const unrelatedPid = 99_999; // 一台机器上"同名"的无关进程——绝不允许被本台账回收碰到
+    const unrelatedPid = 99_999; // 一台机器上"同名"的无关进程——绝不允许被本清单回收碰到
 
     mgr.reclaim(a.scopeKey, 'release');
     mgr.reclaim(b.scopeKey, 'release');

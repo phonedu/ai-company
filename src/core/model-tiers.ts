@@ -2,9 +2,9 @@
  * N5（`R3-3`）· 模型档位**纯逻辑**（`role_map` 词表 / 消毒 / 解析）——共享层（`src/core`），无 IO、无单例、无环境读取。
  *
  * 口径来源：
- *  - EMPLOYEES §10.3：项目里每个员工各用各的模型/供应商；critic/verifier 建议不同供应商（本项目暂单供应商，如实）；
+ *  -：项目里每个员工各用各的模型/供应商；critic/verifier 建议不同供应商（本项目暂单供应商，如实）；
  *  - `plan-m2-v2` N5 验收：**不动表** · 静态前缀字节一致 · **L0 用便宜档**；
- *  - `research-multi-agent-cost` §M3：贵模型想、便宜模型干；**仅 L0/L1 降级、L2 保留强模型**（本批只做 L0）。
+ *  - `research-multi-agent-cost` §：贵模型想、便宜模型干；**仅 L0/L1 降级、L2 保留强模型**（本次只做 L0）。
  *
  * 分工：**真值注入**在 `agent/model-policy.ts`（设置项 `models.role_map` / `AICO_ECONOMY_MODEL` → 本模块纯函数）；
  * **写侧守卫**在 `db/settings.ts`（`models.role_map` 的 spec 复用本模块 `roleMapShapeError`，单一守卫防漂移）。
@@ -28,7 +28,7 @@ export type RoleMap = Partial<Record<SessionRole, RoleMapEntry>>;
 /** 档位来源（如实标注——"省了"与"没省"必须能一眼分开）。 */
 export type ModelSource = 'task' | 'assistant' | 'employee' | 'role_map' | 'economy(L0)' | 'project_default' | 'default';
 
-// ───────── D-22（2026-10-23）：项目模型策略（纯逻辑；写侧校验/解析共用）─────────
+// ───────── （2026-10-23）：项目模型策略（纯逻辑；写侧校验/解析共用）─────────
 
 export const PROJECT_MODEL_POLICIES = ['fixed', 'employee_first', 'assistant'] as const;
 export type ProjectModelPolicyName = (typeof PROJECT_MODEL_POLICIES)[number];
@@ -49,7 +49,7 @@ export function isProjectModelPolicyName(value: unknown): value is ProjectModelP
 export const MAX_PROJECT_ALLOWED_MODELS = 32;
 
 /**
- * D-22 写侧守卫（唯一判据）：返回人话 reason 或 `null`。
+ *  写侧守卫（唯一判据）：返回人话 reason 或 `null`。
  * - `assistant` 需要模型目录（价格/上下文/能力标签）才能选型；目录未就绪 → **拒写**，不假装支持；
  * - 允许清单非空时，项目默认必须在清单内（硬约束）；
  * - 供应商白名单（旧列）非空时，清单/默认的供应商也必须在内（旧列继续有效）。
@@ -216,7 +216,7 @@ export interface ModelTierContext {
   roleMap: RoleMap;
 }
 
-/** D-22 assistant 选型的候选（由主进程从模型目录投影；纯逻辑不读 SDK/文件）。 */
+/**  assistant 选型的候选（由主进程从模型目录投影；纯逻辑不读 SDK/文件）。 */
 export interface AssistantCandidate {
   /** 规范引用 `provider/model`（目录口径）。 */
   model: string;
@@ -240,12 +240,12 @@ export interface ModelTierInput {
   employeeModel?: string | null;
   /** 员工档案显式思考强度（`employees.thinking`）。 */
   employeeThinking?: string | null;
-  /** D-22：项目模型策略（边界＋默认）；缺省＝旧行为（项目未配置）。 */
+  /** 项目模型策略（边界＋默认）；缺省＝旧行为（项目未配置）。 */
   project?: ProjectModelPolicy | null;
-  /** D-22 assistant：项目允许清单内的模型目录候选；缺省/空＝按目录不可用回落。 */
+  /**  assistant：项目允许清单内的模型目录候选；缺省/空＝按目录不可用回落。 */
   assistantCandidates?: readonly AssistantCandidate[] | null;
   /**
-   * D-22 assistant LLM 自由裁量结果（主进程异步选出后缓存传入）；
+   *  assistant LLM 自由裁量结果（主进程异步选出后缓存传入）；
    * 缺省/失败＝回落确定性规则。解析器仍会复核允许清单，越界结果不采信。
    */
   assistantChoice?: { model: string; reason: string } | null;
@@ -261,9 +261,9 @@ export interface ModelTierResolution {
    * `false`＝**应换但无第二供应商可用**（保持原模型，如实标注——调用方留痕）；`undefined`＝未尝试叠加。
    */
   diversified?: boolean;
-  /** D-22：硬约束拒绝（任务模型不在项目允许清单 / assistant 未启用）；调用方须**响亮失败**，不静默改派。 */
+  /** 硬约束拒绝（任务模型不在项目允许清单 / assistant 未启用）；调用方须**响亮失败**，不静默改派。 */
   rejected?: string;
-  /** D-22：发生了回落（如员工偏好不在允许清单）；`fallbackFrom` 是原优先来源。 */
+  /** 发生了回落（如员工偏好不在允许清单）；`fallbackFrom` 是原优先来源。 */
   fallbackFrom?: ModelSource;
   fallbackReason?: string;
   /** assistant 选型理由（每次选择都记；其他来源为 undefined）。 */
@@ -278,7 +278,7 @@ function assistantAllowed(model: string, allowed: readonly string[]): boolean {
 }
 
 /**
- * D-22 assistant 选型（确定规则，纯函数）：
+ *  assistant 选型（确定规则，纯函数）：
  * - 规划/评审/L1+：优先 `reasoning` 与上下文（贵模型想）；
  * - 执行 + L0：优先成本（便宜模型干）；
  * - 员工显式偏好只作**同分时的建议**，不压过任务需求；
@@ -320,7 +320,7 @@ export function pickAssistantModel(input: {
  * 档位解析（唯一序）：**任务级 > 员工显式 > role_map > L0 经济档 > 普通档**。
  * - 降档**只对执行员工 + L0**；planner/critic/verifier 与 L1/L2 一律普通档（危险档不降）；
  * - 经济档未配置或与普通档同值 ⇒ 回落普通档且 `source='default'`（**如实**，不标 economy）。
- * - D-22 assistant：任务级 > (critic/verifier 角色映射) > 幕僚长选型 > 员工偏好建议 > 角色映射 > L0 > 项目默认 > 公司默认。
+ * - assistant：任务级 > (critic/verifier 角色映射) > 幕僚长选型 > 员工偏好建议 > 角色映射 > L0 > 项目默认 > 公司默认。
  */
 export function resolveModelTier(input: ModelTierInput, ctx: ModelTierContext): ModelTierResolution {
   const employeeThinking = isThinkingLevel(input.employeeThinking) ? input.employeeThinking : null;
@@ -346,7 +346,7 @@ export function resolveModelTier(input: ModelTierInput, ctx: ModelTierContext): 
     return { model: taskModel, thinking: employeeThinking, source: 'task' };
   }
 
-  // D-22 assistant：幕僚长在允许清单内按任务选；critic/verifier 的角色映射优先（视角差异）。
+  //  assistant：幕僚长在允许清单内按任务选；critic/verifier 的角色映射优先（视角差异）。
   if (project?.policy === 'assistant') {
     const entry = ctx.roleMap[input.role];
     if ((input.role === 'critic' || input.role === 'verifier') && entry && isAllowed(entry.model)) {
@@ -393,7 +393,7 @@ export function resolveModelTier(input: ModelTierInput, ctx: ModelTierContext): 
   const employeeModel = typeof input.employeeModel === 'string' && input.employeeModel.trim().length > 0 ? input.employeeModel.trim() : null;
   if (employeeModel) {
     if (!isAllowed(employeeModel)) {
-      // 员工偏好不在允许清单 → 回落项目默认（docs/08 §10.5 规则 5），并说明原因。
+      // 员工偏好不在允许清单 → 回落项目默认（docs/规则 5），并说明原因。
       return {
         model: fallbackModel,
         thinking: employeeThinking,
@@ -445,7 +445,7 @@ export function resolveModelTier(input: ModelTierInput, ctx: ModelTierContext): 
 }
 
 /**
- * D-22 选择期 Key 硬校验：模型选定后再核一次「供应商 Key 是否可用」。
+ *  选择期 Key 硬校验：模型选定后再核一次「供应商 Key 是否可用」。
  *
  * 口径：
  *  - 任务显式模型 Key 不可用 → **直接拒**（与越界同等硬约束，不静默改派）；

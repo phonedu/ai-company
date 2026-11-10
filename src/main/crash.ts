@@ -1,9 +1,9 @@
 /**
- * 崩溃兜底 + 崩溃日志（老板拍板 · 简单 / 不引依赖 / 日志只在本地、不上传）。
+ * 崩溃兜底 + 崩溃日志（要求 · 简单 / 不引依赖 / 日志只在本地、不上传）。
  *
  * - 主进程：`uncaughtException` / `unhandledRejection` → 尽力弹**友好提示**（含日志路径与如何反馈）＋ **落盘后再退出**。
  * - 渲染/子进程：`render-process-gone` / `child-process-gone` / `did-fail-load` → 落日志 ＋ 友好提示（不白屏、不静默）。
- * - 崩溃日志：`<userData>/logs/crash-<ts>.log`，含 版本 / 时间 / 平台 / Electron/Node / 错误栈 ＋ **崩溃前最后在做什么**。
+ * - 崩溃日志：`<userData>/logs/crash-<ts>.log`，含版本 / 时间 / 平台 / Electron/Node / 错误栈 ＋ **崩溃前最后在做什么**。
  *
  * 设计：本模块**不依赖 electron、不查 DB** —— `app` / `notify` / `logDir` / `getContext` 都由 `src/main/index.ts` 注入，
  * 因此可被 `node --test` 直接 import（格式化与落盘均可在纯 Node 下单测）。
@@ -139,7 +139,7 @@ export function installMainProcessCrashHandlers(options: CrashInstallOptions): v
   const fatalExit = options.fatalExit ?? ((): void => process.exit(1));
 
   process.on('uncaughtException', (error) => {
-    // D5 复核崩溃根因（2026-10-26 crash-…log）：stderr/stdout 管道断端后 console.error 同步抛 EPIPE
+    //  复核崩溃根因（2026-10-26 crash-…log）：stderr/stdout 管道断端后 console.error 同步抛 EPIPE
     // （Windows 管道为同步写，挂流 error 监听拦不住同步路径）——把可恢复的断管写升级成了应用崩溃。
     // EPIPE＝日志无处可去，不致命：吞掉继续跑（真实异常仍走下方落盘→提示→退出）。
     if (isStdStreamEpipe(error)) return;

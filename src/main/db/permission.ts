@@ -1,5 +1,5 @@
 /**
- * OPT-M9-1 · `permission_policies` DAO（三级覆盖：global / project / task；`PLAN §16.4`、`schema.sql` 001 已建表）。
+ * OPT- · `permission_policies` DAO（三级覆盖：global / project / task；``、`schema.sql` 001 已建表）。
  * 有效策略 = global ← project ← task 逐级覆盖（后者优先）；`tier` 取最高级里显式设置的值。
  */
 import type { Autonomy, PermissionPolicy } from '../permission/gate.js';

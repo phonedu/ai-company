@@ -1,4 +1,4 @@
-# electron-builder 配置（T0.1「打包脚本已备」→ M1 补齐并实测）
+# electron-builder 配置（「打包脚本已备」→ 补齐并实测）
 #
 # 关键点：
 # - `package.json.main` = `./out/main/index.cjs`（main/preload 仍是 CJS，见 electron.vite.config.ts）。
@@ -14,7 +14,7 @@ directories:
   output: dist
   buildResources: resources
 # 只加排除：**构建自身产物 `dist/**`**（否则上一次的 win-unpacked/asar 会被再卷进来 → asar 爆炸/损坏）。
-# P-1（M2 尾）：DeepSeek-only 用法下，Pi 的 provider SDK 是**懒加载**——`@anthropic-ai/sdk` /
+# P-1（尾）：DeepSeek-only 用法下，Pi 的 provider SDK 是**懒加载**——`@anthropic-ai/sdk` /
 # `@google/genai` / `@aws-sdk/*`（含 `@smithy/*`）运行时永不被加载；排除它们缩体积/打包耗时。
 # **红线**：`@earendil-works/**`（loader/provider 模块）与 `openai` **绝不排除**（否则别的 provider/内置 catalog 会坏）。
 # 其余保持 electron-builder 默认（自动带 `out/**` + `package.json` + 生产 dependencies）。
@@ -36,18 +36,18 @@ extraResources:
     to: licenses/noto-sans-sc-NOTICE.md
   - from: THIRD_PARTY_NOTICES.md
     to: licenses/THIRD_PARTY_NOTICES.md
-  # 裁决 6（老板 2026-11-09「不大就内置在我们的软件里面」）：ffmpeg 随包——
+  # 决定 6（2026-11-09「不大就内置在我们的软件里面」）：ffmpeg 随包——
   # 二进制由 `node scripts/fetch-ffmpeg.mjs` 在构建时取（固定版本＋sha256 校验），仓库不存 79MB；
   # GPL-3.0 合规：全文许可证＋声明随包（licenses/ffmpeg-GPL-3.0.txt、ffmpeg-NOTICE.txt）。
   - from: vendor/ffmpeg/ffmpeg.exe
     to: ffmpeg/ffmpeg.exe
-  # GPL-3.0 合规（独立验收 S13）：随包**全文**许可证（上游 35KB），不只给 URL。
+  # GPL-3.0 合规（独立验收）：随包**全文**许可证（上游 35KB），不只给 URL。
   - from: vendor/ffmpeg/UPSTREAM-LICENSE.txt
     to: licenses/ffmpeg-GPL-3.0.txt
   - from: vendor/ffmpeg/LICENSE.txt
     to: licenses/ffmpeg-NOTICE.txt
 asar: false
-# ⚠️ asar:false —— 见 §7.4/T0.1 实验：asar 下 main 启动时外部依赖/原生模块解析有坑（静默退出，无日志）；
+# ⚠️ asar:false —— 见 §7.4 实验：asar 下 main 启动时外部依赖/原生模块解析有坑（静默退出，无日志）；
 # 本次「含全部当前提交的 UI 预览包」先用**非 asar** 保可用（files 已排除 dist/，体积可控）。asar 化排期到 M1。
 asarUnpack:
   - "**/*.node"
@@ -60,7 +60,7 @@ win:
     - target: portable
       arch:
         - x64
-    # 2026-11-06（D5 后发布工程）：正式分发用安装器；portable 保留给免安装/冒烟。
+    # 2026-11-06（后发布工程）：正式分发用安装器；portable 保留给免安装/冒烟。
     # 签名证书未定：当前产物未签名（SmartScreen 会提示），分发前需决定证书。
     - target: nsis
       arch:
@@ -74,7 +74,7 @@ nsis:
   # 卸载不删用户数据（任务/笔记/设置属于用户资产；卸载残留是设计选择，不是漏洞）。
   deleteAppDataOnUninstall: false
   artifactName: ${productName}-${version}-${arch}-setup.${ext}
-# 自动更新（2026-11-06 老板裁：GitHub）。公开 releases 仓库只放安装包与 latest.yml。
+# 自动更新（2026-11-06 决定：GitHub）。公开 releases 仓库只放安装包与 latest.yml。
 # generic + latest/download：运行时无需 GitHub API/token；electron-builder 打包时生成
 # latest.yml 与 resources/app-update.yml，electron-updater 直接读。
 publish:

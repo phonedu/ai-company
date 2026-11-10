@@ -1,5 +1,5 @@
 /**
- * `changesets` / `changeset_files` 数据访问（M2-C 第 5 项，docs/UI.md §12 变更审查）。
+ * `changesets` / `changeset_files` 数据访问（第 5 项，docs/ 变更审查）。
  *
  * 语义：
  *  - 一个 **work item** 的**一次提交**（`head_sha`）⇒ 一条 `changesets`（`state='open'`，等老板合并/丢弃）；
@@ -121,7 +121,7 @@ export function getChangeset(db: SqliteDb, id: number): ChangesetRow | undefined
 }
 
 /**
- * 合并真值表（M3-P-4）：`open → merged`；已 merged ⇒ 0 行（调用侧按“幂等已合并”处理）。
+ * 合并真值表：`open → merged`；已 merged ⇒ 0 行（调用侧按“幂等已合并”处理）。
  * `discarded` 等其他态不迁移（合并入口显式拒绝，不偷偷复活已丢弃改动）。
  */
 export function markChangesetMerged(db: SqliteDb, id: number, now: number): number {
@@ -133,14 +133,14 @@ export function markChangesetMerged(db: SqliteDb, id: number, now: number): numb
 
 /**
  * 丢弃真值表（B-2）：`open → discarded`；已 discarded 幂等（0 行）；merged/rolled_back 拒绝。
- * 只改台账状态，**不动 git**（主分支/worktree/分支保留作证据）；合并入口对 discarded 显式拒。
+ * 只改清单状态，**不动 git**（主分支/worktree/分支保留作证据）；合并入口对 discarded 显式拒。
  */
 export function markChangesetDiscarded(db: SqliteDb, id: number, _now: number): number {
   return db.prepare("UPDATE changesets SET state = 'discarded' WHERE id = ? AND state = 'open'").run(id).changes;
 }
 
 /**
- * 回滚真值表（M3-N-2 GAP4）：`open → rolled_back`；已 rolled_back/merged/discarded 不动。
+ * 回滚真值表：`open → rolled_back`；已 rolled_back/merged/discarded 不动。
  * 回滚产生的是反向提交而非「丢弃」——保留原变更集证据，状态显式区分。
  */
 export function markChangesetRolledBack(db: SqliteDb, id: number, _now: number): number {

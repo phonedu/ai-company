@@ -1,5 +1,5 @@
 /**
- * B3-3/D-31④ · 产物版本快照（双轨）——staging＝git 提交即版本；inplace＝登记时快照。
+ * / · 产物版本快照（双轨）——staging＝git 提交即版本；inplace＝登记时快照。
  *
  * staging：worktree 底座已有 git 提交，产物行挂 head_sha（现有行为扩展）。
  * inplace：无 git worktree ⇒ 登记时把文件复制到 `.aico/versions/<artifactId>` 快照。
@@ -49,7 +49,7 @@ export function diffWithPrevious(
   const snapshotDir = join(dbName, '..', '.aico', 'versions');
   if (!existsSync(snapshotDir)) return { changed: false, added: 0, removed: 0, previousSnapshotPath: null };
   const currentContent = existsSync(currentAbsPath) ? readFileSync(currentAbsPath, 'utf8') : '';
-  // D4 终验 P1 修正：按 artifactPath 查库找同产物历史快照 id（不看全部目录——跨产物 diff 是错的）。
+  //  终验 P1 修正：按 artifactPath 查库找同产物历史快照 id（不看全部目录——跨产物 diff 是错的）。
   try {
     const rows = db.prepare(
       'SELECT a.id FROM artifacts a WHERE a.path = ? ORDER BY a.id DESC LIMIT 5'

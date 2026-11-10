@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 // ─────────────────────────────────────────────────────────────────────────────
-// `OPT-AI-13` 评测跑器（M2 §7 序 5）。把 `scripts/eval/tasks.json` 的每条任务在**真引擎**上跑一遍，
+// `` 评测跑器（§7 序 5）。把 `scripts/eval/tasks.json` 的每条任务在**真引擎**上跑一遍，
 // 判分器在本跑器里（命令型 `check`，在工作区执行），产出**质量 / 成本 / 时长**三列。
 //
 //   用法（`pnpm eval …`；Node ≥22）：
-//     pnpm eval --dry-run                          # 管线自测：fake 运行时（零真调、零花费）
-//     pnpm eval --tiers=eco --limit=4              # 真跑：省钱档 4 条
+//     pnpm eval --dry-run # 管线自测：fake 运行时（零真调、零花费）
+//     pnpm eval --tiers=eco --limit=4 # 真跑：省钱档 4 条
 //     pnpm eval --tiers=eco,std --limit=4 --warmup # 真跑：两档对照（**加 --warmup 剔除冷启动**；V1 读数）
 //     pnpm eval --tasks=add-fn,slug --orchestration=l0 --tiers=eco
 //   产物：`out/eval/eval-<stamp>.json`（明细）＋ 控制台三列表 ＋（末尾）挂牌读数一行。
@@ -218,7 +218,7 @@ async function runOne(task, orchestration, tier) {
   const ctxComp = db
     .prepare('SELECT COALESCE(SUM(c),0) comp FROM (SELECT MAX(CASE WHEN compaction_count IS NULL THEN 0 ELSE compaction_count END) c FROM context_metrics WHERE task_id = ? GROUP BY session_key)')
     .get(taskRow.id);
-  // B1-2：分层上下文读数（哪层最烧钱）——按 context_metrics.layers_json 聚合 name→tokens。
+  // 分层上下文读数（哪层最烧钱）——按 context_metrics.layers_json 聚合 name→tokens。
   const layerRows = db.prepare('SELECT layers_json FROM context_metrics WHERE task_id = ?').all(taskRow.id);
   const layerTotals = new Map();
   for (const row of layerRows) {

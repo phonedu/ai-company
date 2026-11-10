@@ -1,12 +1,12 @@
 import { DATA_NOT_INSTRUCTION, wrapExternalData } from './data-boundary.js';
 /**
- * OPT-AI-1 · 员工上下文组装（`BuildEmployeeContext` 的实现）。
+ *  · 员工上下文组装（`BuildEmployeeContext` 的实现）。
  *
  * 口径（2285①；**N4 调整**；**G11 追加记忆层**）：**简版分层**，但**在代码里必须是可辨识的分段**（不压成一段拼字符串）：
  *   系统提示词 = ①平台底座 + ②角色规则 + ③`employees.persona` + **记忆层（G11，跨任务只读）** + **④任务基线（简报/验收/证据索引）**；
  *   首条 user prompt = 老板原话 + ⑤项目上下文（`.aico/CONTEXT.md`，存在则读、缺失不报错）。
  *
- * **N4 为什么把「任务基线」移进 system（`OPT-AI-4`）**：底座的自动压缩（threshold/overflow）**不传 customInstructions**
+ * **N4 为什么把「任务基线」移进 system（``）**：底座的自动压缩（threshold/overflow）**不传 customInstructions**
  * ⇒ 我们无法给摘要注入领域指令；而 **system 段不参与历史压缩** ⇒ 基线（**验收标准**必须有）**压缩后必然仍在**——
  * **构造性保证**，不靠"希望摘要保留"。压缩本身仍由底座生成（我们只观测、不改变行为）。
  * **只读**：不写库、不读任务工作区以外的文件。
@@ -43,12 +43,12 @@ export const REPO_MAP_HINT_LAYER =
 
 export const DELIVERY_DISCIPLINE_LAYER =
   '[交付纪律] 你现在是**执行员工**（不是规划者/评审者）；计划已批准（L0 为直通），直接按计划执行，**不要复述计划、不要等指令**。本工作项必须以 `submit_work_item` 提交结构化结果（summary 必填；产物/证据按实际给）。只回复文字、不调用提交工具 = 本轮失败（宿主会判 failed）；不要用聊天式回答代替提交。' +
-  // B2-7（58 §2.5 G6；D-30）：git 写操作归宿主——员工自行 commit/push 会被权限层拒绝。
+  // git 写操作归宿主——员工自行 commit/push 会被权限层拒绝。
   '不自行执行 git commit/push 等版本库写操作（权限层会拒绝）；代码提交由宿主在验收通过后统一完成，你只用只读 git（status/log/diff/show/branch）查看现场。' +
-  // B3-6/D-31②：输出治理——长文直接写文件（输出 token 是成本大头，禁整段回读对话流）。
+  // /：输出治理——长文直接写文件（输出 token 是成本大头，禁整段回读对话流）。
   '超过 2000 字的长文（文档/报告/纪要类产物）必须用 write 工具直接写文件，submit_work_item 只给文件路径与要点清单，不要把长文整段贴进对话或提交结果。';
 
-/** ② 角色规则（按 `employees.role`）。B3-4/D-31：预设角色附 SOP 三段资产（精确匹配才附）。 */
+/** ② 角色规则（按 `employees.role`）。/：预设角色附 SOP 三段资产（精确匹配才附）。 */
 export function roleLayer(role: string): string {
   const r = role.trim().length > 0 ? role.trim() : '员工';
   const base = `[角色规则] 你是「${r}」。遵守项目约定与验收标准；只做被派发的工作项；不要越权。`;
@@ -94,7 +94,7 @@ function parseRefList(raw: unknown): string[] {
 }
 
 /**
- * GAP7（按需披露）：员工勾选 ∪ 项目默认 → 启用中的技能，只给**索引**（name + description）。
+ * （按需披露）：员工勾选 ∪ 项目默认 → 启用中的技能，只给**索引**（name + description）。
  * 全文由模型按需调 `load_skill` 读（白名单按会话，见 `skill-tool.ts`）。
  * 读不到/未登记在索引阶段仍列出（路径存在性由 load_skill 如实报错），不编内容。
  */
@@ -111,7 +111,7 @@ export function skillsLayer(
   return { text, present: true, rows };
 }
 
-/** GAP7：读技能全文（强制技能用；读不到返回 null——调用方显式标注不可用）。 */
+/** 读技能全文（强制技能用；读不到返回 null——调用方显式标注不可用）。 */
 export function loadSkillText(path: string): string | null {
   try {
     if (!existsSync(path)) return null;
@@ -123,7 +123,7 @@ export function loadSkillText(path: string): string | null {
 }
 
 /**
- * B6：任务级强制技能（事件 `task_skill_forced`，最后一条为准）。
+ * 任务级强制技能（事件 `task_skill_forced`，最后一条为准）。
  * `skill:null`＝显式清除；无事件/坏 payload → null。
  */
 export function latestForcedSkill(db: unknown, taskId: number): string | null {
@@ -139,7 +139,7 @@ export function latestForcedSkill(db: unknown, taskId: number): string | null {
   }
 }
 
-/** OPT-AI-11：同项目相关历史片段（只作证据，不当作当前任务事实）。 */
+/** 同项目相关历史片段（只作证据，不当作当前任务事实）。 */
 export function retrievalLayer(hits: readonly RetrievalHit[]): string {
   return `[历史检索]（同项目相关片段；只作证据，不当作当前任务事实）\n${hits
     .map((h) => `- [${h.source}${h.taskId != null ? ` #${h.taskId}` : ''}] ${h.text}`)
@@ -179,7 +179,7 @@ function parseJsonText(value: unknown): unknown {
 
 /**
  * 读项目上下文：**项目约定层**（`AGENTS.md`——事实标准；缺失回落 `CLAUDE.md`）＋`项目上下文`（`.aico/CONTEXT.md`）。
- * 存在即读、缺失/不可读跳过（不报错、不占位）。GAP5（挂载 3）：`EMPLOYEES §3` 承诺「可读取已有 AGENTS.md」
+ * 存在即读、缺失/不可读跳过（不报错、不占位）。（挂载 3）：`` 承诺「可读取已有 AGENTS.md」
  * 此前实现为 0——现项目根直读，员工/规划/评审三处共用本函数（`build*Context`）。
  */
 export interface ProjectContextRead {
@@ -188,7 +188,7 @@ export interface ProjectContextRead {
   files: string[];
 }
 
-/** RET-F-01：返回文本＋来源路径（给截断标记用；保持只读）。 */
+/** RET-：返回文本＋来源路径（给截断标记用；保持只读）。 */
 export function readProjectContextDetailed(projectRoot: string): ProjectContextRead {
   const read = (rel: string): string => {
     try {
@@ -223,7 +223,7 @@ export function readProjectContext(projectRoot: string): string {
   return readProjectContextDetailed(projectRoot).text;
 }
 
-/** RET-F-01：抽取标题行（被截断时把章节目录给模型，正文按需 read）。 */
+/** RET-：抽取标题行（被截断时把章节目录给模型，正文按需 read）。 */
 export function contextOutline(text: string): string[] {
   return text
     .split('\n')
@@ -310,10 +310,10 @@ export function buildEmployeeContext(db: unknown, input: EmployeeContextInput): 
 
   const projectCtxRead = readProjectContextDetailed(projectRoot);
   const projectCtx = projectCtxRead.text;
-  // B3-8/D-31：文档索引层（根级 *.md/*.txt ＋ .aico/docs 树；无文档不注入空段）。
+  // /：文档索引层（根级 *.md/*.txt ＋ .aico/docs 树；无文档不注入空段）。
   const docsIndex = docsIndexLayer(projectRoot);
   const acceptance = parseJsonText(task?.acceptance);
-  // B0-2：验收层带可执行命令（「（机器检查：pnpm test）」）——员工要能对准验收自查，
+  // 验收层带可执行命令（「（机器检查：pnpm test）」）——员工要能对准验收自查，
   // 否则只知道「测试通过」却不知道过关命令是什么。
   const acceptanceText = Array.isArray(acceptance)
     ? acceptance
@@ -337,7 +337,7 @@ export function buildEmployeeContext(db: unknown, input: EmployeeContextInput): 
       : planRecitationLayer(dbh, { taskId: input.taskId, acceptanceText, task });
 
   const brief = parseJsonText(workItem?.brief);
-  // 结构化 brief（`{text, touchedPaths}`，B0-7 的 inplace 整树认领）只把 text 交给模型；
+  // 结构化 brief（`{text, touchedPaths}`， 的 inplace 整树认领）只把 text 交给模型；
   // 路径认领是宿主侧并发元数据，不应以 JSON 形式污染提示词。
   const briefObj = brief && typeof brief === 'object' ? (brief as { text?: unknown }) : null;
   const briefText =
@@ -355,7 +355,7 @@ export function buildEmployeeContext(db: unknown, input: EmployeeContextInput): 
     .map((a) => `#${a.id} ${a.path}`);
 
   // G11：员工记忆（项目分区；无任务 → 通用分区 0）
-  // D-17：评审会话（critic/verifier）不读员工 L1/检索；verifier 连事实层也不注入。
+  // 评审会话（critic/verifier）不读员工 L1/检索；verifier 连事实层也不注入。
   const skipEmployeeMemory = input.skipEmployeeMemory === true;
   const memory = skipEmployeeMemory ? '' : readMemory(dbh, { employeeId: input.employeeId, projectId: task?.project_id ?? 0 });
   const memoryBrief = skipEmployeeMemory ? '（暂无）' : buildProjectMemoryBrief(memory);
@@ -373,7 +373,7 @@ export function buildEmployeeContext(db: unknown, input: EmployeeContextInput): 
           }).sections,
         );
 
-  // GAP7：技能索引＝员工勾选 ∪ 项目默认；B6 强制技能额外加载全文（任务级覆盖）。
+  // 技能索引＝员工勾选 ∪ 项目默认； 强制技能额外加载全文（任务级覆盖）。
   const skillRefs = [...parseRefList(empRow.skills), ...parseRefList(project?.default_skills)];
   const skills = skillsLayer(dbh, skillRefs);
   const forcedSkill = task?.id != null ? latestForcedSkill(dbh, task.id) : null;
@@ -392,7 +392,7 @@ export function buildEmployeeContext(db: unknown, input: EmployeeContextInput): 
   const skillIndex = skillCapped.text;
   const forcedText = forcedUsable ? loadSkillText(forcedRow.path) : null;
   const forcedClipped = forcedText != null && forcedText.length > 20_000;
-  // GAP6：只把**分配给本员工**且启用的 MCP server 名字交给会话；工具详情由 mcp_list/tool_search 按需查。
+  // 只把**分配给本员工**且启用的 MCP server 名字交给会话；工具详情由 mcp_list/tool_search 按需查。
   const mcpServers = resolveEnabledMcpServers(dbh, parseRefList(empRow.mcps));
   const mcpIndex =
     mcpServers.length > 0
@@ -401,9 +401,9 @@ export function buildEmployeeContext(db: unknown, input: EmployeeContextInput): 
           ...mcpServers.map((row) => `- ${row.name}（${row.transport}，${row.exposure}）`),
         ].join('\n')
       : '';
-  // OPT-AI-11：同项目历史检索（开关缺省开；无命中不注入空段）。
+  // 同项目历史检索（开关缺省开；无命中不注入空段）。
   const retrievalEnabled = !skipEmployeeMemory && readSetting(dbh, 'memory.retrieval') !== false;
-  // RET-F-03：查询文本并入工作简报＋计划步骤（原先只用标题/目标，brief/计划里的关键词用不上）。
+  // RET-：查询文本并入工作简报＋计划步骤（原先只用标题/目标，brief/计划里的关键词用不上）。
   const planStepsForRetrieval = retrievalEnabled ? listPlanSteps(dbh, input.taskId) : [];
   const retrievalHits = retrievalEnabled
     ? searchRelated(dbh, {
@@ -414,12 +414,12 @@ export function buildEmployeeContext(db: unknown, input: EmployeeContextInput): 
         limit: 3,
       })
     : [];
-  // OPT-AI-12：few-shot（缺省开；显式 false 关）。
+  // few-shot（缺省开；显式 false 关）。
   const fewShot = fewShotEnabled(readSetting(dbh, 'prompt.fewShot'));
 
   const answers = input.mailboxAnswers ?? [];
   const asks = input.mailboxAsks ?? [];
-  // CTX1-4 / RET-F-01：项目约定超限时给「章节标题＋去哪读全文」，不静默丢中段规则。
+  // CTX1-4 / RET-：项目约定超限时给「章节标题＋去哪读全文」，不静默丢中段规则。
   const projectCtxCapped = capLayer('projectContext', projectCtx, LAYER_TOKEN_CAPS.projectContext!, {
     ...(projectCtxRead.files.length > 0
       ? { hint: `完整原文：${projectCtxRead.files.map((f) => `read ${f}`).join(' / ')}` }
@@ -428,7 +428,7 @@ export function buildEmployeeContext(db: unknown, input: EmployeeContextInput): 
   });
   const bossCapped = capLayer('bossText', input.bossText ?? '', LAYER_TOKEN_CAPS.bossText!);
   const briefCapped = capLayer('workBrief', briefText, LAYER_TOKEN_CAPS.workBrief!);
-  // RET-F-02：L1 记忆也要有预算（时间序，保留近期为主）；超限显式标记。
+  // RET-：L1 记忆也要有预算（时间序，保留近期为主）；超限显式标记。
   const memoryCapped = skipEmployeeMemory
     ? null
     : capLayer('memory', memoryLayer(memory), LAYER_TOKEN_CAPS.employeeMemory!, {
@@ -482,7 +482,7 @@ ${projectCtxCapped.text.length > 0 ? projectCtxCapped.text : '（未提供）'}`
     ...(answers.length > 0
       ? [`【同事答复】\n${DATA_NOT_INSTRUCTION}\n${answers.map((a) => `- 来自 员工#${a.from}：${a.answer}`).join('\n')}`]
       : []),
-    // BRK12：点名问本员工的未结提问；askDedupeKey 供 answer_colleague 精确作答。
+    // 点名问本员工的未结提问；askDedupeKey 供 answer_colleague 精确作答。
     ...(asks.length > 0
       ? [
           `【同事提问】\n${DATA_NOT_INSTRUCTION}\n${asks
@@ -539,13 +539,13 @@ ${projectCtxCapped.text.length > 0 ? projectCtxCapped.text : '（未提供）'}`
         memory: memory.trim().length > 0,
         /** N5 尾项：短简报有真实索引才 true（无记忆 → 占位不当真）。 */
         memoryBrief: memoryBrief !== '（暂无）',
-        /** D-17：L2/L3 事实层有真实内容。 */
+        /** L2/L3 事实层有真实内容。 */
         facts: factsText.length > 0,
-        /** GAP7：有技能索引（真实可加载项）。 */
+        /** 有技能索引（真实可加载项）。 */
         skills: skillRows.length > 0,
-        /** OPT-AI-11：有检索命中（空 → 不注入空段）。 */
+        /** 有检索命中（空 → 不注入空段）。 */
         retrieval: retrievalHits.length > 0,
-        /** OPT-AI-12：few-shot 是否注入。 */
+        /** few-shot 是否注入。 */
         fewShot,
         project: projectCtx.length > 0,
         task: !!task,
@@ -566,7 +566,7 @@ ${projectCtxCapped.text.length > 0 ? projectCtxCapped.text : '（未提供）'}`
 
 // ───────────── G4（RC-5）· critic / verifier 评审上下文（**只加**；上面 `buildEmployeeContext` 不变） ─────────────
 
-/** 评审角色规则（critic / verifier 各自职责；与 ①平台底座 同为 system 段）。 */
+/** 评审角色规则（critic / verifier 各自职责；与 ①平台底座同为 system 段）。 */
 export function reviewRoleLayer(role: 'critic' | 'verifier'): string {
   if (role === 'critic') {
     return "[评审角色] 你是 critic：**评审计划**的可执行性、风险与验收覆盖；不得改需求；输出结构化结论 {verdict:'approve'|'revise', notes}。";
@@ -580,7 +580,7 @@ export interface ReviewContextInput {
   workItemId?: number | null;
   reviewerEmployeeId: number;
   bossText?: string | null;
-  /** M3-DOC-4：宿主已跑的机器检查摘要（verifier 参考；失败已被硬门拦截，不会到这里）。 */
+  /** 宿主已跑的机器检查摘要（verifier 参考；失败已被硬门拦截，不会到这里）。 */
   machineChecks?: string | null;
 }
 
@@ -598,7 +598,7 @@ export function buildReviewContext(db: unknown, input: ReviewContextInput): Empl
     taskId: input.taskId,
     workItemId: input.workItemId ?? null,
     bossText: input.bossText ?? null,
-    // D-17：critic 只看 L2/L3 事实；verifier 0 记忆；两者都不读员工 L1/历史检索。
+    // critic 只看 L2/L3 事实；verifier 0 记忆；两者都不读员工 L1/历史检索。
     memoryPrincipal: input.role === 'critic' ? { kind: 'critic' } : null,
     skipEmployeeMemory: true,
     // CTX1-6：评审材料已含计划/工作项，不再重复计划复述（避免双份噪音）。
@@ -610,13 +610,13 @@ export function buildReviewContext(db: unknown, input: ReviewContextInput): Empl
   const projectCtx = readProjectContext(projectRoot);
 
   let material = '';
-  // verifier：未完成步骤提示（F-02 引导——不填 planStepsNote 会被宿主改 fail 并返工）。
+  // verifier：未完成步骤提示（引导——不填 planStepsNote 会被宿主改 fail 并返工）。
   let unfinishedHint = '';
   if (input.role === 'critic') {
     // V3 修：critic 评审的对象是**计划**——材料必须以 plan_steps 为首（此前只有工作项 ⇒ 必然 revise）
     const steps = listPlanSteps(dbh, input.taskId);
     // plan_steps.idx 是 **1 基**（`replacePlanSteps` 按 i+1 写入）；这里直接用它，
-    // 不能再 +1（2026-11-06 D4 复查抓到的 off-by-one：critic 会把第 1 步说成第 2 步）。
+    // 不能再 +1（2026-11-06 复查抓到的 off-by-one：critic 会把第 1 步说成第 2 步）。
     const stepsText = steps.length
       ? steps.map((s) => `${s.idx}. [${s.state}] ${s.text}`).join('\n')
       : '（无计划步骤——无计划可评，应给 revise 并在 notes 说明缺什么）';
@@ -639,8 +639,8 @@ export function buildReviewContext(db: unknown, input: ReviewContextInput): Empl
     } else {
       material = '（未指定工作项）';
     }
-    // B3-6/D-31②：verifier 材料补 diff 摘要（有 open/recent changeset 时）——此前只看
-    // 自报 result，diff 材料缺失（58 §4.5）。取本任务最新 changeset 的 files/+/−/summary。
+    // /：verifier 材料补 diff 摘要（有 open/recent changeset 时）——此前只看
+    // 自报 result，diff 材料缺失。取本任务最新 changeset 的 files/+/−/summary。
     try {
       const cs = dbh
         .prepare('SELECT files_changed, insertions, deletions, summary, state FROM changesets WHERE task_id = ? ORDER BY id DESC LIMIT 1')
@@ -654,7 +654,7 @@ export function buildReviewContext(db: unknown, input: ReviewContextInput): Empl
     } catch {
       /* 无 changesets 表/查询失败 → 不注入（不臆造） */
     }
-    // F-02（2026-11-06 老板裁）：verifier 必须看到计划步骤状态——否则「计划 7/12 步」它无从判断
+    // （2026-11-06 决定）：verifier 必须看到计划步骤状态——否则「计划 7/12 步」它无从判断
     // （2026-11-05 真机：任务 done 但 7 步仍 pending，verifier 只依工作项产出判了 pass）。
     // 未完成**不是硬门**，但必须交代（见 userPrompt 口径与 submit_review.planStepsNote 的宿主校验）。
     const steps = listPlanSteps(dbh, input.taskId);
@@ -711,7 +711,7 @@ export function buildReviewContext(db: unknown, input: ReviewContextInput): Empl
 
 // ───────────── R3-1 · planning 会话上下文（**只加**；与 `buildReviewContext` 同形） ─────────────
 
-/** 规划角色规则（与 ①平台底座 同为 system 段）。 */
+/** 规划角色规则（与 ①平台底座同为 system 段）。 */
 export function plannerRoleLayer(): string {
   return '[规划角色] 你是规划者：把任务目标拆成 1–12 步**可执行、可验收**的计划（只规划，不写代码、不做调研）；用 `submit_plan` 提交结构化计划。';
 }

@@ -7,14 +7,14 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { cancelConfirmText, hasEnabledAction, taskActionsOf, TASK_ACTIONS_TABLE } from '../src/renderer/components/taskActions.js';
 import { TaskDetail, type TaskDetailDTO } from '../src/renderer/components/TaskDetail.js';
 
-// ─────────── D2/C3：任务详情「详情可见操作」（05 §3 逐行落点）───────────
-// ① 表 = 05 §3「任务详情可见操作」列（13 状态逐行）；
+// ─────────── D2/C3：任务详情「详情可见操作」───────────
+// ① 表 = 「任务详情可见操作」列（13 状态逐行）；
 // ② **未实现的动作不许假装可点**（`implemented!==true` → 渲染必须 `disabled` + 显式 `title`）；
 // ③ `implemented` 不是自说自话：与 `src/main/engine/statemachine.ts` 的 **`m0:true`** 行**逐条对齐**（守卫）；
 // ④ 未知 state → **空表**（不臆造按钮）。
 
 const FLOWS_EXPECTED: Record<string, string[]> = {
-  // 05 §3：「任务详情可见操作」列（按状态逐行）
+  // 「任务详情可见操作」列（按状态逐行）
   inbox: ['confirm-as-task', 'discard'], // [确认为任务] [丢弃]
   planning: ['cancel'], // [取消]
   awaiting_approval: ['approve', 'revise', 'revise-approve'], // [批准][打回][改]
@@ -27,7 +27,7 @@ const FLOWS_EXPECTED: Record<string, string[]> = {
   done: ['renew', 'undo-finish'], // 只读；[续办] (+7 天内 [撤销结束])
   failed: ['retry', 'renew'], // 只读；[重试]（异常卡未处理时）；[续办]
   cancelled: ['renew'], // 只读；[续办]
-  // 05 §3 L187/L268：**「归档」不再是本表一行**（归档 = `tasks.archived` 列 + 筛选开关）⇒ 状态集 = 12
+  // L187/L268：**「归档」不再是本表一行**（归档 = `tasks.archived` 列 + 筛选开关）⇒ 状态集 = 12
 };
 
 /** 解析 `statemachine.ts`：`from` + `event` + `m0` 三元组（split-with-capture，按出现顺序切块）。 */
@@ -70,7 +70,7 @@ test('③ 守卫：`implemented:true` 必须能在 statemachine 找到 **m0:true
   for (const [state, actions] of Object.entries(TASK_ACTIONS_TABLE)) {
     for (const action of actions) {
       if (action.event === null) {
-        // M3-P-4：非状态机动作（`task:merge`）显式声明 ipcAction 后才可标已实现；
+        // 非状态机动作（`task:merge`）显式声明 ipcAction 后才可标已实现；
         // 其余无事件动作仍必须 disabled（不许"看起来能点"）。
         if (action.ipcAction) assert.equal(action.implemented, true, `${state}/${action.id}: ipcAction 应已实现`);
         else assert.equal(action.implemented, false, `${state}/${action.id}: 无事件却标了已实现`);
@@ -89,7 +89,7 @@ test('③ 守卫：`implemented:true` 必须能在 statemachine 找到 **m0:true
 test('④ 未实现的动作渲染必须 `disabled`（不许"看起来能点"）', () => {
   const detail = fixture('awaiting_approval');
   const html = renderToStaticMarkup(createElement(TaskDetail, { data: detail, initialTab: 'plan' }));
-  // 批准/打回（m0:true）可点；GAP8「改计划再批准」也已接线（点按打开计划编辑器，保存时发 plan_edited）。
+  // 批准/打回（m0:true）可点；「改计划再批准」也已接线（点按打开计划编辑器，保存时发 plan_edited）。
   assert.match(html, /data-testid="task-action-approve"[^>]*data-implemented="true"/);
   assert.doesNotMatch(html, /data-testid="task-action-approve"[^>]*\sdisabled=/);
   assert.match(html, /data-testid="task-action-revise"[^>]*data-implemented="true"/);
@@ -123,7 +123,7 @@ test('⑥b 事件载荷：验收「通过/打回」带 verdict（供 `task:trans
   assert.equal(reject?.event, 'verification_completed');
 });
 
-// ─────────── BRK17（挂载 3 余·取消小步，D-9）：危险动作＝行内二次确认 ───────────
+// ─────────── （挂载 3 余·取消小步，D-9）：危险动作＝行内二次确认 ───────────
 
 test('⑦ 「取消」是危险动作：executing 行标 `danger:true`＋渲染带 `data-danger`；未确认前不直发', () => {
   const cancel = taskActionsOf('executing').find((a) => a.id === 'cancel');

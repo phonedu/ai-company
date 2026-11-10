@@ -1,5 +1,5 @@
 /**
- * OPT-M3-1 · 独立验证的**强制度分级**（`FLOWS §3.1` verify + `review.lessons`/`差距图` 落点）。
+ * OPT- · 独立验证的**强制度分级**（`` verify + `review.lessons`/`差距图` 落点）。
  *
  * 按 `tasks.risk_level` 分级（1960 冻结）：**L0 免 / L1 抽验 / L2 强制**；
  * 默认「**实现者 ≠ 验证者**」（应用层断言，`db.assignWorkItemVerifier`）。

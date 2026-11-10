@@ -1,5 +1,5 @@
 /**
- * 项目树页（2026-10-17 双栏改版，老板令「不做跳转，一页两栏；任务树放右栏」）：
+ * 项目树页（2026-10-17 双栏改版，要求「不做跳转，一页两栏；任务树放右栏」）：
  *   左列＝**项目列表**（名＋别名＋任务数；选中行 panel-2）；右列＝该项目**概览**（`ProjectOverview`）。
  *   点项目＝右栏切换（不跳页）；右栏任务树行「打开 ▸」→ 任务详情（跨层，返回回本页）。
  *
@@ -23,14 +23,14 @@ export function ProjectsPage(): ReactElement {
   const tasksSnap = useSnapshot(tasks);
   const projectsSnap = useSnapshot(projectActions);
   const sessionSnap = useSnapshot(session);
-  // M2 尾：新建项目入口（父目录由主进程 dialog 选；renderer 只给名字）。
+  //  尾：新建项目入口（父目录由主进程 dialog 选；renderer 只给名字）。
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [docsTemplate, setDocsTemplate] = useState(true);
   const [createError, setCreateError] = useState('');
   const [attachError, setAttachError] = useState('');
   const [createBusy, setCreateBusy] = useState(false);
-  // UI-2 S1：项目列表瘦身——搜索过滤（名/别名）。
+  //  项目列表瘦身——搜索过滤（名/别名）。
   const allGroups = projectsFromList(
     projectsSnap.list as unknown as ProjectDTO[],
     (tasksSnap.list as unknown as TaskDTO[]).filter((task) => task.archived !== 1),
@@ -40,7 +40,7 @@ export function ProjectsPage(): ReactElement {
   const groups = q.length === 0
     ? allGroups
     : allGroups.filter((g) => g.name.toLowerCase().includes(q) || (g.alias ?? '').toLowerCase().includes(q));
-  // F3-12/F3-14：归档项目折叠可见；任务数用全量任务（含已归档）算，不写死 0。
+  // -12/-14：归档项目折叠可见；任务数用全量任务（含已归档）算，不写死 0。
   const narrow = useNarrowViewport();
   const archivedGroups = archivedProjectsFromList(
     projectsSnap.list as unknown as ProjectDTO[],
@@ -115,7 +115,7 @@ export function ProjectsPage(): ReactElement {
           >
             ＋新建项目
           </button>
-          {/* S13-E P1/D-N02：第二个及以后的既有仓库从这里接入（与首启同一条 project:attach）。 */}
+          {/*  P1/：第二个及以后的既有仓库从这里接入（与首启同一条 project:attach）。 */}
           <button
             type="button"
             className="projects-page__create projects-page__attach"

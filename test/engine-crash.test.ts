@@ -1,5 +1,5 @@
 /**
- * T0.3② 真·崩溃恢复测试：起子进程驱动到 executing → taskkill 强杀 → 重启恢复。
+ *  真·崩溃恢复测试：起子进程驱动到 executing → taskkill 强杀 → 重启恢复。
  * 断言：action_log 无重复副作用（effects 只 1 条、action 全 done、无 pending）、任务状态不回退。
  */
 import test from 'node:test';
@@ -93,7 +93,7 @@ test('T0.3②: taskkill 强杀进程后重启 —— action_log 无重复副作�
     );
     assert.deepEqual(report.replayed.executed, [], '重启恢复不得重放任何已完成动作');
 
-    // 状态不回退：任务仍在 executing；running 件按 BRK8 先 interrupted 再自动重派为 queued
+    // 状态不回退：任务仍在 executing；running 件按先 interrupted 再自动重派为 queued
     assert.equal(report.taskState, 'executing');
     assert.equal(report.wiState, 'queued', 'BRK8：崩溃恢复自动重派（queued）');
     assert.equal(report.interrupted, 1);

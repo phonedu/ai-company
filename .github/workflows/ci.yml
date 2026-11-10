@@ -22,7 +22,7 @@ jobs:
           node-version: 22.20.0 # 与本地验证一致；better-sqlite3 有该版本预编译
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # B0-10：生产依赖漏洞门（high/critical 阻断；overrides 已把 undici/katex/minimatch 升到修复版）
+      # 生产依赖漏洞门（high/critical 阻断；overrides 已把 undici/katex/minimatch 升到修复版）
       - run: pnpm audit --prod --audit-level high
       - run: pnpm test
       - run: pnpm build

@@ -8,7 +8,7 @@ import { NOTIFY_FIELDS, SETTINGS_GROUPS, SETTINGS_SECTIONS, SettingsPane, TUNING
 import { KNOWN_SETTINGS_KEYS } from '../src/main/db/settings.js';
 import type { ProjectDTO } from '../src/renderer/types.js';
 
-// ── R2-3 第二批 · 设置页纯组件（06 §11）：11 分区全列；已实现 5 个可点、未实现 6 个 disabled（如实） ──
+// ── R2-3 第二批 · 设置页纯组件：11 分区全列；已实现 5 个可点、未实现 6 个 disabled（如实） ──
 // 件 A：`advanced` 分区＝调度与费率可配面（键真源＝主进程 `KNOWN_SETTINGS_KEYS`，本测断言两侧不漂移）。
 // D-5 补位 ②：`employees` 分区转**指针**（真跳转公司大厅；管理面＝公司大厅 × 员工工位页）。
 // 纯组件（props 驱动、不依赖 store）→ `renderToStaticMarkup` 可测；容器（store 接线）由 CDP 真机验。
@@ -83,7 +83,7 @@ function project(partial: Partial<ProjectDTO> & { id: number }): ProjectDTO {
     attention: 'normal',
     accessMode: 'inplace',
     defaultEmployeeIds: [],
-    // 编制 v1（D-11）：未设置＝null/[]（测试工厂缺省同 DTO 契约）
+    // 编制 v1：未设置＝null/[]（测试工厂缺省同 DTO 契约）
     defaultOwnerId: null,
     defaultRiskTier: null,
     assistantWriteMode: 'confirm',
@@ -92,7 +92,7 @@ function project(partial: Partial<ProjectDTO> & { id: number }): ProjectDTO {
     allowedProviders: [],
     defaultModel: null,
     defaultBudgetTokens: null,
-    // S13-G/D-N06：合并目标分支（未设置＝沿用 main/master）
+    // /：合并目标分支（未设置＝沿用 main/master）
     targetBranch: null,
     allowedModels: [],
     modelPolicy: 'employee_first',
@@ -570,7 +570,7 @@ test('自动更新（关于区）：状态如实显示；检查按钮按 canChec
   assert.ok(!portable.includes('settings-update-install'));
 });
 
-// UI-2 S2（2026-11-09）：项目页「设置」页签拆 6 组——分段导航 + 只做显示过滤（卡片 DOM 不动），
+//  S2（2026-11-09）：项目页「设置」页签拆 6 组——分段导航 + 只做显示过滤（卡片 DOM 不动），
 // 默认只开「模型」；没有「定时」卡就不摆空组（不造假入口）。源码级守卫（组件渲染依赖 store 上下文）。
 test('UI-2 S2：项目设置 9 组导航在场、默认模型组、卡片带 data-group', () => {
   const src = readFileSync('src/renderer/components/ProjectOverview.tsx', 'utf8');
@@ -583,7 +583,7 @@ test('UI-2 S2：项目设置 9 组导航在场、默认模型组、卡片带 dat
   assert.match(css, /data-active-group="model"[^\n]*\[data-group\]:not\(\[data-group="model"\]\)/, 'CSS 过滤规则在场');
 });
 
-// UI-2 S2b（2026-11-09）：归档页集中承载归档项目的恢复/导出/删除（项目页仍保留上下文入口）。
+//  S2b（2026-11-09）：归档页集中承载归档项目的恢复/导出/删除（项目页仍保留上下文入口）。
 test('UI-2 S2b：归档页有「归档项目」区；恢复/导出/删除三键＋删除需二次确认', () => {
   const src = readFileSync('src/renderer/components/TaskListViews.tsx', 'utf8');
   assert.match(src, /data-testid="archive-projects"/, '归档项目区在场');
@@ -596,7 +596,7 @@ test('UI-2 S2b：归档页有「归档项目」区；恢复/导出/删除三键�
   assert.match(shell, /onRestoreProject=\{\(projectId\) => void restoreProject/, '恢复接线');
 });
 
-// UI-2 S2 复核 P1（2026-11-09）：设置页「项目模型」随 S2 退役时把唯一编辑面一起删了，只剩只读摘要＋
+//   复核（2026-11-09）：设置页「项目模型」随退役时把唯一编辑面一起删了，只剩只读摘要＋
 // 指向不存在的入口。真活搬回项目页「设置·模型」：策略/默认模型/允许清单/默认预算/合并目标分支。
 test('UI-2 S2 复核 P1：项目页「设置·模型」有编辑面，且不再指向已退役的设置入口', () => {
   const src = readFileSync('src/renderer/components/ProjectOverview.tsx', 'utf8');
@@ -619,7 +619,7 @@ test('UI-2 S2 复核 P1：项目页「设置·模型」有编辑面，且不再�
   assert.ok(!src.includes('设置 → 模型与员工 → 项目模型'), '不再指向已退役的设置入口');
 });
 
-// UI-2 S2b 复核 P2（2026-11-09）：后端只允许删**空**归档项目；UI 对非空项目必须显式禁用并说明，
+//   复核（2026-11-09）：后端只允许删**空**归档项目；UI 对非空项目必须显式禁用并说明，
 // 恢复/导出/删除的失败要显示出来（此前静默写进 projectActions）。
 test('UI-2 S2b 复核 P2：非空归档项目禁删＋动作回执可见', () => {
   const src = readFileSync('src/renderer/components/TaskListViews.tsx', 'utf8');
@@ -629,7 +629,7 @@ test('UI-2 S2b 复核 P2：非空归档项目禁删＋动作回执可见', () =>
   assert.match(shell, /actionError=\{projectsSnap\.error\}/, 'AppShell 把 projectActions.error 接进归档页');
 });
 
-// 复核 P1（2026-11-10，独立终验员冷启动实抓）：上次停在归档页时，restoreSession 只走 loadTasks()
+// 复核（2026-11-10，独立独立复核冷启动发现）：上次停在归档页时，restoreSession 只走 loadTasks()
 //（不含归档行）也不拉项目 ⇒ 假空态＋删除门失效。恢复路径必须与 showArchive 同口径。
 test('UI-2 S2b 复核 P1：恢复视图=归档时补拉项目列表与归档行', () => {
   const store = readFileSync('src/renderer/store.ts', 'utf8');

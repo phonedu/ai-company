@@ -1,5 +1,5 @@
 /**
- * M3 联动修复 P1：打回必须带批注；没有可返工件时显式拒（不能落到 executing 空转）。
+ *  联动修复 P1：打回必须带批注；没有可返工件时显式拒（不能落到 executing 空转）。
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';

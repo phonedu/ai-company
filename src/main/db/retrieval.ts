@@ -2,7 +2,7 @@ import { join } from 'node:path';
 import { retrievalTerms } from './terms.js';
 import { searchNotes } from '../agent/notes.js';
 /**
- * OPT-AI-11 · 轻量检索（FTS5/LIKE 口径；**先 LIKE，向量库后评估**）。
+ *  · 轻量检索（FTS5/LIKE 口径；**先 LIKE，向量库后评估**）。
  *
  * 目的：让员工开局能看到**同项目里与本题相关的历史**（记忆/事件/产物），而不是全靠完整记忆块或瞎猜。
  * 边界：只读、限条数、每段截断（防它自己变成新的上下文债）；**不跨项目**（项目＝上下文边界）。
@@ -101,10 +101,10 @@ function ftsFactSearch(db: SqliteDb, projectId: number, terms: readonly string[]
 /**
  * 同项目相关历史（记忆/事件/产物/项目事实）；按来源各取 ≤2，合并去重后取 `limit`（缺省 4）。
  * 排除当前任务自己的事件/产物（那是基线，不是"历史"）；记忆/事实是项目级，保留。
- * RET-F-03：预筛用前 3 词 OR（原先只用首词，常见 2-gram 会把召回卡住）；`memory_items` 纳入（只取项目级、active、非 pinned）。
+ * RET-：预筛用前 3 词 OR（原先只用首词，常见 2-gram 会把召回卡住）；`memory_items` 纳入（只取项目级、active、非 pinned）。
  */
 /**
- * B3-5/D-31：全局笔记真源目录（与 ipc `globalNotesDir` 同口径抽公共件）：
+ * /：全局笔记真源目录（与 ipc `globalNotesDir` 同口径抽公共件）：
  * 库文件旁 `notes/`；内存库（:memory:）回落 cwd/.aico-notes（测试/无盘场景）。
  */
 export function globalNotesDirForDb(dbName: string): string {
@@ -186,8 +186,8 @@ export function searchRelated(
       .prepare('SELECT root_dir FROM projects WHERE id = ?')
       .get(input.projectId) as { root_dir: string } | undefined;
     if (proj?.root_dir != null) {
-      // B3-5/D-31 两层修复：① globalDir 真源（库文件旁 notes/，此前拼 root_dir/../.. 错路径）；
-      // ② searchNotes 是整串 includes——terms.join(' ') 的滑窗串永远不命中 ⇒ 改逐词 OR（前 3 词，RET-F-03 同款）。
+      // / 两层修复：① globalDir 真源（库文件旁 notes/，此前拼 root_dir/../.. 错路径）；
+      // ② searchNotes 是整串 includes——terms.join(' ') 的滑窗串永远不命中 ⇒ 改逐词 OR（前 3 词，RET- 同款）。
       const seenNames = new Set<string>();
       const noteHits: Array<{ name: string; preview: string }> = [];
       for (const term of terms.slice(0, 3)) {

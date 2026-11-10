@@ -1,5 +1,5 @@
 /**
- * `task_checkpoints` DAO（M3-N-2 GAP4：工作项级检查点/回滚）。
+ * `task_checkpoints` DAO（：工作项级检查点/回滚）。
  *
  * 一个 work item 的**一次尝试**（attempt）对应一条检查点：
  *  - 派发建 worktree 时记 `base_sha`（该工作项开始前的 HEAD）；

@@ -3,7 +3,7 @@ import { join } from 'node:path';
 /**
  * G11 · 员工长期记忆（`employee_memory`：DAO ＋ 任务收尾的确定性投影）。
  *
- * 口径（`docs/PLAN.md` §13.5 / `docs/EMPLOYEES.md` §7 / 施工图 `plan-reorg-r1-r4.md` R2-1）：
+ * 口径（`docs/` §13.5 / `docs/` §7 / 施工图 `plan-reorg-r1-r4.md` R2-1）：
  *  - 分区：`project_id = 0`＝跨项目通用；否则＝项目记忆。**v1 只写项目记忆**（通用记忆由显式"提升"动作负责，后续做）；
  *  - **写点**＝任务进 `done`（引擎同事务调 `recordTaskMemory`，见 `src/main/engine/loop.ts`）；
  *  - **幂等**：块以 `[任务 T-XXXX]` 打头，已存在即跳过（重开/重试/重放不重复写）；
@@ -53,7 +53,7 @@ export function readMemory(db: SqliteDb, input: { employeeId: number; projectId:
   return row?.memory ?? '';
 }
 
-/** 项目记忆短简报最多列几件（防它自己变成新的上下文债；`PLAN §13.5` 口径）。 */
+/** 项目记忆短简报最多列几件（防它自己变成新的上下文债；`` 口径）。 */
 export const MEMORY_BRIEF_MAX_BLOCKS = 5;
 
 /**
@@ -85,7 +85,7 @@ export function appendMemory(
   if (current.includes(input.marker)) return false;
   const blocks = current.split(BLOCK_SEP).filter((b) => b.trim().length > 0);
   blocks.push(input.block);
-  // B3-5/D-31：超 MAX_MEMORY_BLOCKS 的挤出块**归档不丢弃**——落库旁
+  // /：超 MAX_MEMORY_BLOCKS 的挤出块**归档不丢弃**——落库旁
   // `.aico/memory-archive/<emp>-<proj>.md`（追加写；与 notes 同哲学）；内存库跳过（无盘可归）。
   if (blocks.length > MAX_MEMORY_BLOCKS) {
     const evicted = blocks.slice(0, blocks.length - MAX_MEMORY_BLOCKS);

@@ -1,5 +1,5 @@
 /**
- * M3-N-4 · GAP6/B4/B5：MCP 分配白名单、凭据校验/脱敏、deferred 不预列、tool_search。
+ *  · /B4/：MCP 分配白名单、凭据校验/脱敏、deferred 不预列、tool_search。
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';

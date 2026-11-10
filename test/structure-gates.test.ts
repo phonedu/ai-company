@@ -1,8 +1,8 @@
 /**
- * OPT-M2-3 · 「删除面 / 语义不变量」结构门（"恰 N 处，缺即红"）。
+ * OPT- · 「删除面 / 语义不变量」结构门（"恰 N 处，缺即红"）。
  *
  * 对照 D-069（误删原生钩子）：对**原生/契约语句在场**加显式不变量断言，每处**点名缺席会导致什么**：
- *  - `preload` 暴露 channel **恰好 78 个**（冻结集合；UG-06 新增 task:diff）；
+ *  - `preload` 暴露 channel **恰好 78 个**（冻结集合； 新增 task:diff）；
  *  - 主进程 IPC 注册 channel **恰好 78 个**（冻结集合）；
  *  - 关键契约**常量在场且恰定义 1 处**（防"第三套"）。
  * 与 `guard-matrix` 联动（已登记 `struct-*`），每条断言可被弄红。
@@ -173,7 +173,7 @@ test('OPT-M2-3 struct-pi-import: src/main 不得静态值导入 @earendil-works/
   assert.deepEqual(issues, [], `静态值导入 @earendil-works/*（CJS 下会 require → 静默降级）：\n${issues.join('\n')}`);
 });
 
-test('OPT-M2-3 "有牙": 删/加 channel、缺常量 → 必红（合成，证明上述断言有意义）', () => {
+test('OPT- "有牙": 删/加 channel、缺常量 → 必红（合成，证明上述断言有意义）', () => {
   // ① 面：缺一处 / 多一处
   assert.deepEqual(diffSets(['a', 'b'], ['a', 'b', 'c']).missing, ['c']);
   assert.deepEqual(diffSets(['a', 'b', 'x'], ['a', 'b']).extra, ['x']);
@@ -186,7 +186,7 @@ test('OPT-M2-3 "有牙": 删/加 channel、缺常量 → 必红（合成，证�
   assert.ok(checkContractConstants(dup).some((i) => /task_id_prefix: 出现 2 处/.test(i)));
 });
 
-// ── OPT-M2-3 后续（M2 尾）：结构门覆盖面扩展 ─────────────────────────────
+// ── OPT- 后续（尾）：结构门覆盖面扩展 ─────────────────────────────
 // 新目录/新迁移必须显式登记；不登记即红（防"新物绕过门禁"）。改动即触发复核，有意为之。
 export const KNOWN_MAIN_DIRS = [
   'agent',
@@ -208,7 +208,7 @@ export const KNOWN_MAIN_DIRS = [
   'triggers',
 ].sort();
 
-test('OPT-M2-3 struct-main-dirs: src/main 顶层目录全部登记（新目录即红）', () => {
+test('OPT- struct-main-dirs: src/main 顶层目录全部登记（新目录即红）', () => {
   const actual = readdirSync(join(ROOT, 'src', 'main'), { withFileTypes: true })
     .filter((e) => e.isDirectory())
     .map((e) => e.name)
@@ -216,7 +216,7 @@ test('OPT-M2-3 struct-main-dirs: src/main 顶层目录全部登记（新目录�
   assert.deepEqual(actual, KNOWN_MAIN_DIRS, '新增/删除 src/main 顶层目录须同批更新 KNOWN_MAIN_DIRS');
 });
 
-test('OPT-M2-3 struct-migrations: 每个 .sql 迁移都已在 loadMigrations 登记（无孤儿迁移）', () => {
+test('OPT- struct-migrations: 每个 .sql 迁移都已在 loadMigrations 登记（无孤儿迁移）', () => {
   const files = readdirSync(join(ROOT, 'src', 'main', 'db', 'migrations'))
     .filter((name) => name.endsWith('.sql'))
     .sort();

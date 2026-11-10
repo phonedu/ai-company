@@ -1,6 +1,6 @@
 /**
- * B3-1/D-31①：BYO 执行体 PoC——ACP client 结构验证＋员工接口适配层。
- * PoC 层：验证类存在/接口形状/接线点（真 opencode 联调随 B3b 真机批）。
+ * /：BYO 执行体 PoC——ACP client 结构验证＋员工接口适配层。
+ * PoC 层：验证类存在/接口形状/接线点（真 opencode 联调随真机批）。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

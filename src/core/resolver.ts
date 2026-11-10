@@ -1,5 +1,5 @@
 /**
- * 归属解析器（resolver）—— 桌面与 IM 共用同一套逻辑（PLAN §14.3）。
+ * 归属解析器（resolver）—— 桌面与 IM 共用同一套逻辑。
  *
  * 目标：把一条入站消息按【固定优先级的链条】归属到
  *   任务 / 待办序号 / 项目 / 命令 / 新任务 / 闲聊，命中即停。
@@ -9,7 +9,7 @@
  *   1. 显式任务地址 #T1042
  *   2. 待办列表序号回复（"列表"推送之后的 1/2/3）
  *   3. 回复链：回复了某条推送 → outbound_refs 精确归位
- *   4. 项目别名 #记账（项目级寻址，需语义区分 查询/新任务）
+ *   4. 项目别名 #记账（项目级寻址，需语义区分查询/新任务）
  *   5. sticky 焦点：会话焦点任务 + 15 分钟窗口（仅"工作性消息"更新焦点）
  *   6. 语义归位：classify 给出 taskId 且置信度 ≥ 0.8
  *   7. 兜底：按 intent 分派（查询/闲聊/新任务）；模糊时 confirm —— 只问一次
@@ -17,7 +17,7 @@
  * 两个不变式：
  *   * 本函数【不创建任何对象】（new_task / confirm 只是决议，创建由编排器执行）；
  *   * classify（LLM）只提供"语义信号"，最终归属由链条顺序决定 ——
- *     所以"回复旧卡片"永远优先于"当前焦点"（PLAN §14.5 用例①）。
+ *     所以"回复旧卡片"永远优先于"当前焦点"（用例①）。
  *
  * confirm 的"只问一次"由编排器落地：把 options 登记为 pending list（`setPendingList`），
  * 用户回序号后走第 2 步精确解析（选项带 `then` 时直通该决议），不会二次追问。
@@ -86,7 +86,7 @@ export interface ResolverStore {
   getPendingList(channel: string, conversationRef: string): PendingList | null;
   /**
    * 登记「只问一次」的候选清单（编排器在 `confirm` 裁定时调用；覆盖式写入——同一会话只留最新一份）。
-   * 实现层 = `pending_lists` 表（`UNIQUE(channel, conversation_ref)`；见 `DEV §7`）。
+   * 实现层 = `pending_lists` 表（`UNIQUE(channel, conversation_ref)`；见 ``）。
    */
   setPendingList(
     channel: string,
@@ -113,8 +113,8 @@ export type CommandName =
   | 'pause'
   | 'resume'
   | 'archive'
-  | 'finish' // 结束任务（桌面/IM 都先走确认卡，见 docs/FLOWS.md F5）
-  | 'renew'; // 续办：为终态任务创建引用它的新任务（docs/FLOWS.md F6）
+  | 'finish' // 结束任务（桌面/IM 都先走确认卡，见 docs/）
+  | 'renew'; // 续办：为终态任务创建引用它的新任务（docs/）
 
 export type Resolution =
   | {
@@ -139,7 +139,7 @@ export type Resolution =
       titleGuess: string | null;
       via: 'address' | 'semantic' | 'default';
     }
-  | { kind: 'chat'; /** B2-2：assistant 模式下别名寻址解析出的项目随消息带给幕僚长（缺省无） */ projectId?: number | null }
+  | { kind: 'chat'; /** assistant 模式下别名寻址解析出的项目随消息带给幕僚长（缺省无） */ projectId?: number | null }
   | {
       kind: 'confirm';
       question: string;
@@ -173,15 +173,15 @@ const COMMAND_PATTERNS: Array<{ name: CommandName; needsTask: boolean; re: RegEx
 
 /** 严格文法（整条匹配、极短）→ 高置信，直通不烧 token。 */
 /**
- * T8b/RW-48（2026-11-05）：显式建任务前缀直通。
+ * （2026-11-05）：显式建任务前缀直通。
  * 背景：语义分类器缺位（defaultClassify 一律 'chat'），「建任务：/派任务：」开头的
  * 高置信意图被退化成闲聊——频道/IM 自由文本派任务整条链失效（真机 T8b 实证）。
- * 本解析器＝确定性兜底：不改语义路由，只认 显式前缀。
+ * 本解析器＝确定性兜底：不改语义路由，只认显式前缀。
  */
 export interface CreateTaskDirective {
   /** 前缀后的任务目标（原话，含落点等细节） */
   goal: string;
-  /** 开头的 #别名（无则 null；归属由调用方按 别名→上下文→默认 解析） */
+  /** 开头的 #别名（无则 null；归属由调用方按别名→上下文→默认解析） */
   alias: string | null;
 }
 
@@ -283,7 +283,7 @@ export async function resolveInbound(
     }
   }
 
-  // ── 4. 项目别名 #记账（项目级寻址；语义决定 查询 or 新任务）───────
+  // ── 4. 项目别名 #记账（项目级寻址；语义决定查询 or 新任务）───────
   const alias = extractProjectAlias(inbound.text);
   if (alias) {
     const project = store.getProjectByAlias(alias);

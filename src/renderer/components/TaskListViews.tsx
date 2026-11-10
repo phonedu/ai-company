@@ -1,5 +1,5 @@
 /**
- * 项目树页 / 归档页（2026-10-18，老板裁「站在导航栏的就是导航，就该开一个页面」）——**纯展示**
+ * 项目树页 / 归档页（2026-10-18，决定「站在导航栏的就是导航，就该开一个页面」）——**纯展示**
  *   （props 进 DOM 出，可 node 测）；数据面＝`tasks.list`（归档页进页时容器会先拉 `includeArchived`）。
  *
  * 口径：
@@ -46,7 +46,7 @@ export function TaskListItem({
   task: TaskDTO;
   onOpen?: (id: number) => void;
   onRenew?: (id: number) => void;
-  /** 2026-10-29 P2（D-N08）：归档页批量续办用的勾选。 */
+  /** 2026-10-29 P2：归档页批量续办用的勾选。 */
   selectable?: boolean;
   selected?: boolean;
   onSelectToggle?: (id: number) => void;
@@ -130,13 +130,13 @@ export function ArchiveView({
   /** 2026-11-03（逐页错误注入）：加载失败显式报错，不伪装成「暂无归档」。 */
   error?: string | null;
   onRetry?: () => void;
-  /** UI-2 S2b：归档项目（恢复/导出/删除的唯一入口在这里；项目页只留任务与归档动作）。 */
+  /**  归档项目（恢复/导出/删除的唯一入口在这里；项目页只留任务与归档动作）。 */
   archivedProjects?: ReadonlyArray<{ projectId: number; name: string; alias: string | null; taskCount: number }>;
   onOpenProject?: (projectId: number) => void;
   onRestoreProject?: (projectId: number) => void;
   onExportProject?: (projectId: number) => void;
   onDeleteProject?: (projectId: number) => void;
-  /** S2b 复核 P2：恢复/导出/删除的回执（此前失败静默，只写进 projectActions）。 */
+  /**  复核：恢复/导出/删除的回执（此前失败静默，只写进 projectActions）。 */
   actionError?: string | null;
   actionMessage?: string | null;
 }): ReactElement {
@@ -183,7 +183,7 @@ export function ArchiveView({
           {archived.length} 个任务
         </span>
       </header>
-      {/* UI-2 S2b（2026-11-09）：归档项目的**集中入口**——恢复/导出/删除在这里一律可达；
+      {/*  S2b（2026-11-09）：归档项目的**集中入口**——恢复/导出/删除在这里一律可达；
           项目页的「已归档」分支仍保留同样三个按钮（你正打开那个项目时的上下文操作），两处同源。 */}
       {archivedProjects.length > 0 ? (
         <section className="tlist__archived-projects" data-testid="archive-projects">
@@ -237,7 +237,7 @@ export function ArchiveView({
         </section>
       ) : null}
       {/* 复核补（2026-11-10）：回执必须**独立于行**——删掉最后一个归档项目后区块整体卸载，
-          此前「已删除项目 #3」的确认也跟着消失（真机实抓 message=null）。放区块外，0 行也可见。 */}
+          此前「已删除项目 #3」的确认也跟着消失（真机发现 message=null）。放区块外，0 行也可见。 */}
       {actionError != null && actionError.length > 0 ? (
         <p className="tlist__action-error" data-testid="archive-project-action-error" role="alert">
           {actionError}
@@ -343,7 +343,7 @@ export function ProjectsList({
     name: string;
     alias: string | null;
     taskCount: number;
-    /** P2（D-N10）：第二读数（可选，兼容旧调用）。 */
+    /** P2：第二读数（可选，兼容旧调用）。 */
     runningCount?: number;
     waitingCount?: number;
     failedCount?: number;
@@ -354,7 +354,7 @@ export function ProjectsList({
     name: string;
     alias: string | null;
     taskCount: number;
-    /** P2（D-N10）：归档组同样带第二读数（可选，兼容旧调用）。 */
+    /** P2：归档组同样带第二读数（可选，兼容旧调用）。 */
     runningCount?: number;
     waitingCount?: number;
     failedCount?: number;

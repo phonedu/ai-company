@@ -1,5 +1,5 @@
 /**
- * M3-N-3 · GAP7/B3/B6 IPC 面：启停/删除守卫、项目默认技能集校验、`用技能` 命令写事件。
+ *  · /B3/ IPC 面：启停/删除守卫、项目默认技能集校验、`用技能` 命令写事件。
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';

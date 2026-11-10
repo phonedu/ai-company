@@ -1,8 +1,8 @@
 /**
- * T0.3② 真·崩溃恢复驱动（非测试文件；由 `test/engine-crash.test.ts` spawn）。
+ *  真·崩溃恢复驱动（非测试文件；由 `test/engine-crash.test.ts` spawn）。
  *
  * 用法：node crash-driver.js <dbFile> <effectsFile> <crash|recover>
- *  - crash  ：建任务 → 驱动到 executing（派发 work item，副作用写 effectsFile）→ 打印 READY → 挂起（等被 taskkill）
+ *  - crash：建任务 → 驱动到 executing（派发 work item，副作用写 effectsFile）→ 打印 READY → 挂起（等被 taskkill）
  *  - recover：engine.recover()（②running→interrupted ③重放 pending ④重建 timers）→ 打印 REPORT <json> → 退出
  *
  * 副作用执行器：把 actionKey 追加到 effectsFile（按 key 幂等去重），以便跨进程观察「无重复副作用」。

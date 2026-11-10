@@ -1,9 +1,9 @@
 /**
- * T0.4 真实调用冒烟驱动（**非测试文件**；key 到位后手工跑一次）。
+ *  真实调用冒烟驱动（**非测试文件**；key 到位后手工跑一次）。
  *
  * 用法（key 放好后）：
- *   . .\scripts\env.ps1        # 或设 $env:DEEPSEEK_API_KEY
- *   .\scripts\with-node22.ps1 pnpm build   # 先编译出 dist（或已被 pnpm test 生成）
+ *   . .\scripts\env.ps1 # 或设 $env:DEEPSEEK_API_KEY
+ *   .\scripts\with-node22.ps1 pnpm build # 先编译出 dist（或已被 pnpm test 生成）
  *   .\scripts\with-node22.ps1 node dist\test\fixtures\pi-smoke.js
  *
  * 输出：模型 / 凭据来源 / 耗时 / 回复摘要 / toolCall 数 / 落库的 task_events 与 plan_steps。

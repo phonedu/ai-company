@@ -1,4 +1,4 @@
-/** D-17：幕僚长回合注入全局/项目事实（按可见面，不含员工 L1）。 */
+/** 幕僚长回合注入全局/项目事实（按可见面，不含员工 L1）。 */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 

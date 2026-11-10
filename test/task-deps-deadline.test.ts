@@ -1,5 +1,5 @@
 /**
- * M2 尾（D4 依赖写入面 ＋ deadline 透传）——真库断言：
+ *  尾（依赖写入面 ＋ deadline 透传）——真库断言：
  *  - 建任务可带 deadline（DTO/DB 同源）；
  *  - 建任务可带 dependsOn（同事务落 `task_deps` ＋ `dependency_added` 审计）；
  *  - 加依赖判环（A→B 后 B→A 被拒，不落库）、幂等、依赖不存在拒绝；

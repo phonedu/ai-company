@@ -1,13 +1,13 @@
 /**
- * B2-1（58 §1.6 P1＋57 P1-2；D-30）：幕僚长扩权——create_task / dispatch / steer / list_holds
+ * 幕僚长扩权——create_task / dispatch / steer / list_holds
  * 四工具＋分层上下文（项目层/技能层）＋删「后续里程碑接入」过期声明。
  *
- * 背景（58 §1.1 脑1）：幕僚长提示词宣称「拆解与规划、分派员工」但无任何建派工具——头衔与
- * 能力结构矛盾；hold 状态读不到（P3）。本批把四工具落地：
- *  - `create_task`：**复用 `handleTaskCreate` 全部门**（预算预检/模型白名单/D1 分诊——由
+ * 背景：幕僚长提示词宣称「拆解与规划、分派员工」但无任何建派工具——头衔与
+ * 能力结构矛盾；hold 状态读不到（P3）。本次把四工具落地：
+ *  - `create_task`：**复用 `handleTaskCreate` 全部门**（预算预检/模型白名单/ 分诊——由
  *    index.ts 注入回调，工具层不做第二套口径）；
  *  - `dispatch`：schedule＝引擎调度 tick；retry＝对失败工作项发 `retry` 事件（attempt+1）；
- *  - `steer`：复用 BRK9 通路投话到在跑员工会话；不在跑 → 记入任务上下文并明说（不假装送达）；
+ *  - `steer`：复用通路投话到在跑员工会话；不在跑 → 记入任务上下文并明说（不假装送达）；
  *  - `list_holds`：`engine.listDispatchHolds()`＋槽位真读数；无 hold 明说，不臆造。
  * 分层上下文：项目约定层（readProjectContextDetailed 复用）＋技能索引层（skillsLayer 复用）；
  * 无内容不注入空段（CTX 口径）。静态→动态排序护缓存前缀。
@@ -67,7 +67,7 @@ test('B2-8: 风暴纪律行——头脑风暴一等对话（不建任务不推�
   assert.match(ASSISTANT_SYSTEM_PROMPT_M0, /不建任务/);
   assert.match(ASSISTANT_SYSTEM_PROMPT_M0, /note_write/);
   assert.match(ASSISTANT_SYSTEM_PROMPT_M0, /create_task/);
-  // B2b 终验抓出的缺陷回归锚：提示词点名的工具必须存在于幕僚长工具注册名单
+  //  终验抓出的缺陷回归锚：提示词点名的工具必须存在于幕僚长工具注册名单
   // （write_note 是员工侧工具，幕僚长侧叫 note_write——点名不存在的工具＝模型必跑空）。
   assert.ok(!/`write_note`/.test(ASSISTANT_SYSTEM_PROMPT_M0), '不得点名员工侧工具 write_note');
 });
@@ -197,7 +197,7 @@ test('B2-1: dispatch retry —— 对失败工作项发 retry 事件；无失败
   }
 });
 
-// ── ④ steer：在跑投话（BRK9 同通路）；不在跑记入任务上下文并明说 ──────────
+// ── ④ steer：在跑投话（同通路）；不在跑记入任务上下文并明说 ──────────
 
 test('B2-1: steer —— 在跑件投话到员工会话（sessionKey 正确）；未送达如实回执', async () => {
   const db = fresh();
@@ -352,7 +352,7 @@ test('B2-1: runTurn 装配顺序——分层在 scope 之后、记忆（事实�
   }
 });
 
-// ── ⑦ 幕僚长会话闸门不受 B2-7 影响（回归）：employeeId=0 → git commit 不被 B2-7 拦 ──
+// ── ⑦ 幕僚长会话闸门不受影响（回归）：employeeId=0 → git commit 不被拦 ──
 
 test('B2-1 回归: 频道助手权限面不因扩权变化（strict/标准闸门照旧）', () => {
   const db = fresh();

@@ -1,5 +1,5 @@
 /**
- * OPT-AI-7 省回合一环：提交工具后，同轮后续工具调用 → `{block:true, terminate:true}`（SDK 官方口）。
+ *  省回合一环：提交工具后，同轮后续工具调用 → `{block:true, terminate:true}`（SDK 官方口）。
  * 断言：未提交 → 放行；提交 → 下一步拦截并 terminate；agent_start 重置。
  */
 import test from 'node:test';

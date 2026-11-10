@@ -1,5 +1,5 @@
 /**
- * M3 联动修复 P1：桌面与 IM 共用命令执行器。
+ *  联动修复 P1：桌面与 IM 共用命令执行器。
  * 覆盖 `列表/日报/暂停/继续` 的真执行（不再只把 command 裁定落消息）。
  */
 import assert from 'node:assert/strict';

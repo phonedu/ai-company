@@ -1,5 +1,5 @@
 /**
- * S13-E P0/C1：归档项目必须弹选择卡（全部结束/保留暂停/先不归档），不再一键静默暂停。
+ *  P0/C1：归档项目必须弹选择卡（全部结束/保留暂停/先不归档），不再一键静默暂停。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

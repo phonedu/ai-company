@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { maskSecrets, normalizeAbsPath, redactPayload } from '../src/main/notify/redact.js';
 
-// ── OPT-EXT-1：通知载荷脱敏（密钥/令牌 + 绝对用户路径；不改原对象） ──
+// ──：通知载荷脱敏（密钥/令牌 + 绝对用户路径；不改原对象） ──
 
 test('notify/redact: 敏感键整值替换；非敏感键保留', () => {
   const out = redactPayload({ title: '任务完成', apiKey: 'sk-abcdef123456', nested: { token: 'Bearer abc.def', note: 'ok' } }) as Record<string, unknown>;

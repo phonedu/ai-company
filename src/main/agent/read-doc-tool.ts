@@ -1,5 +1,5 @@
 /**
- * B3-8（57 P1-10；D-31）· 只读 `read_doc` 工具＋文档索引层。
+ * （57 P1-10；）· 只读 `read_doc` 工具＋文档索引层。
  *
  * 口径：员工/幕僚长可读**项目根内**的 .md/.txt（相对路径解析；穿越/绝对路径/白名单外
  * 扩展名一律拒）；单文件 8KB 截断（头 6KB＋尾 1KB＋显式标记——与 bash 输出裁剪同哲学，
@@ -29,7 +29,7 @@ export function extractReadDocPath(rawPath: string, projectRoot: string): string
   const abs = resolve(projectRoot, raw);
   const rel = relative(projectRoot, abs);
   if (rel.startsWith('..') || isAbsolute(rel)) return null; // 穿越（解析后出根）
-  // B3b 换方向审查 B-3 修正：解析符号链接/junction——项目根内链接指向根外时可读到外部文件。
+  //  换方向审查 B-3 修正：解析符号链接/junction——项目根内链接指向根外时可读到外部文件。
   // 文件存在时才 realpath（不存在的路径没有安全风险，词法检查已够）。
   let realAbs = abs;
   if (existsSync(abs)) {
@@ -44,7 +44,7 @@ export function extractReadDocPath(rawPath: string, projectRoot: string): string
 
 /** 读取（截断口径）；不存在/读取失败 → null（工具层明说）。 */
 function readDocFile(abs: string): string | null {
-  // B3b 换方向审查 B-2 修正：SENSITIVE 路径拒读（.aico/secrets 密钥文件是 .txt，扩展名白名单挡不住）。
+  //  换方向审查 B-2 修正：SENSITIVE 路径拒读（.aico/secrets 密钥文件是 .txt，扩展名白名单挡不住）。
   const normalized = abs.toLowerCase().replace(/\\/g, '/');
   if (normalized.includes('.aico/secrets') || normalized.includes('id_rsa') || normalized.includes('.env')) return null;
   try {

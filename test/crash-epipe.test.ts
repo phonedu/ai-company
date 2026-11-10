@@ -1,5 +1,5 @@
 /**
- * D5 复核崩溃修复（2026-10-26）：标准流 EPIPE 不再致命。
+ *  复核崩溃修复（2026-10-26）：标准流 EPIPE 不再致命。
  *
  * 事故（crash-2026-10-26T11-17-08-608Z.log）：应用由外部进程以管道接管 stderr 启动，外部进程被
  * 回收后管道断端；一次 IPC 错误触发 Electron `replyWithError` 的 `console.error` → EPIPE →

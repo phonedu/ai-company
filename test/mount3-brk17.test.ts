@@ -1,7 +1,7 @@
 /**
- * BRK17 组（挂载 3 余件）：`undo_finish` 转正 ＋ `archive` 接线——引擎级真链路守据。
+ *  组（挂载 3 余件）：`undo_finish` 转正 ＋ `archive` 接线——引擎级真链路守据。
  *
- * 口径（05 §3.1.1）：
+ * 口径：
  *  - `done --undo_finish--> state_before_close`：守卫＝`now - closed_at ≤ 7d` 且 `archived = 0`；
  *    超窗/已归档**不是静默 no-op**：经 `task:transition` 得 `{ok:false, code:'transition_failed'}` ＋ 人话原因；
  *  - `done/failed/cancelled --archive--> KEEP（archived=1）`：归档≠state；**入口在左栏终态任务行**（非详情表）；

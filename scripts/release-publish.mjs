@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 发布到 GitHub Releases（2026-11-06 D5 后老板裁：GitHub 自动更新）。
+ * 发布到 GitHub Releases（2026-11-06 后决定：GitHub 自动更新）。
  *
  * 前提：公开的 releases 仓库（默认 phonedu/ai-company-releases；源码库保持 private）。
  * 产物：安装器 + blockmap + latest.yml + portable（手动下载用）。latest.yml 由 electron-builder

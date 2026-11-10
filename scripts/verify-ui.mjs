@@ -9,8 +9,8 @@
  * 并登记到下方 `RECIPES`。
  *
  * 用法：
- *   pnpm verify:ui                 全部跑一遍
- *   pnpm verify:ui --list          只列配方不执行
+ *   pnpm verify:ui 全部跑一遍
+ *   pnpm verify:ui --list 只列配方不执行
  *   pnpm verify:ui --only=<id,...> 只跑指定配方
  *   pnpm verify:ui --results=<path> 额外落一份逐条结果清单（JSON）
  *
@@ -67,7 +67,7 @@ for (const artifact of ['out/main/index.cjs', 'out/renderer/index.html']) {
   }
 }
 
-// 实例上限（老板 2026-10-14）：本机同时最多 3 个；超限拒绝启动，**只报告 PID、不代杀**。
+// 实例上限（2026-10-14）：本机同时最多 3 个；超限拒绝启动，**只报告 PID、不代杀**。
 function appInstancePids() {
   const r = spawnSync(
     'powershell',

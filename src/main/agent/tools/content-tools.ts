@@ -1,5 +1,5 @@
 /**
- * B4-4+B4-6/D-29 · 内容工具——员工可调的图像生成与导出适配器。
+ * +/ · 内容工具——员工可调的图像生成与导出适配器。
  *
  * 口径：
  *  - `image_generate`：spend 类（花钱＋对外；每次弹卡批准，external grant 不放行）；
@@ -33,7 +33,7 @@ export async function createImageGenerateTool(
     /** 通道解析的 Key 注入（测试不碰真 secrets；缺省 process.env＋~/.aico/secrets）。 */
     keyOptions?: import('./image-generate-tool.js').ImageChannelKeyOptions;
     /**
-     * B4-4/裁决 7：出图成功后**按张入账**（写 costs 行；缺省不写——单测/无装配场景）。
+     * /决定 7：出图成功后**按张入账**（写 costs 行；缺省不写——单测/无装配场景）。
      * 装配层注入：由会话 ctx 反查 taskId/workItemId/employeeId 再落 `recordCost`。
      */
     recordImageCost?: (info: { model: string; cny: number; tier: '1k' | '2k'; priced: boolean; path: string; ctx: unknown }) => void;
@@ -84,11 +84,11 @@ export async function createImageGenerateTool(
               outputDir: join(cwd, IMAGE_OUTPUT_SUBDIR),
             });
       const rel = result.ok && result.path ? toRel(cwd, result.path) : null;
-      // 裁决 7：出图成功即按张入账（读 PNG 真实尺寸判 1k/2k 档；写失败不影响交付，但要响）。
+      // 决定 7：出图成功即按张入账（读 PNG 真实尺寸判 1k/2k 档；写失败不影响交付，但要响）。
       let costNote = '';
       if (result.ok && result.path && deps.recordImageCost != null) {
         try {
-          // 安全复核 S19：只为 24 字节头，不整张读进内存（出图是 MB 级）。
+          // 安全复核：只为 24 字节头，不整张读进内存（出图是 MB 级）。
           const fd = openSync(result.path, 'r');
           let buf: Buffer;
           try {
@@ -136,7 +136,7 @@ export async function createExportFormatTool(fallbackCwd: string) {
       const cwd = sessionCwd(ctx, fallbackCwd);
       const raw = String(params.path ?? '');
       const abs = isAbsolute(raw) ? raw : resolve(cwd, raw);
-      // B4b 安全审查 F4（2026-11-09）：符号链接/junction 解析——项目内链接指向项目外/敏感文件时拒。
+      //  安全审查 （2026-11-09）：符号链接/junction 解析——项目内链接指向项目外/敏感文件时拒。
       // 门禁路径层是词面判定（看 `path` 原文），链接绕过只能在工具层堵（与 read-doc-tool 同款）。
       // 同时补敏感目标检查（gate 的 SENSITIVE 词面只看参数原文，看不到链接指向的真身）。
       let target = abs;

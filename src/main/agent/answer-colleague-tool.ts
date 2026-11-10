@@ -1,5 +1,5 @@
 /**
- * `answer_colleague` customTool（BRK12，D-8 真互答）。
+ * `answer_colleague` customTool（，D-8 真互答）。
  *
  * 只做信号：被问员工在【同事提问】里拿到 `askDedupeKey`，调用本工具作答；
  * 宿主（employee-executor）校验「这条 ask 确实是问我的」后调 `engine/mailbox.answerAsk`
@@ -8,7 +8,7 @@
  * 防互问死循环：`requestAsk` 拒绝自己问自己与 A↔B 双向未结互问；本工具只能答**别人问我**的 ask。
  */
 /**
- * B2-5：结构化答复组装——结论＋依据＋产物引用＋追问（人话分节；无字段不注空节）。
+ * 结构化答复组装——结论＋依据＋产物引用＋追问（人话分节；无字段不注空节）。
  * 旧单句 answer 完全兼容（无结构化字段 → 原样返回）。宿主把组装结果投递给提问方。
  */
 export interface StructuredAnswerInput {

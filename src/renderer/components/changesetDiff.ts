@@ -1,5 +1,5 @@
 /**
- * UG-06 · 只读 unified diff 的展示投影（纯函数，无 React/DOM/fs）。
+ *  · 只读 unified diff 的展示投影（纯函数，无 React/DOM/fs）。
  *
  * 只解析 `git diff --unified=3` 文本；不访问仓库、不猜内容。
  * 行号规则：

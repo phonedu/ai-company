@@ -1,8 +1,8 @@
 /**
- * M2-A「变更（本次提交）」区块（产物/证据 tab 内）—— 渲染与两条"空态不伪装"（含有牙）。
+ * 「变更（本次提交）」区块（产物/证据 tab 内）—— 渲染与两条"空态不伪装"（含有牙）。
  * 口径（3513）：(B) 位置 + (i) `task:get` join；`inplace` → 显式「本次为就地修改、无变更集」；
  *   `base_sha IS NULL` → 显式「基准未知」；**`summary` 空不渲染**；
- *   **M3-P-4 起 `state` 必须展示**（待合并/已合并；合并按钮只对 open 出现）。
+ *   ** 起 `state` 必须展示**（待合并/已合并；合并按钮只对 open 出现）。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

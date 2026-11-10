@@ -7,12 +7,12 @@ import { sendMessage, session } from '../store';
 import { ArrowUpIcon, PaperclipIcon, PlusIcon } from './icons.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Composer：**独立、可替换**的输入组件（T0.5 最小纯文本版）。
+// Composer：**独立、可替换**的输入组件（最小纯文本版）。
 //   富文本 / 最终选型另有专项（chat 15）；结论「纯文本 + 自绘浮层、不做富文本」。
-//   DEV §7.3 / UI §4.5：多行、Enter 发送 / Shift+Enter 换行、附件、拖拽、粘贴截图。
-//   D1：附件只取**元信息 + 不透明 fileToken**，**绝不传文件系统路径**。
+//    / UI §4.5：多行、Enter 发送 / Shift+Enter 换行、附件、拖拽、粘贴截图。
+//   附件只取**元信息 + 不透明 fileToken**，**绝不传文件系统路径**。
 //
-//   本轮修复（裁决）：
+//   本轮修复（决定）：
 //   ① 中文 IME 守卫：合成中 `isComposing || keyCode===229` 时**不得**触发发送/浮层；
 //   ② 拖拽 drop 必须 `preventDefault`（防 Electron 把文件当页面导航打开）；
 //   ③ `getPathForFile` 返回 `''`（剪贴板截图）时，preload 走 `arrayBuffer()` 字节通路。
@@ -107,7 +107,7 @@ export function Composer({ onCreateTask }: { onCreateTask?: () => void }): React
         previewUrlsRef.current.push(url);
         pending.previewUrl = url;
       }
-      // 可信边界：preload 里 `webUtils.getPathForFile` → 有路径走路径、无路径走字节（D1 例外③）。
+      // 可信边界：preload 里 `webUtils.getPathForFile` → 有路径走路径、无路径走字节（例外③）。
       if (api?.files?.import) {
         try {
           const staged = await api.files.import(file);
@@ -140,7 +140,7 @@ export function Composer({ onCreateTask }: { onCreateTask?: () => void }): React
     try {
       await sendMessage({
         text: value,
-        // 只带元信息 + fileToken；**不带路径、不带 blob URL**（D1）。
+        // 只带元信息 + fileToken；**不带路径、不带 blob URL**。
         attachments: attachments.map(({ name, size, type, fileToken }) => ({ name, size, type, fileToken })),
       });
       if (session.error) {
@@ -152,7 +152,7 @@ export function Composer({ onCreateTask }: { onCreateTask?: () => void }): React
       previewUrlsRef.current = [];
       setAttachments([]);
     } catch (submitError) {
-      // 失败不清空草稿（裁决）；发送期间用户新输入的内容优先保留。
+      // 失败不清空草稿（决定）；发送期间用户新输入的内容优先保留。
       setText((current) => (current.trim().length === 0 ? value : current));
       setError(submitError instanceof Error ? submitError.message : String(submitError));
     } finally {
@@ -221,7 +221,7 @@ export function Composer({ onCreateTask }: { onCreateTask?: () => void }): React
         }}
       />
 
-      {/* B 方案（老板 2026-10-22 选定）：输入与工具条同在一个浮起胶囊里。 */}
+      {/* B 方案（2026-10-22 选定）：输入与工具条同在一个浮起胶囊里。 */}
       <div className="composer__shell">
         <textarea
           ref={textareaRef}

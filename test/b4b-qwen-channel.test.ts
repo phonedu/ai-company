@@ -1,5 +1,5 @@
 /**
- * B4b/裁决 5（2026-11-09 老板拍板走 qwen + 提供 endpoint）：image_generate 的 Qwen 通道。
+ * B4b/决定 5（2026-11-09 要求走 qwen + 提供 endpoint）：image_generate 的 Qwen 通道。
  *  - 通道解析：dashscope Key 优先 → qwen；仅 openai → dalle；都没有 → 工具层人话报错（不碰真 secrets）；
  *  - 兼容模式响应：b64_json 与 url 两种形状都落盘；url 下载过两层安全检查
  *    （isSafeDownloadUrl：https＋IP 段判；isSafeDownloadTarget：域名解析全公网——注入 resolver 不碰真 DNS）；

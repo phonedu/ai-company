@@ -1,5 +1,5 @@
 /**
- * M3-N-5 · GAP9：公司配置版本化（export → preview diff → apply → rollback）＋非法配置拒。
+ *  ·：公司配置版本化（export → preview diff → apply → rollback）＋非法配置拒。
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';

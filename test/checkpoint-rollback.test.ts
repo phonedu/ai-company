@@ -1,11 +1,11 @@
 /**
- * M3-N-2 / GAP4：工作项级检查点与回滚。
+ *  /：工作项级检查点与回滚。
  *
  * 覆盖：
  *  - 引擎真 staging 流程：派发即落检查点（base），完成提交后补 head/真实路径；
  *  - 回滚只恢复该工作项 `base..head` 改过的文件（修改恢复/新增删除），**无关文件与未提交改动不碰**；
  *  - 反向提交 + `changeset open→rolled_back` + `checkpoint open→restored` + 事件；幂等；
- *  - 守卫：脏的受影响路径 / 后续提交碰同文件 / 已合并变更集 / inplace / 无检查点 全部显式拒。
+ *  - 守卫：脏的受影响路径 / 后续提交碰同文件 / 已合并变更集 / inplace / 无检查点全部显式拒。
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';

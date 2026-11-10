@@ -26,14 +26,14 @@ import { attemptMountReport, MOUNT_REPORT_RETRY_MS } from './mountReport';
 import type { GlobalSearchDTO, HumanMessageDTO, TaskDTO } from './types';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// T0.1 · AppShell：五个落点（topbar / left-rail / center / right-rail / **statusbar**）。
-//   布局出处：DEV §7.1（AppShell 组件树）、UI.md §1（左栏结构）；
+//  · AppShell：五个落点（topbar / left-rail / center / right-rail / **statusbar**）。
+//   布局出处：（AppShell 组件树）、（左栏结构）；
 //   **壳层重排 v4（2026-10-16）**：顶栏＝品牌＋搜索盒＋折叠钮＋自绘三键（`frame:false`）；
 //   读数（今日成本/槽位/待办）迁**底栏状态条**（`AppChrome` 同件渲染）；左右侧栏折叠态入本地记忆。
 //   **视图导航只在左栏**（UI §1：固定入口 + 任务树；中栏是“七选一”视图）；顶栏**不放视图切换**。
 // ─────────────────────────────────────────────────────────────────────────────
 
-// OPT-M7-1：顶栏/右栏的「读数」全部移到纯组件 `AppChrome`（可被 node 测试直接断言）。
+// OPT-：顶栏/右栏的「读数」全部移到纯组件 `AppChrome`（可被 node 测试直接断言）。
 
 // StrictMode 在开发模式下会双调用 effect（挂载 → 卸载 → 再挂载）；
 // 模块级标记保证「壳已挂载」只上报一次（否则会重复 IPC / 重复截图）。
@@ -44,7 +44,7 @@ let shellMountedOnce = false;
 /** 侧栏折叠态记忆（壳层重排 v4：折叠状态入设置记忆；读失败/无存储 → 都展开＝缺省）。 */
 const RAIL_KEY = 'aico.rail.collapsed';
 
-/** F-07（2026-10-24）：今日成本不能只在挂载时拉一次；任务跑几分钟后必须能看到新读数。 */
+/** （2026-10-24）：今日成本不能只在挂载时拉一次；任务跑几分钟后必须能看到新读数。 */
 const COST_REFRESH_MS = 30_000;
 
 
@@ -104,7 +104,7 @@ export function AppShell(): ReactElement {
   const [paletteGlobal, setPaletteGlobal] = useState<GlobalSearchDTO | null>(null);
   const tasksSnap = useSnapshot(tasks);
   const projectsSnap = useSnapshot(projectActions);
-  // UI-2 S2b：归档项目列表（归档页集中管理恢复/导出/删除）。
+  //  归档项目列表（归档页集中管理恢复/导出/删除）。
   const archivedProjects = archivedProjectsFromList(
     projectsSnap.list as unknown as import('./types.js').ProjectDTO[],
     tasksSnap.list as unknown as TaskDTO[],
@@ -117,7 +117,7 @@ export function AppShell(): ReactElement {
         setPaletteOpen(true);
         return;
       }
-      // 2026-10-29 P2（P-N02）：docs/06 §12 承诺 Ctrl+1/2/3 → 频道/待我处理/大厅。
+      // 2026-10-29 P2（P-N02）：docs/承诺 Ctrl+1/2/3 → 频道/待我处理/大厅。
       // 输入框/可编辑区里不抢（避免打断输入法）。
       if ((event.ctrlKey || event.metaKey) && (event.key === '1' || event.key === '2' || event.key === '3')) {
         const target = event.target as HTMLElement | null;
@@ -134,7 +134,7 @@ export function AppShell(): ReactElement {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, []);
-  // M2 尾（G-D）：跨项目全局搜索（200ms 防抖；空/过短查询不请求）。
+  //  尾（G-D）：跨项目全局搜索（200ms 防抖；空/过短查询不请求）。
   useEffect(() => {
     if (!paletteOpen || paletteQuery.trim().length < 2) {
       setPaletteGlobal(null);
@@ -218,13 +218,13 @@ export function AppShell(): ReactElement {
       window.setTimeout(run, MOUNT_REPORT_RETRY_MS);
     };
     run();
-    // OPT-EXT-6：启动时恢复上次视图（失真则回落 channel）。
+    // 启动时恢复上次视图（失真则回落 channel）。
     void restoreSession();
     // 2026-10-17（建任务入口批）：左栏不再拉任务——任务表改由壳统一拉（项目树/命令面板同源）。
     void loadTasks();
-    // OPT-EXT-13：拉今日成本（真实数据源；空 => 顶栏显 —）。
+    // 拉今日成本（真实数据源；空 => 顶栏显 —）。
     void loadCostSummary();
-    // F-07：成本会随任务增长；30s 轮询 + 回到前台立即刷新，避免一直显示旧读数。
+    // 成本会随任务增长；30s 轮询 + 回到前台立即刷新，避免一直显示旧读数。
     const costTimer = window.setInterval(() => {
       void loadCostSummary();
     }, COST_REFRESH_MS);
@@ -234,7 +234,7 @@ export function AppShell(): ReactElement {
     document.addEventListener('visibilitychange', onVisibility);
     // R3-2：拉顶栏槽位真读数（引擎未装配 => null => 显 —）。
     void loadSlots();
-    // 2026-10-17（B2）：右栏「谁在忙」用大厅聚合（只读；失败/空 => 显式空态）。
+    // 2026-10-17：右栏「谁在忙」用大厅聚合（只读；失败/空 => 显式空态）。
     void loadHall();
     // R2-4：读首启状态（未完成 → 显示向导弹层；完成/跳过写 `onboarding.completed`）。
     void loadOnboarding();
@@ -252,7 +252,7 @@ export function AppShell(): ReactElement {
     return () => { unsub?.(); };
   }, []);
 
-  // 窗口级拖放守卫（裁决②）：拖文件到窗口任意处（UI §4.6）都不得触发页面导航。
+  // 窗口级拖放守卫（决定②）：拖文件到窗口任意处（UI §4.6）都不得触发页面导航。
   // 不 stopPropagation，drop 仍能冒泡到 composer 的 onDrop。
   useEffect(() => {
     const block = (event: DragEvent): void => {
@@ -354,7 +354,7 @@ export function AppShell(): ReactElement {
         onPick={(item) => {
           closePalette();
           if (item.kind === 'global') {
-            // UG-05：产物命中先开任务详情，再开该产物的统一预览抽屉；消息仍回频道。
+            // 产物命中先开任务详情，再开该产物的统一预览抽屉；消息仍回频道。
             if (item.artifactId != null && item.taskId != null) {
               const artifactId = item.artifactId;
               const taskId = item.taskId;

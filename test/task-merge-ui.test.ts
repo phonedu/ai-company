@@ -1,5 +1,5 @@
 /**
- * M3-P-4：变更集合并的产品面（状态/行内合并按钮/操作条入口/回执）。
+ * 变更集合并的产品面（状态/行内合并按钮/操作条入口/回执）。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

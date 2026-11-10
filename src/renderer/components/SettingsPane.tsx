@@ -45,7 +45,7 @@ export const TUNING_FIELDS: readonly TuningFieldDef[] = [
 ];
 
 /**
- * 顺带件（M2 未排期「设置·通知面板」）：通知分区字段——**键真源＝主进程 `KNOWN_SETTINGS_KEYS`**；
+ * 顺带件（未排期「设置·通知面板」）：通知分区字段——**键真源＝主进程 `KNOWN_SETTINGS_KEYS`**；
  * 机制已交付（静默窗/日报，`notify/policy.ts`/`digest.ts`）；本面板只做**可配面**（0–1439 分钟数）。
  */
 export const NOTIFY_FIELDS: readonly TuningFieldDef[] = [
@@ -137,8 +137,8 @@ export interface SettingsGroupDef {
 }
 
 /**
- * 2026-11-03 老板拍板「细分直达」：设置导航＝8 个直达项，点一下就落在真实控件上；
- * 卡片摘要层 / 「更改」/ 「返回」全部退役（原来是 组→卡「更改」→控件 三步，层级太深）。
+ * 2026-11-03 要求「细分直达」：设置导航＝8 个直达项，点一下就落在真实控件上；
+ * 卡片摘要层 / 「更改」/ 「返回」全部退役（原来是组→卡「更改」→控件三步，层级太深）。
  */
 export const SETTINGS_GROUPS: readonly SettingsGroupDef[] = [
   { id: 'look', label: '外观', sections: ['general'] },
@@ -201,7 +201,7 @@ export interface SettingsPaneProps {
   onThemeChange?: (theme: 'light' | 'dark' | 'system') => void;
   /** D-5 补位 ②：「员工」分区＝**指针**（真跳转公司大厅）；缺省 → 按钮 disabled（不假装可点）。 */
   onGoHall?: () => void;
-  /** 2026-10-16（设置批）：「员工」分区**花名册**（`employee:list` 真数据；null＝读取中）；UG-11：含已停用（`active` 真值）。 */
+  /** 2026-10-16（设置批）：「员工」分区**花名册**（`employee:list` 真数据；null＝读取中）；：含已停用（`active` 真值）。 */
   employees?: readonly { id: number; name: string; role: string; mcpRefs?: readonly string[]; active?: boolean }[] | null;
   /** 2026-11-03 老板反馈：员工配置内联展开（不再跳独立页）——当前展开的员工 id。 */
   expandedEmployeeId?: number | null;
@@ -219,9 +219,9 @@ export interface SettingsPaneProps {
   }) => Promise<{ ok: boolean; error?: string }>;
   /** 花名册行「配置 ▸」→ 员工设置为（缺省 ⇒ disabled，不假装可点）。 */
   onOpenEmployee?: (id: number) => void;
-  /** M2 尾：招募员工（打开招募对话框；缺省 ⇒ disabled）。 */
+  /**  尾：招募员工（打开招募对话框；缺省 ⇒ disabled）。 */
   onRecruit?: () => void;
-  /** GAP7（M3-N-3）：技能库（含停用；null＝未加载）。 */
+  /** 技能库（含停用；null＝未加载）。 */
   skills?: readonly SkillDTO[] | null;
   skillsLoading?: boolean;
   skillsNotice?: string | null;
@@ -230,7 +230,7 @@ export interface SettingsPaneProps {
   onInstallSkillUrl?: (url: string) => void;
   onToggleSkill?: (id: number, enabled: boolean) => void;
   onRemoveSkill?: (id: number) => void;
-  /** GAP6（M3-N-4）：MCP server 库（含停用；env 只到 key 名）。 */
+  /** MCP server 库（含停用；env 只到 key 名）。 */
   mcpServers?: readonly McpServerDTO[] | null;
   mcpLoading?: boolean;
   mcpNotice?: string | null;
@@ -250,7 +250,7 @@ export interface SettingsPaneProps {
   onRemoveMcp?: (id: number) => void;
   /** 2026-10-17 真机反馈：发送一次测试通知（系统通知＋托盘；缺省 ⇒ disabled）。 */
   onSendTestNotification?: () => void;
-  /** M3：IM 通道状态（null＝未读取；本轮只做微信 1:1，不显示群/其他通道）。 */
+  /** IM 通道状态（null＝未读取；本轮只做微信 1:1，不显示群/其他通道）。 */
   imStatus?: ImStatusView | null;
   imLoading?: boolean;
   imError?: string | null;
@@ -275,7 +275,7 @@ export interface SettingsPaneProps {
   modelDraft: string;
   onModelDraftChange: (value: string) => void;
   onSaveModel: () => void;
-  /** C4（M3）：公司级日预算（USD；null＝未设，不限制）。 */
+  /** C4：公司级日预算（USD；null＝未设，不限制）。 */
   companyDailyBudget?: number | null;
   companyDailyBudgetDraft?: string;
   onCompanyDailyBudgetDraftChange?: (value: string) => void;
@@ -298,7 +298,7 @@ export interface SettingsPaneProps {
   /** **只读最小视图**（valtio 快照是 DeepReadonly——props 按只读声明，避免深只读→可变的赋值错）。 */
   projects: readonly ProjectView[];
   onSetDefaultProject: (id: number) => void;
-  /** D-22 配套：只读模型目录（null/缺省＝未加载；空数组＝真的没有）。 */
+  /**  配套：只读模型目录（null/缺省＝未加载；空数组＝真的没有）。 */
   modelCatalog?: readonly ModelCatalogEntryDTO[] | null;
   modelCatalogLoading?: boolean;
   modelCatalogError?: string | null;
@@ -307,7 +307,7 @@ export interface SettingsPaneProps {
   catalogProviders?: readonly ProviderCatalogEntryDTO[] | null;
   /** 添加供应商：保存 Key（成功/失败都回执；缺省 → 保存键 disabled）。 */
   onAddProviderKey?: (provider: string, key: string) => Promise<{ ok: boolean; error?: string }>;
-  /** D-22：自定义供应商（写 Pi models.json；Key 仍走本机 secrets）。 */
+  /** 自定义供应商（写 Pi models.json；Key 仍走本机 secrets）。 */
   customProviders?: readonly CustomProviderDef[] | null;
   onSaveCustomProvider?: (provider: CustomProviderDef, key?: string) => Promise<{ ok: boolean; error?: string }>;
   onRemoveCustomProvider?: (id: string) => void;
@@ -317,7 +317,7 @@ export interface SettingsPaneProps {
   tuningDrafts: Readonly<Record<string, string>>;
   onTuningDraftChange: (key: string, value: string) => void;
   onSaveTuning: (key: string) => void;
-  /** OPT-M4-1：接缝矩阵（项目级；null＝未接线/未加载）。 */
+  /** OPT-：接缝矩阵（项目级；null＝未接线/未加载）。 */
   seams?: {
     boundaries: readonly string[];
     rows: ReadonlyArray<{
@@ -340,13 +340,13 @@ export interface ProjectView {
   readonly alias: string | null;
   readonly rootDir: string;
   readonly archived: number;
-  /** D-22：项目模型策略（缺省＝旧数据/未加载，编辑面按 employee_first 显示）。 */
+  /** 项目模型策略（缺省＝旧数据/未加载，编辑面按 employee_first 显示）。 */
   readonly defaultModel?: string | null;
   readonly allowedModels?: readonly string[];
   readonly modelPolicy?: 'fixed' | 'employee_first' | 'assistant';
   /** v19：新任务默认 token 预算（null＝不限）。 */
   readonly defaultBudgetTokens?: number | null;
-  /** S13-G/D-N06：合并目标分支（null/缺省＝沿用 main/master）。 */
+  /** /：合并目标分支（null/缺省＝沿用 main/master）。 */
   readonly targetBranch?: string | null;
 }
 
@@ -371,10 +371,10 @@ export function SettingsPane(props: SettingsPaneProps): ReactElement {
   /** 分区在当前直达组内 → 直接铺真实控件（无卡片摘要层）。 */
   const has = (id: string): boolean => activeGroup.sections.includes(id);
   const [skillUrlDraft, setSkillUrlDraft] = useState('');
-  // B0-10：URL 安装前先出**确认块**（网络来源内容会进技能索引；不静默安装）。
+  // URL 安装前先出**确认块**（网络来源内容会进技能索引；不静默安装）。
   const [skillUrlConfirm, setSkillUrlConfirm] = useState(false);
   const [imVerifyCode, setImVerifyCode] = useState('');
-  // GAP6：MCP 注册表单（env 只写不读；保存后 store 只回 key 名）。
+  // MCP 注册表单（env 只写不读；保存后 store 只回 key 名）。
   const [mcpName, setMcpName] = useState('');
   const [mcpTransport, setMcpTransport] = useState<'stdio' | 'http'>('stdio');
   const [mcpCommand, setMcpCommand] = useState('');
@@ -385,14 +385,14 @@ export function SettingsPane(props: SettingsPaneProps): ReactElement {
   const [mcpExternal, setMcpExternal] = useState(false);
   const [mcpSaving, setMcpSaving] = useState(false);
   const [mcpFormError, setMcpFormError] = useState('');
-  // D-22 配套：添加供应商（先从 SDK 已有目录里选；自定义 Base URL 另列未实施）。
+  //  配套：添加供应商（先从 SDK 已有目录里选；自定义 Base URL 另列未实施）。
   const [addProviderOpen, setAddProviderOpen] = useState(false);
   const [addProviderId, setAddProviderId] = useState('');
   const [addProviderKeyDraft, setAddProviderKeyDraft] = useState('');
   const [addProviderSaving, setAddProviderSaving] = useState(false);
   const [addProviderNotice, setAddProviderNotice] = useState<string | null>(null);
   const [addProviderError, setAddProviderError] = useState<string | null>(null);
-  // D-22：自定义供应商表单（一个 provider 一个模型；配置写 Pi models.json）。
+  // 自定义供应商表单（一个 provider 一个模型；配置写 Pi models.json）。
   const [customOpen, setCustomOpen] = useState(false);
   const [customId, setCustomId] = useState('');
   const [customLabel, setCustomLabel] = useState('');
@@ -969,7 +969,7 @@ export function SettingsPane(props: SettingsPaneProps): ReactElement {
             <p data-testid="settings-model-effective" style={MUTED}>
               当前生效：{props.loading ? '读取中…' : (props.model ?? '—（未设置，用本机配置）')}
             </p>
-            {/* C4（M3）：公司级日预算（可选；达线暂停 executing 任务并提示，重启保留）。 */}
+            {/* C4：公司级日预算（可选；达线暂停 executing 任务并提示，重启保留）。 */}
             <h4 style={{ marginBottom: 4 }}>公司日预算（可选）</h4>
             <p style={MUTED}>
               按今日全部成本（含公司级共享开销）计；达线暂停所有执行中任务并提示，**重启后仍生效**；提高预算后需手动继续暂停任务。
@@ -999,7 +999,7 @@ export function SettingsPane(props: SettingsPaneProps): ReactElement {
                     : `$${props.companyDailyBudget.toFixed(2)}/日`}
               </span>
             </div>
-            {/* 高级折叠（B4）：日常只用上面的默认模型；JSON 路由给技术场景。 */}
+            {/* 高级折叠：日常只用上面的默认模型；JSON 路由给技术场景。 */}
             <details className="settings-advanced" data-testid="settings-advanced-json">
               <summary className="settings-advanced__summary" data-testid="settings-devblock-title">
                 高级：模型路由（JSON）
@@ -1060,7 +1060,7 @@ export function SettingsPane(props: SettingsPaneProps): ReactElement {
             </p>
             </details>
             </>) : null}
-            {/* D-22：项目模型策略（项目定边界与默认；员工偏好只是允许清单内的建议）。 */}
+            {/* 项目模型策略（项目定边界与默认；员工偏好只是允许清单内的建议）。 */}
             </>) : null}
 
             {has('providers') ? (<>
@@ -1216,7 +1216,7 @@ export function SettingsPane(props: SettingsPaneProps): ReactElement {
               </>
               ))
             )}
-            {/* 招募面 NI（M1+）——disabled ＋ 显式理由（不假装可点）。 */}
+            {/* 招募面 NI——disabled ＋ 显式理由（不假装可点）。 */}
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
               <button
                 type="button"

@@ -1,5 +1,5 @@
 /**
- * M2 尾 · 阻塞式 mailbox：`ask_colleague{blocking:true}` → 件 `running→blocked`；
+ *  尾 · 阻塞式 mailbox：`ask_colleague{blocking:true}` → 件 `running→blocked`；
  * 老板/同事作答 → `blocked→queued`（`answer_received`）＋答复走未读回灌。
  * 断言：不再抛 E_BLOCKING_NOT_IMPLEMENTED；作答幂等不重复派发；过渡表可达。
  */

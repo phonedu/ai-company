@@ -1,5 +1,5 @@
 /**
- * B0-9①（58 §3.1 洞 1）：供应商 Key 明文落盘的回归测试。
+ * 供应商 Key 明文落盘的回归测试。
  *
  * 旧实现：`saveProviderKey` 明文写 `~/.aico/secrets/<provider>_api_key`，chmod 0600 在 Windows
  * 无效；对照 IM 凭据已用 safeStorage/DPAPI——保护不对等。

@@ -1,5 +1,5 @@
 /**
- * B-1（M4）· 项目概览·定时：后端 `project:trigger-manage` 与 `TriggerService` 同源。
+ * B-1· 项目概览·定时：后端 `project:trigger-manage` 与 `TriggerService` 同源。
  *
  * 覆盖：list/create-cron/cancel、项目边界、非法调度、归档项目、事件触发源任务校验、
  * 重启保留（同库新 service 仍能列出）。

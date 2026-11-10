@@ -37,7 +37,7 @@ test('happy：建 `<父>/<名>/` ＋ README 骨架 ＋ probe ＋ 项目行（根
     assert.ok(existsSync(join(target, 'README.md')), 'README 骨架落盘');
     assert.match(readFileSync(join(target, 'README.md'), 'utf8'), /# 新项目/, '骨架标题＝项目名');
     assert.equal(typeof res.probe.suggestedAccessMode, 'string', '探测建议档在场（建行值取自它）');
-    // D-15：代建项目默认 staging；staging 依赖 git worktree，因此必须先 git init + 初始提交。
+    // 代建项目默认 staging；staging 依赖 git worktree，因此必须先 git init + 初始提交。
     assert.equal(res.project.accessMode, 'staging', '代建项目默认 staging');
     assert.equal(res.gitInitialized, true, 'git 初始化成功');
     assert.ok(existsSync(join(target, '.git')), '.git 目录落盘');
@@ -97,7 +97,7 @@ test('同名目录已存在 → `already_exists` **不覆盖**（既有文件原
   }
 });
 
-// ── RW-7（M5 真机带回，2026-10-27）：父目录不得与现有项目根互相包含（嵌套项目＝隔离边界缺口）──
+// ── （真机带回，2026-10-27）：父目录不得与现有项目根互相包含（嵌套项目＝隔离边界缺口）──
 
 test('RW-7①: 父目录选到现有项目根之内 → 显式拒（parent_inside_project）且不建目录不建行', async () => {
   const f = fixture();
@@ -134,7 +134,7 @@ test('RW-7②: 反向包含也拒（新项目根将包住现有项目根）', as
     const d1: IpcDeps = { repo: f.deps.repo, db: f.db, pickDirectory: async () => parent };
     const first = await handleProjectCreate(d1, { name: '旧项目' }, AT);
     assert.equal(first.ok, true);
-    // 新项目父目录选 f.dir ⇒ target=f.dir/新项目——不包含旧项目（projects/旧项目 在 projects 下不在 新项目 下）⇒ 放行
+    // 新项目父目录选 f.dir ⇒ target=f.dir/新项目——不包含旧项目（projects/旧项目在 projects 下不在新项目下）⇒ 放行
     const okCase = await handleProjectCreate({ repo: f.deps.repo, db: f.db, pickDirectory: async () => f.dir }, { name: '旁支' }, AT);
     assert.equal(okCase.ok, true, '互不包含 ⇒ 放行');
     // 反向：父目录选 f.dir，名字取 projects ⇒ target=f.dir/projects 会包住现有项目根 ⇒ 拒

@@ -1,5 +1,5 @@
 /**
- * B-1（M4）· 项目概览「定时」纯视图（无 store 依赖，node 静态渲染可测）。
+ * B-1· 项目概览「定时」纯视图（无 store 依赖，node 静态渲染可测）。
  * 容器见 `ProjectTriggers.tsx`；口径见该文件头注。
  */
 import type { CSSProperties, ReactElement } from 'react';

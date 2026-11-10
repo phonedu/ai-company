@@ -1,5 +1,5 @@
 /**
- * `task:merge`（M3-P-4 / BRK16-b）——把一个 changeset 合并到项目主分支。
+ * `task:merge`（/ -b）——把一个 changeset 合并到项目主分支。
  *
  * 真值表（`changesets.state`）：
  *  - `open --merge--> merged`（唯一正向迁移；同时写 `merged_at`）；
@@ -52,7 +52,7 @@ export interface MergeChangesetInput {
   changesetId: number;
   /** 项目根（主分支所在仓库）。调用方从 `projects.root_dir` 取。 */
   repoRoot: string;
-  /** S13-G/D-N06：项目配置的合并目标分支（缺省/NULL ⇒ 沿用 main/master）。 */
+  /** /：项目配置的合并目标分支（缺省/NULL ⇒ 沿用 main/master）。 */
   targetBranch?: string | null;
   now?: number;
 }

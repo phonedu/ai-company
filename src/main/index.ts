@@ -74,8 +74,8 @@ import {
 import { buildSplashDataUrl, buildStartupErrorDataUrl } from './startup-splash.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// T0.1 骨架 + T0.5 接线：生命周期 / 窗口 / 托盘 / 单实例锁 / DB+迁移 / IPC。
-//   T0.5：DB 只在主进程打开（唯一写者）；IPC 只暴露 §7.3 的通道。
+//  骨架 + 接线：生命周期 / 窗口 / 托盘 / 单实例锁 / DB+迁移 / IPC。
+//   DB 只在主进程打开（唯一写者）；IPC 只暴露 §7.3 的通道。
 // ─────────────────────────────────────────────────────────────────────────────
 
 // 2026-11-06 v0.1.1：隔离/便携场景的 userData 覆盖（必须在 app ready 前设置）。
@@ -90,11 +90,11 @@ protocol.registerSchemesAsPrivileged([
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 
-// ── 崩溃兜底 + 崩溃日志（`DEV §11`；老板拍板：本地、不上传）──
+// ── 崩溃兜底 + 崩溃日志（``；要求：本地、不上传）──
 let crashDb: ReturnType<typeof openDatabase> | null = null;
 /** OPT-EXT-1b：主进程 repo（托盘未读读数用；init 后回填）。 */
 let mainRepo: ReturnType<typeof createSqliteChatRepo> | null = null;
-/** M3：微信 1:1 通道（主进程内，无额外进程；demo/selftest 不装配）。 */
+/** 微信 1:1 通道（主进程内，无额外进程；demo/selftest 不装配）。 */
 let imManager: ImManager | null = null;
 function recentActivityLines(limit = 5): string[] {
   if (!crashDb) return [];
@@ -180,19 +180,19 @@ let appReadyAt = 0;
 const selfTestEnabled = process.env['AICO_T05_SELFTEST'] === '1';
 /** 演示数据：设 `AICO_T05_DEMO=1` 且库为空时灌入（仅用于截图/查看）。 */
 const demoEnabled = process.env['AICO_T05_DEMO'] === '1';
-/** T0.7 演示：`AICO_T07_DEMO=1` 时种子一个带 `plan_steps`/`tool_call`/`acceptance` 的任务，并让渲染层打开任务详情视图。 */
+/**  演示：`AICO_T07_DEMO=1` 时种子一个带 `plan_steps`/`tool_call`/`acceptance` 的任务，并让渲染层打开任务详情视图。 */
 const t07DemoEnabled = process.env['AICO_T07_DEMO'] === '1';
-/** T0.7 自测：`AICO_T07_SELFTEST=1` 时逐 tab 数 DOM 条数 vs `task:get().counts`，打印 `[t07]`；不一致则 `exitCode=1`。 */
+/**  自测：`AICO_T07_SELFTEST=1` 时逐 tab 数 DOM 条数 vs `task:get().counts`，打印 `[t07]`；不一致则 `exitCode=1`。 */
 const t07SelfTestEnabled = process.env['AICO_T07_SELFTEST'] === '1';
 /** 就绪可见自测：`AICO_ASSIST_STATUS_TEST=1` 时推一条 `assistant_starting` → 断言状态行出现/消失，打印 `[assist-status]`。 */
 const assistStatusTestEnabled = process.env['AICO_ASSIST_STATUS_TEST'] === '1';
-/** GenUI 自测（M1-5）：`AICO_GENUI_SELFTEST=1` 时种入 GenUI 示例卡 → 断言 AC1/AC2/AC4/AC5，打印 `[genui]`。 */
+/** GenUI 自测：`AICO_GENUI_SELFTEST=1` 时种入 GenUI 示例卡 → 断言 AC1/AC2/AC4/AC5，打印 `[genui]`。 */
 const genuiSelfTestEnabled = process.env['AICO_GENUI_SELFTEST'] === '1';
-/** M1-3 自测：`AICO_WAITS_SELFTEST=1` 时假 preload 注入 `task:get().waits` → 断言等待条，打印 `[waits]`。 */
+/**  自测：`AICO_WAITS_SELFTEST=1` 时假 preload 注入 `task:get().waits` → 断言等待条，打印 `[waits]`。 */
 const waitsSelfTestEnabled = process.env['AICO_WAITS_SELFTEST'] === '1';
-/** M1-3 端到端：`AICO_WAITS_E2E=1` 时种入**真实路径冲突**（引擎 hold）→ 渲染层读真 `waits`，打印 `[waits-e2e]`。 */
+/**  端到端：`AICO_WAITS_E2E=1` 时种入**真实路径冲突**（引擎 hold）→ 渲染层读真 `waits`，打印 `[waits-e2e]`。 */
 const waitsE2eEnabled = process.env['AICO_WAITS_E2E'] === '1';
-/** M1-5 GenUI 自测用的 schemaId。 */
+/**  GenUI 自测用的 schemaId。 */
 const GENUI_DEMO_SCHEMA_ID = 'sch_demo1';
 /** 基准场景清单（Q-D）：startup / ipc / evt / scroll / sqlite。 */
 const benchScenarios = (process.env['AICO_BENCH_SCENARIOS'] ?? 'startup,ipc,evt,scroll,sqlite,switch,projection,input,memory')
@@ -211,15 +211,15 @@ if (benchEnabled) {
 const BENCH_MESSAGE_COUNT = Number(process.env['AICO_BENCH_MESSAGES'] ?? '1000');
 
 /** 主题起跑钩子：`AICO_THEME=light|dark` 强制主题（截图/预览用）；缺省＝跟随系统。
- *  同一位点即未来「设置 → 通用 → 明/暗/跟随」的落点（`OPT-UI-7` 口径）。 */
+ *  同一位点即未来「设置 → 通用 → 明/暗/跟随」的落点（`` 口径）。 */
 const themePref = process.env['AICO_THEME'];
 if (themePref === 'light' || themePref === 'dark') nativeTheme.themeSource = themePref;
 
 let mainWindow: BrowserWindow | null = null;
-/** BRK20：渲染层挂载握手（ui:mounted）。 */
+/** 渲染层挂载握手（ui:mounted）。 */
 let uiMounted = false;
 /**
- * F-05（2026-11-06）：启动加载状态机——启动页（data:）→ 真实加载单飞 → committed → mounted。
+ * （2026-11-06）：启动加载状态机——启动页（data:）→ 真实加载单飞 → committed → mounted。
  * 规则见 `startup-load.ts`；旧的 about:blank 早探针/15s 兜底/6s 固定重发三套看门狗已退役
  * （它们会互相 abort，机器慢时把白窗放大到 ~39s）。
  */
@@ -232,13 +232,13 @@ let startupRetryTimer: NodeJS.Timeout | null = null;
 let startupMountTimer: NodeJS.Timeout | null = null;
 /** 本窗口启动起点（诊断/读数用）。 */
 let startupLoadStartedAt = 0;
-/** 自动更新（P-N05/E-6；2026-11-06 老板裁接 GitHub）。 */
+/** 自动更新（P-N05/E-6；2026-11-06 决定接 GitHub）。 */
 let updateController: UpdateController | null = null;
 let updateCheckTimer: NodeJS.Timeout | null = null;
-/** BRK20 诊断：渲染层 console 最近 50 条（白窗时落盘）。 */
+/**  诊断：渲染层 console 最近 50 条（白窗时落盘）。 */
 const rendererConsoleLines: string[] = [];
 let tray: Tray | null = null;
-/** M3-P-3：上次托盘状态（只在变化时留日志，防刷屏）。 */
+/** 上次托盘状态（只在变化时留日志，防刷屏）。 */
 let lastTrayState: TrayState | null = null;
 /** 托盘/OS 通知点击的目标；窗口未挂载时暂存，ui:mounted 后补推。 */
 let pendingOpenView: OpenViewTarget | null = null;
@@ -246,16 +246,16 @@ let shotTaken = false;
 let shotTimer: ReturnType<typeof setTimeout> | null = null;
 let selfTestDone = false;
 let shellMountedAt = 0;
-/** D-22 模型目录预热：首帧后再启动，避免动态 import Pi SDK 抢主线程（D-2 startup 红）。 */
+/**  模型目录预热：首帧后再启动，避免动态 import Pi SDK 抢主线程（D-2 startup 红）。 */
 let catalogPreheatStarted = false;
 let benchRepo: ReturnType<typeof createSqliteChatRepo> | null = null;
 /** P-06/P-07：bench 专用项目/任务（50 任务＋一条 1000 事件任务）。 */
 let benchProjectIds: number[] = [];
 let benchTaskId: number | null = null;
 let engine: Engine | null = null;
-/** GAP1：cron/事件触发器（main 注入物化器；tick 在引擎事务外）。 */
+/** cron/事件触发器（main 注入物化器；tick 在引擎事务外）。 */
 let triggerService: ReturnType<typeof createTriggerService> | null = null;
-/** T0.7 演示任务 id（DEMO/SELFTEST 用）。 */
+/**  演示任务 id（DEMO/SELFTEST 用）。 */
 let t07TaskId: number | null = null;
 /** evt-sink（最小版）：统一信封 `{channel,batchSeq,items[]}`，16ms 窗口 / 单批 ≤500。 */
 const evtSink = new EvtSink(() =>
@@ -284,7 +284,7 @@ async function initDatabaseAndIpc(): Promise<void> {
     if (benchEnabled && existsSync(dbFile)) unlinkSync(dbFile);
     const db = openDatabase(dbFile);
     crashDb = db;
-    // B0-12：迁移前**自动备份**（有未应用迁移才做）；备份或迁移失败 → 拒绝继续开窗（不带坏库跑）。
+    // 迁移前**自动备份**（有未应用迁移才做）；备份或迁移失败 → 拒绝继续开窗（不带坏库跑）。
     let result;
     try {
       const backup = backupBeforeMigration(db, { dataDir: app.getPath('userData') });
@@ -307,7 +307,7 @@ async function initDatabaseAndIpc(): Promise<void> {
       return;
     }
     console.log(`[db] opened ${dbFile} | migrations ${JSON.stringify(result)}`);
-    // M2-D：可控时点 WAL checkpoint（装配期，非热路径）——防 -wal 无限增长；busy 不打断启动（下次时点再试）。
+    // 可控时点 WAL checkpoint（装配期，非热路径）——防 -wal 无限增长；busy 不打断启动（下次时点再试）。
     const cp = checkpointWal(db);
     console.log(`[db] wal checkpoint ${cp.ok ? 'ok' : 'busy（下次时点重试）'}`);
     // 2026-10-29 P2（P-N05）：开机自启（默认 false；只读设置，不静默写系统）。
@@ -329,7 +329,7 @@ async function initDatabaseAndIpc(): Promise<void> {
     if (ensureAssistantSeeded(db).seeded) {
       console.log('[db] 引导名册：已种幕僚长（0 号；employee 表为空时）');
     }
-    // B1（M3-N-3）：内置技能包落 `<userData>/skills/builtin`；新库默认勾给幕僚长（已有配置不动）。
+    // 内置技能包落 `<userData>/skills/builtin`；新库默认勾给幕僚长（已有配置不动）。
     try {
       const builtins = ensureBuiltinSkills(db, join(app.getPath('userData'), 'skills'));
       // 只做一次：老板清空技能是明确意图，重启不能又把内置技能补回去。
@@ -353,9 +353,9 @@ async function initDatabaseAndIpc(): Promise<void> {
     setRoleMap(readSetting(db, 'models.role_map'));
     // N5 余账（2026-10-16）：`models.fallback_chain` → 启动注入（运行时降级＋critic/verifier 异供应商备选）
     setFallbackChain(readSetting(db, 'models.fallback_chain'));
-    // D-22 assistant：模型目录改到 `ui:mounted` 后再预热（见下）。启动期动态 import Pi SDK
+    //  assistant：模型目录改到 `ui:mounted` 后再预热（见下）。启动期动态 import Pi SDK
     // 会与窗口首帧争主线程——D-2 实测壳挂载 1835ms/首帧 2803ms；不在此处同步预热。
-    // M4-C：主题（light/dark/system）——启动即应用；写入时由 settings:set 立即切换。
+    // 主题（light/dark/system）——启动即应用；写入时由 settings:set 立即切换。
     const savedTheme = readSetting(db, 'ui.theme');
     if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system') {
       nativeTheme.themeSource = savedTheme;
@@ -368,25 +368,25 @@ async function initDatabaseAndIpc(): Promise<void> {
       seedBenchMessages(repo, BENCH_MESSAGE_COUNT);
       seedBenchTasks(db);
     }
-    // ── 引擎装配（DEV §4.5 / engine README）：openDatabase → runMigrations → Engine → recover → start ──
+    // ── 引擎装配（/ engine README）：openDatabase → runMigrations → Engine → recover → start ──
     // onEvent → evt-sink（同一主体 16ms 窗口内 last-wins）→ `evt:batch` 推渲染层。
-    // OPT-AI-1：**懒装配**（2564）—— 启动路径**不被装配阻塞**；首次派发才装配（含 30s 超时），
+    // **懒装配**（2564）—— 启动路径**不被装配阻塞**；首次派发才装配（含 30s 超时），
     // 失败/无凭据 → **不可用态**（
     // 绝不回落 mock 桩，L39）。
     const dispatchToEngine = (event: EngineEvent) => engine?.dispatch(event);
-    // BRK7：员工不可用时按策略改派同角色在职员工；无候选返回 false（走 BRK2 的 error＋异常卡）。
+    // 员工不可用时按策略改派同角色在职员工；无候选返回 false（走的 error＋异常卡）。
     const reassignUnavailable = createUnavailableReassigner(db, async (event) => {
       await dispatchToEngine(event);
     });
-    // OPT-AI-1：**懒装配**（2564/2570）—— 启动路径**不被装配阻塞**（构造期零 await）；
+    // **懒装配**（2564/2570）—— 启动路径**不被装配阻塞**（构造期零 await）；
     // 首次派发才装配（含 30s 超时）；三态可见；失败/超时/无凭据 → **不可用态**（绝不回落 mock 桩，L39）。
     const empLazy = createLazyEmployeeRuntime({
       db,
-      cwd: process.cwd(), // 构造期缺省 cwd（M1 inplace：任务工作目录 == 项目根）；任务级 cwd 隔离 → M2
+      cwd: process.cwd(), // 构造期缺省 cwd（inplace：任务工作目录 == 项目根）；任务级 cwd 隔离 →
       sessionDir: defaultSessionDir(app.getPath('userData')),
       toolOutputDir: join(app.getPath('userData'), 'tool-output'),
       buildContext: buildEmployeeContext,
-      // B2-4/D-30：实测路径登记 → 引擎（内存 ws.touched ∪ DB brief，崩溃恢复不丢）。
+      // /：实测路径登记 → 引擎（内存 ws.touched ∪ DB brief，崩溃恢复不丢）。
       onTouchedPaths: (workItemId: number, paths: string[]) => engine?.recordWorkItemTouchedPaths(workItemId, paths),
       timeoutMs: 30_000,
       onStatus: (s) => {
@@ -398,20 +398,20 @@ async function initDatabaseAndIpc(): Promise<void> {
       onUnavailable: (reason) =>
         createUnavailableExecutor({ dispatch: dispatchToEngine, reason, onWorkItemUnavailable: reassignUnavailable }),
     });
-    // M2-D：员工会话成本走**引擎**入口（预算闸门才会真生效；缺引擎时回退记账并显式告警）。
+    // 员工会话成本走**引擎**入口（预算闸门才会真生效；缺引擎时回退记账并显式告警）。
     const executor = empLazy.createExecutor(dispatchToEngine, (input) => engine?.recordCost(input));
     // 件 A（调度与费率可配面）：设置页「高级」→ 装配期读设置 → Engine 配置（写入即生效于**下次装配**；
     // 未设置/越界值不出现于配置 → Engine 回落自身缺省——不臆造）。
     engine = new Engine(db, executor, {
       onEvent: (event) => {
         evtSink.push('evt:task', event, `${event.scope}:${event.id}`);
-        // BRK15（挂载 2）：任务状态即大厅「谁在干什么」的数据源——一并推 `evt:hall`（实时刷新，不靠下一次拉取）。
+        // （挂载 2）：任务状态即大厅「谁在干什么」的数据源——一并推 `evt:hall`（实时刷新，不靠下一次拉取）。
         evtSink.push('evt:hall', { reload: `${event.scope}:${event.id}` }, `hall:${event.scope}:${event.id}`);
-        // GAP1：任务完成事件 → 排队给 trigger service（真正建任务在 tick，避开引擎事务内重入）。
+        // 任务完成事件 → 排队给 trigger service（真正建任务在 tick，避开引擎事务内重入）。
         triggerService?.onEngineEvent(event);
       },
       // RM-2（2026-10-19 真机）：任务已离开待决策/待批准后，同任务的 pending ask 卡一并标已阅。
-      // 只在**已提交**回调里做；按任务当前状态判，不猜事件名（D4：task_started/task_completed 等不是真事件名）。
+      // 只在**已提交**回调里做；按任务当前状态判，不猜事件名（：task_started/task_completed 等不是真事件名）。
       onCommitted: (event) => {
         if (event.scope !== 'task') return;
         if (!shouldClearPendingAsks(event, getTaskById(db, event.id)?.state)) return;
@@ -428,13 +428,13 @@ async function initDatabaseAndIpc(): Promise<void> {
         const changed = acknowledgePendingAsksIfTaskSettled(db, event.id, Date.now(), { includePermission });
         if (changed > 0) evtSink.push('evt:inbox', { reload: 'inbox' }, `inbox:resolved:${event.id}`);
       },
-      // BRK15：卡片落库 → `evt:notify`/`evt:inbox`（新卡/待办实时刷新；同一主体 16ms 窗口 last-wins）。
+      // 卡片落库 → `evt:notify`/`evt:inbox`（新卡/待办实时刷新；同一主体 16ms 窗口 last-wins）。
       onCard: (info) => {
         evtSink.push('evt:notify', info, `card:${info.card}:${info.taskId ?? 'global'}`);
         evtSink.push('evt:inbox', info, `card:${info.card}:${info.taskId ?? 'global'}`);
         refreshTrayStatus(); // OPT-EXT-1b：托盘待办随真卡刷新
         // RM-5：卡片已落库＝任务进入等老板态；停掉**同任务**正在跑的幕僚长会话，
-        // 防止批准前继续写文件/外发（原 F3：T-1002 批准前已落两个文件并发出长文）。
+        // 防止批准前继续写文件/外发（原：T-1002 批准前已落两个文件并发出长文）。
         if (info.taskId != null && (info.card === 'approval' || info.card === 'decision')) {
           void deps.assistant
             ?.abortForTask?.(info.taskId)
@@ -446,7 +446,7 @@ async function initDatabaseAndIpc(): Promise<void> {
             });
         }
       },
-      // UG-02：截止前提醒 / 逾期卡（只提醒，不改状态；终态任务的残留 timer 由引擎丢弃）。
+      // 截止前提醒 / 逾期卡（只提醒，不改状态；终态任务的残留 timer 由引擎丢弃）。
       onDeadline: ({ taskId, shortId, title, deadline, overdue }) => {
         const label = shortId ?? `#${taskId}`;
         const due = new Date(deadline).toLocaleString('zh-CN', { hour12: false });
@@ -475,7 +475,7 @@ async function initDatabaseAndIpc(): Promise<void> {
         evtSink.push('evt:inbox', info, dedupeKey);
         refreshTrayStatus();
       },
-      // BRK17/BRK4：任务级取消/暂停真中断在跑的件 → **真停该件的员工会话**
+      // /：任务级取消/暂停真中断在跑的件 → **真停该件的员工会话**
       //（`AgentSession.abort()`；懒装配未就绪 ⇒ 返回 false 如实——会话可能还在起，停件不受影响）。
       onWorkItemInterrupted: ({ workItemId, employeeId, taskId }) => {
         const stopped = empLazy.abort(employeeSessionKey({ employeeId, taskId, workItemId }));
@@ -483,7 +483,7 @@ async function initDatabaseAndIpc(): Promise<void> {
           `[agent] 中止工作项 ${workItemId}（员工 ${employeeId}）：会话${stopped ? '已中止' : '未找到（可能未在跑）'}`,
         );
       },
-      // BRK17/BRK4：不挂件的**角色会话**（planner/critic/verifier）同样真停——
+      // /：不挂件的**角色会话**（planner/critic/verifier）同样真停——
       // 如验证中取消/暂停时跑着的 verifier 会话。
       onTaskCancelled: ({ taskId }) => {
         const workItemIds = (
@@ -494,17 +494,17 @@ async function initDatabaseAndIpc(): Promise<void> {
           if (empLazy.abort(key)) console.log(`[agent] 中止角色会话 ${key}`);
         }
       },
-      // M1-4 接缝生产注入（BRK22，2026-10-16）：此前 Engine 无 `git` ⇒ 工作区/指纹整条未接——
+      //  接缝生产注入（，2026-10-16）：此前 Engine 无 `git` ⇒ 工作区/指纹整条未接——
       // 产物 `source`/`sha256` 恒 NULL、`staging` 项目实按 inplace 派发、派发 payload 无 cwd。
       // 注入后：dispatch 即建工作区（inplace=项目根 / staging=worktree）→ 产物带来源指纹、changesets 真写。
-      // worktree 落 `userData`（软件数据不散在仓库旁；PLAN：软件自己的东西全在自身数据目录）。
+      // worktree 落 `userData`（软件数据不散在仓库旁；：软件自己的东西全在自身数据目录）。
       git: createGitRunner(),
       worktreesBaseDir: join(app.getPath('userData'), 'worktrees'),
       ...engineTuningFromSettings((key) => readSetting(db, key)),
     });
     const recovery = await engine.recover();
     engine.start();
-    // GAP1：cron/事件触发器（物化在引擎 tick 外：createTask + triage）。
+    // cron/事件触发器（物化在引擎 tick 外：createTask + triage）。
     triggerService = createTriggerService({
       db,
       materialize: async (template) => {
@@ -512,8 +512,8 @@ async function initDatabaseAndIpc(): Promise<void> {
         // C4：公司日预算已用尽 → 不物化（trigger 保持 due/pending，预算恢复后再试）。
         const budgetHold = engine.companyDailyBudgetHold();
         if (budgetHold) throw new Error(budgetHold);
-        // GAP1：触发建任务走**共享建任务管线**（docs-check/编制/默认档/来源），
-        // 不再裸 createTask 绕过 M3-DOC-4/D-11。
+        // 触发建任务走**共享建任务管线**（docs-check/编制/默认档/来源），
+        // 不再裸 createTask 绕过 /。
         const task = await handleTaskCreate(deps, {
           projectId: template.projectId,
           title: template.title,
@@ -526,7 +526,7 @@ async function initDatabaseAndIpc(): Promise<void> {
       },
     });
     triggerService.start();
-    // M2-A 余：日报 tick——每分钟检查一次「是否已过当日日报时间」（幂等键 digest:<date> ⇒ 一天只发一次、重启安全）。
+    //  余：日报 tick——每分钟检查一次「是否已过当日日报时间」（幂等键 digest:<date> ⇒ 一天只发一次、重启安全）。
     // 时间来源＝设置 `notify.digestAtMinutes`（未设 → 540 ＝ 09:00，与 UI 文案一致）。
     const digestTimer = setInterval(() => {
       try {
@@ -538,7 +538,7 @@ async function initDatabaseAndIpc(): Promise<void> {
           const res = emitDailyDigest(db, { now: nowMs });
           if (res.delivered) {
             console.log(`[notify] 日报已发：${digestText(res.content)}`);
-            // BRK15：全局卡也要实时可见（taskId=null ⇒ 信封照送、store 路由刷新）
+            // 全局卡也要实时可见（taskId=null ⇒ 信封照送、store 路由刷新）
             evtSink.push('evt:notify', { taskId: null, kind: 'notification', card: 'digest' });
             evtSink.push('evt:inbox', { taskId: null, kind: 'notification', card: 'digest' });
           }
@@ -573,10 +573,10 @@ async function initDatabaseAndIpc(): Promise<void> {
 
     const deps: IpcDeps = {
       repo,
-      // RW-50（2026-11-05）：真语义分类器——幕僚长听懂自然话的地基（此前从未注入，
+      // （2026-11-05）：真语义分类器——幕僚长听懂自然话的地基（此前从未注入，
       // defaultClassify 一律 chat → 频道自由文本派任务整链失效；失败回落 chat 绝不误建）。
-      // B2-2（D-30①）：默认 triage=assistant——自由文本交幕僚长唯一分诊，分诊器只在
-      // `AICO_TRIAGE=classifier` 回退模式才被调用（代码保留至 B2 验收后另批删除）。
+      // 默认 triage=assistant——自由文本交幕僚长唯一分诊，分诊器只在
+      // `AICO_TRIAGE=classifier` 回退模式才被调用（代码保留至验收后另批删除）。
       triageMode: readTriageMode(process.env['AICO_TRIAGE']),
       classify: createSemanticClassifier({
         db,
@@ -586,17 +586,17 @@ async function initDatabaseAndIpc(): Promise<void> {
       // 仅开发态允许故障注入（逐页错误态测试用；生产恒 false）。
       allowFaultInjection: !app.isPackaged,
       engine,
-      // M4-C：主题切换 → nativeTheme（renderer 的 prefers-color-scheme 随即变化）。
+      // 主题切换 → nativeTheme（renderer 的 prefers-color-scheme 随即变化）。
       // P-N05：应用信息（版本/数据目录）——只读，路径由主进程解析。
       appInfo: () => ({ version: app.getVersion(), userDataDir: app.getPath('userData') }),
       setTheme: (theme) => {
         nativeTheme.themeSource = theme;
       },
-      // BRK9（挂载 2）：插话直通 → steer 进行中的员工会话（懒装配未就绪 ⇒ false，handler 如实回执）。
+      // （挂载 2）：插话直通 → steer 进行中的员工会话（懒装配未就绪 ⇒ false，handler 如实回执）。
       steerEmployee: (sessionKey, text) => empLazy.steer(sessionKey, text),
-      // M4-B-9：Key 保存/清除后丢弃已装配运行时，下一次员工会话用新凭据重新装配。
+      // Key 保存/清除后丢弃已装配运行时，下一次员工会话用新凭据重新装配。
       onProviderKeyChanged: () => empLazy.reset(),
-      // R2-4：项目接入的目录选择——**只经主进程 dialog**（renderer 永远拿不到任意路径，D1 铁律）
+      // R2-4：项目接入的目录选择——**只经主进程 dialog**（renderer 永远拿不到任意路径， 铁律）
       pickDirectory: async () => {
         // 自动化验收专用：仅非打包态、且显式设了 env 时生效（生产/打包态绝不读任意路径）。
         const testPick = process.env.AICO_TEST_PICK_DIR?.trim();
@@ -613,7 +613,7 @@ async function initDatabaseAndIpc(): Promise<void> {
           : await dialog.showOpenDialog(options);
         return r.canceled || r.filePaths.length === 0 ? null : (r.filePaths[0] as string);
       },
-      // GAP7（M3-N-3）：技能安装受管根＋目录选择（标题与项目目录明确区分）。
+      // 技能安装受管根＋目录选择（标题与项目目录明确区分）。
       db,
       stagedFilesDir: () => join(app.getPath('userData'), 'staged-inputs'),
       skillsDir: () => join(app.getPath('userData'), 'skills'),
@@ -630,11 +630,11 @@ async function initDatabaseAndIpc(): Promise<void> {
           : await dialog.showOpenDialog(options);
         return r.canceled || r.filePaths.length === 0 ? null : (r.filePaths[0] as string);
       },
-      // BRK16-a（挂载 3）：系统打开 / 在文件夹中显示 / 导出目录——同样**只经主进程**（注入 `shell`，handler 不直接碰 electron）。
+      // -a（挂载 3）：系统打开 / 在文件夹中显示 / 导出目录——同样**只经主进程**（注入 `shell`，handler 不直接碰 electron）。
       openPath: (absPath) => shell.openPath(absPath),
       revealPath: (absPath) => shell.showItemInFolder(absPath),
       exportDir: () => join(app.getPath('userData'), 'exports'),
-      // M4-D-1：工具大输出归档根（展开时主进程按 ref 受控读取）。
+      // 工具大输出归档根（展开时主进程按 ref 受控读取）。
       toolOutputDir: join(app.getPath('userData'), 'tool-output'),
       // 2026-10-17 真机反馈：测试通知（不写日报幂等键；走真实 desktop 通道＋系统通知旁路）。
       notifyTest: () => {
@@ -658,7 +658,7 @@ async function initDatabaseAndIpc(): Promise<void> {
       },
     };
 
-    // M3 微信 1:1（官方 B 运输）：主进程内 adapter，不引入 OpenClaw/额外进程。
+    //  微信 1:1（官方 B 运输）：主进程内 adapter，不引入 OpenClaw/额外进程。
     // demo/bench/selftest 不接外网；非这些模式才装配（未绑定则状态 login_required）。
     const imEnabled =
       !benchEnabled &&
@@ -704,7 +704,7 @@ async function initDatabaseAndIpc(): Promise<void> {
       '[ipc] registered: chat:send/chat:list/inbox:list/inbox:answer/task:approve/task:create/task:list/task:get/task:transition',
     );
 
-    // 幕僚长真实会话（T0.4 + 就绪可见 L13）：Pi SDK 是 ESM-only、冷启可达数十秒 →
+    // 幕僚长真实会话（就绪可见 L13）：Pi SDK 是 ESM-only、冷启可达数十秒 →
     //  ① app ready 后**后台预热**（不阻塞窗口：把冷启从"首条消息时"提前到"启动时"）；
     //  ② deps.assistant 是**懒端口**：收到消息才 `ensureAssistant`，未就绪先推
     //     `evt:message{status:'assistant_starting'}`（UI 显示「幕僚长启动中…」），就绪后补真回复；
@@ -728,10 +728,10 @@ async function initDatabaseAndIpc(): Promise<void> {
         persistDir: defaultSessionDir(app.getPath('userData')),
         toolOutputDir: join(app.getPath('userData'), 'tool-output'),
         onTextDelta: (delta: string) => evtSink.push('evt:message', { delta }),
-        // RW-51：卡片工具的引擎事件/待办刷新/grant 联动（与 deps 同源）。
+        // 卡片工具的引擎事件/待办刷新/grant 联动（与 deps 同源）。
         engine,
-        // B2-1：幕僚长指挥四工具的宿主侧回调——create_task 走 handleTaskCreate 全部门（预算预检/
-        // 模型白名单/D1 分诊），steer 复用 LazyEmployeeRuntime.steer（与 `#短号` 插话同一实现）。
+        // 幕僚长指挥四工具的宿主侧回调——create_task 走 handleTaskCreate 全部门（预算预检/
+        // 模型白名单/ 分诊），steer 复用 LazyEmployeeRuntime.steer（与 `#短号` 插话同一实现）。
         createTask: (input: Record<string, unknown>) => handleTaskCreate(deps, input),
         steerEmployee: (sessionKey: string, text: string) => empLazy.steer(sessionKey, text),
         onInboxChanged: () => {
@@ -846,7 +846,7 @@ function seedBenchTasks(db: SqliteDb): void {
 }
 
 /**
- * T0.7 演示数据（`AICO_T07_DEMO=1`）：建一个任务，**经引擎驱动**出 `plan_steps` 投影
+ *  演示数据（`AICO_T07_DEMO=1`）：建一个任务，**经引擎驱动**出 `plan_steps` 投影
  * （`plan_drafted.payload.steps[]`）+ `progress_reported` + `tool_call`，供任务详情三 tab 有真实数据。
  * 库非空时复用第一条任务（幂等）。
  */
@@ -923,7 +923,7 @@ async function seedT07Demo(db: SqliteDb, engineRef: Engine): Promise<number> {
   return task.id;
 }
 
-/** M1-5：种入三张 GenUI 示例卡（供 `AICO_GENUI_SELFTEST` 断言 AC1/AC4；不影向任务详情）。 */
+/** 种入三张 GenUI 示例卡（供 `AICO_GENUI_SELFTEST` 断言 AC1/AC4；不影向任务详情）。 */
 function seedGenUiDemoReports(db: SqliteDb, taskId: number): void {
   const at = Date.now();
   const valid = {
@@ -1017,7 +1017,7 @@ function runStartupMaintenance(db: SqliteDb): void {
   }
 }
 
-/** BRK20 根因修复：渲染层加载唯一入口——拒绝**响亮留痕**（此前 `void loadFile()` 把 pre-commit 失败吞掉）。 */
+/**  根因修复：渲染层加载唯一入口——拒绝**响亮留痕**（此前 `void loadFile()` 把 pre-commit 失败吞掉）。 */
 function loadRenderer(): Promise<boolean> {
   if (!mainWindow || mainWindow.isDestroyed()) return Promise.resolve(false);
   const devServerUrl = process.env['ELECTRON_RENDERER_URL'];
@@ -1039,7 +1039,7 @@ function loadRenderer(): Promise<boolean> {
 /** 自动更新接线：开发版/免安装版禁用并说明；安装版启动 20s 后静默自查。 */
 function initAutoUpdate(): void {
   const portable = Boolean(process.env['PORTABLE_EXECUTABLE_DIR']);
-  // B0-9 冒烟钩子：仅**开发版** + 显式 env；打包版永远走真 updater。
+  //  冒烟钩子：仅**开发版** + 显式 env；打包版永远走真 updater。
   const fakeUpdater =
     !app.isPackaged && process.env['AICO_UPDATE_FAKE'] === '1' ? createFakeUpdater() : null;
   const enabled = (app.isPackaged && !portable) || fakeUpdater != null;
@@ -1059,7 +1059,7 @@ function initAutoUpdate(): void {
   });
   ipcMain.handle('update:get', () => updateController?.getStatus() ?? null);
   ipcMain.handle('update:check', async () => updateController?.check() ?? null);
-  // B0-9：手动下载（autoDownload=false）——老板确认后才下载。
+  // 手动下载（autoDownload=false）——要求后才下载。
   ipcMain.handle('update:download', async () => updateController?.download() ?? { ok: false, error: '更新控制器未就绪' });
   ipcMain.handle('update:install', () => updateController?.install() ?? { ok: false, error: '更新控制器未就绪' });
   if (enabled) {
@@ -1074,7 +1074,7 @@ function initAutoUpdate(): void {
 }
 
 function createWindow(): void {
-  // F-05：窗口（重）建时启动状态归零——旧窗口的计时器已在 closed 里清掉。
+  // 窗口（重）建时启动状态归零——旧窗口的计时器已在 closed 里清掉。
   startupState = initialStartupState();
   uiMounted = false;
   startupLoadStartedAt = Date.now();
@@ -1097,7 +1097,7 @@ function createWindow(): void {
     title: 'AI 一人公司',
     webPreferences: {
       preload: resolvePreloadPath(),
-      // DEV §7.4：渲染进程隔离三件套。
+      // 渲染进程隔离三件套。
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -1110,7 +1110,7 @@ function createWindow(): void {
     mainWindow?.show();
   });
 
-  // 导航守卫（裁决②）：拖入文件/外链不得把窗口导航走（Electron 默认会把 drop 的文件当页面打开）。
+  // 导航守卫（决定②）：拖入文件/外链不得把窗口导航走（Electron 默认会把 drop 的文件当页面打开）。
   mainWindow.webContents.on('will-navigate', (event) => {
     event.preventDefault();
   });
@@ -1118,7 +1118,7 @@ function createWindow(): void {
 
   attachDidFailLoad(mainWindow.webContents, crashOptions);
 
-  // BRK20 诊断：白窗发生时把 console 最后 50 条 + URL/耗时 + 截图落盘；再按看门狗重载一次。
+  //  诊断：白窗发生时把 console 最后 50 条 + URL/耗时 + 截图落盘；再按看门狗重载一次。
   mainWindow.webContents.on('console-message', (event) => {
     const next = appendConsoleLine(
       rendererConsoleLines,
@@ -1161,7 +1161,7 @@ function createWindow(): void {
       .catch(() => undefined);
   };
 
-  // F-05（2026-11-06）：启动加载状态机——同窗启动页 → 真实加载单飞 → committed → mounted。
+  // （2026-11-06）：启动加载状态机——同窗启动页 → 真实加载单飞 → committed → mounted。
   // 旧的三套看门狗（about:blank 6s/15s 探针 + 6/12/18s 固定重发 + reload 空白页）已退役：
   // 它们会互相 abort，机器慢时把白窗放大到 ~39s（ERR_ABORTED 现场）。
   const clearStartupTimers = (): void => {
@@ -1357,7 +1357,7 @@ function flushPendingOpenView(): void {
   evtSink.push('evt:open-view', target, `open:${Date.now()}`);
 }
 
-/** M3-P-3：托盘状态（待我处理真读数＋正在干活真读数；状态点＝橙等/绿干/无）。 */
+/** 托盘状态（待我处理真读数＋正在干活真读数；状态点＝橙等/绿干/无）。 */
 function refreshTrayStatus(): void {
   if (!tray) return;
   const view = trayStatusView({ pending: pendingInboxCount(), running: runningWorkItemCount() });
@@ -1421,7 +1421,7 @@ async function encodeQrToDataUrl(url: string): Promise<string> {
 /**
  * OPT-EXT-1b：系统通知旁路——`notify()` 投递成功且走 `desktop` 时弹 OS 通知；
  * `digest`（静默期收纳）与 `employee:*`（员工间 mailbox）不弹。托盘读数同步刷新。
- * GAP3 收口：点击 OS 通知回到对应任务；不可用/失败如实记日志（通知已落库）。
+ *  收口：点击 OS 通知回到对应任务；不可用/失败如实记日志（通知已落库）。
  */
 function installNotifyDeliveryHook(): void {
   setNotifyDeliveryHook((delivery) => {
@@ -1482,7 +1482,7 @@ async function captureShellScreenshot(target: string): Promise<void> {
 }
 
 /**
- * T0.5 自测：注入**计数假 preload**（`globalThis.__AICO_API__`），
+ *  自测：注入**计数假 preload**（`globalThis.__AICO_API__`），
  * 程序化点 1 次「发送」+ 1 次「决策卡选项」，回报各自 IPC 计数。
  * 目的：证明「一次点击 = 恰好一条 IPC」（防按钮重复触发）。
  */
@@ -1521,7 +1521,7 @@ async function runSelfTest(): Promise<{ counts: Record<string, number> }> {
   return { counts };
 }
 
-/** 打开任务详情视图并等它渲染出数据（T0.7 DEMO / SELFTEST 用）。 */
+/** 打开任务详情视图并等它渲染出数据（DEMO / SELFTEST 用）。 */
 async function openT07View(): Promise<void> {
   if (!mainWindow) throw new Error('main window is not available');
   const wc = mainWindow.webContents;
@@ -1539,7 +1539,7 @@ async function openT07View(): Promise<void> {
 }
 
 /**
- * T0.7 自测（验收②）：逐 tab 数**真 DOM**条数 vs `task:get().counts`（查询返回条数）。
+ *  自测（验收②）：逐 tab 数**真 DOM**条数 vs `task:get().counts`（查询返回条数）。
  * 不靠肉眼；任一 tab 不相等即返回 `ok:false`（调用方置 `exitCode=1`）。
  */
 async function runT07SelfTest(): Promise<{
@@ -1607,7 +1607,7 @@ async function runAssistantStatusSelfTest(): Promise<{ ok: boolean; shown: strin
 }
 
 /**
- * M1-5 GenUI 自测（真 DOM）：AC1（非法 schema 降级文本）、AC2（点一次=1 条 `chat:card-action`）、
+ *  GenUI 自测（真 DOM）：AC1（非法 schema 降级文本）、AC2（点一次=1 条 `chat:card-action`）、
  * AC4（来源标注 + external-echo 强制只读）、AC5（`evt:message{schemaPatch}` 增量更新 DOM）。
  * 不联网、不花钱。
  */
@@ -1684,7 +1684,7 @@ async function runGenuiSelfTest(): Promise<{
 }
 
 /**
- * M1-3 自测（真 DOM）：假 preload 注入 `task:get().waits` →
+ *  自测（真 DOM）：假 preload 注入 `task:get().waits` →
  * AC① 路径冲突文案、AC③ 第二个枚举（employee_busy）、AC② 无等待时不显示占位。
  */
 async function runWaitsSelfTest(): Promise<{
@@ -1794,7 +1794,7 @@ async function runWaitsSelfTest(): Promise<{
 }
 
 /**
- * M1-3 端到端：种入**真实路径冲突**（两个任务、work item 的 `touched_paths` 相交）
+ *  端到端：种入**真实路径冲突**（两个任务、work item 的 `touched_paths` 相交）
  * → 引擎调度 hold 第二个（`path_conflict`）→ `task:list`/`task:get` 的 `waits` 由此而来。
  */
 async function seedPathConflictDemo(db: SqliteDb, engineRef: Engine): Promise<{ heldShortId: string; conflictShortId: string }> {
@@ -1819,7 +1819,7 @@ async function seedPathConflictDemo(db: SqliteDb, engineRef: Engine): Promise<{ 
 }
 
 /**
- * M1-3 端到端自测：真实路径冲突 → 左栏行内提示 + 任务详情等待条（短号 `@T-…`）；
+ *  端到端自测：真实路径冲突 → 左栏行内提示 + 任务详情等待条（短号 `@T-…`）；
  * 另用假 DTO 验证**无短号回退 `@#7`** 与**空则不显示**（均为真 DOM）。
  */
 async function runWaitsE2eSelfTest(): Promise<{
@@ -1918,7 +1918,7 @@ function registerShellHooks(): void {
   });
 
   ipcMain.on('ui:mounted', () => {
-    // F-05：渲染层挂载成功——启动状态机收口，清掉提交/mounted 计时器。
+    // 渲染层挂载成功——启动状态机收口，清掉提交/mounted 计时器。
     uiMounted = true;
     startupState = markMounted(startupState);
     for (const timer of [startupCommitTimer, startupRetryTimer, startupMountTimer]) {
@@ -1930,7 +1930,7 @@ function registerShellHooks(): void {
     if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) mainWindow.show();
     console.log('[ui] shell mounted');
     flushPendingOpenView();
-    // D-22：首帧已上屏后再预热模型目录（非阻塞；未加载时选型回落并说明，不静默猜）。
+    // 首帧已上屏后再预热模型目录（非阻塞；未加载时选型回落并说明，不静默猜）。
     if (!catalogPreheatStarted) {
       catalogPreheatStarted = true;
       setTimeout(() => {
@@ -1940,7 +1940,7 @@ function registerShellHooks(): void {
       }, 10000);
     }
 
-    // M1-3 端到端（真路径冲突 hold，真 DOM）。
+    //  端到端（真路径冲突 hold，真 DOM）。
     if (waitsE2eEnabled) {
       void runWaitsE2eSelfTest()
         .then((result) => {
@@ -1955,7 +1955,7 @@ function registerShellHooks(): void {
       return;
     }
 
-    // M1-3 等待可见自测（真 DOM；不联网）。
+    //  等待可见自测（真 DOM；不联网）。
     if (waitsSelfTestEnabled) {
       void runWaitsSelfTest()
         .then((result) => {
@@ -1970,7 +1970,7 @@ function registerShellHooks(): void {
       return;
     }
 
-    // M1-5 GenUI 自测（真 DOM；不联网）。
+    //  GenUI 自测（真 DOM；不联网）。
     
     if (genuiSelfTestEnabled) {
       void runGenuiSelfTest()
@@ -2002,7 +2002,7 @@ function registerShellHooks(): void {
       return;
     }
 
-    // T0.7 自测：真 DOM 条数 vs 查询条数（逐 tab）——优先于其它模式。
+    //  自测：真 DOM 条数 vs 查询条数（逐 tab）——优先于其它模式。
     if (t07SelfTestEnabled) {
       selfTestDone = true;
       void runT07SelfTest()
@@ -2018,7 +2018,7 @@ function registerShellHooks(): void {
       return;
     }
 
-    // T0.7 演示/截图：先打开任务详情视图，再截图（`AICO_SHOT`）。
+    //  演示/截图：先打开任务详情视图，再截图（`AICO_SHOT`）。
     if (t07DemoEnabled) {
       if (shotTaken) return;
       if (shotTimer) clearTimeout(shotTimer);
@@ -2090,7 +2090,7 @@ function registerShellHooks(): void {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// M0 基准场景（DEV §7.3.1 ⑤ / Q-D）。全部复用现有机制，不引新依赖。
+//  基准场景（⑤ / Q-D）。全部复用现有机制，不引新依赖。
 //   重要：dev 模式含 bundler / 首次依赖优化，**只作看门狗**；生产结论以**打包版基线**为准。
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -2525,7 +2525,7 @@ async function runBench(): Promise<void> {
   //  - `packaged`: app.isPackaged（打包版基线为 true；dev 为 false，dev 数字只作看门狗）
   //  - `throttling`: bench 模式下已关后台节流（`backgroundThrottling:false` + 三条 disable-*-throttling 开关）
   const benchMeta = { packaged: app.isPackaged, throttling: false };
-  // OPT-M8-2（a）：bench run JSON 带「可回指」provenance（同一公共件）。
+  // OPT-（a）：bench run JSON 带「可回指」provenance（同一公共件）。
   const provenance = getProvenance({ version: app.getVersion() });
   for (const m of results) Object.assign(m, benchMeta);
 
@@ -2552,7 +2552,7 @@ if (!gotSingleInstanceLock) {
   app.whenReady().then(() => {
     appReadyAt = Date.now();
     console.log('[app] ready');
-    // 裁决 6（2026-11-09）：内置 ffmpeg 进 PATH——员工 bash 直接 `ffmpeg ...` 即可用。
+    // 决定 6（2026-11-09）：内置 ffmpeg 进 PATH——员工 bash 直接 `ffmpeg ...` 即可用。
     // 打包态＝<resources>/ffmpeg；开发态＝仓库 vendor/ffmpeg（scripts/fetch-ffmpeg.mjs 取）。
     // 只是**前置**到 PATH：系统已装 ffmpeg 时两者都能用（前置保证随包版本优先、版本可控）。
     try {
@@ -2587,8 +2587,8 @@ if (!gotSingleInstanceLock) {
     } catch (error) {
       console.error(`[app] 内置 ffmpeg 挂载失败（不阻断启动）：${error instanceof Error ? error.message : String(error)}`);
     }
-    // B0-9：先接系统密钥环，再开库/引擎（供应商 Key 解析在会话装配时发生）。
-    // B0-9 事故修复：隔离 profile（AICO_USER_DATA_DIR）下 OSCrypt 密钥随临时目录消失 ⇒ 禁用加密。
+    // 先接系统密钥环，再开库/引擎（供应商 Key 解析在会话装配时发生）。
+    //  事故修复：隔离 profile（AICO_USER_DATA_DIR）下 OSCrypt 密钥随临时目录消失 ⇒ 禁用加密。
     // 仅显式允许（自动化 Key 加密配方）才视为稳定。
     installProviderKeyCodec({
       stable: userDataOverride == null || process.env['AICO_ALLOW_EPHEMERAL_ENCRYPTION'] === '1',

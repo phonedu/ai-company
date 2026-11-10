@@ -1,10 +1,10 @@
 /**
- * T0.7 · 任务详情视图容器（中栏）。
+ *  · 任务详情视图容器（中栏）。
  *
  * 职责：把 `store`（valtio）与**纯展示**的 `TaskDetail` 接起来——
  *   - `store.taskDetail` 取数（`task:get` 详情）；
  *   - 顶部**轻量返回/面包屑**（UI §1：导航只在左栏；这里只做“回老板频道”的返回路径 + 当前任务标识，**不是第二套导航**）；
- *   - 未选任务时自动选第一个（便于 T0.7 截图 / 自测直接进入；正常入口是左栏任务行）。
+ *   - 未选任务时自动选第一个（便于截图 / 自测直接进入；正常入口是左栏任务行）。
  * 组件仍然不做业务逻辑：取数、裁剪、翻译都在主进程/纯函数里。
  * 落点：本文件与 `TaskDetail.tsx` 同属 `TaskDetail*.tsx`（所有权）。
  */
@@ -55,13 +55,13 @@ export function TaskDetailView(): ReactElement {
   const ret = detailReturn(sessionSnap.detailReturnView);
   const [steerText, setSteerText] = useState('');
   const [steerNotice, setSteerNotice] = useState('');
-  /** UG-03：任务级设置的可选值（项目允许清单 + 只读模型目录 / 已启用技能）。 */
+  /** 任务级设置的可选值（项目允许清单 + 只读模型目录 / 已启用技能）。 */
 
 
 
   useEffect(() => {
     // 键盘交互批：**Esc 返回**（输入中/危险动作确认条/预览抽屉在场时不抢——
-    // 确认条与抽屉各自处理自己的 Esc；UG-05：抽屉开着时 Esc 只关抽屉，不退详情）。
+    // 确认条与抽屉各自处理自己的 Esc；：抽屉开着时 Esc 只关抽屉，不退详情）。
     const onKey = (event: KeyboardEvent): void => {
       if (event.key !== 'Escape') return;
       const target = event.target as HTMLElement | null;
@@ -80,7 +80,7 @@ export function TaskDetailView(): ReactElement {
     return () => document.removeEventListener('keydown', onKey);
   }, []);
 
-  /** 插话（2026-10-16）：走高置信直通同一路径（`#短号 要说的话`）——与频道手打等价，不打折。 */
+  /** 插话（2026-10-16）：走高置信直通同一路径（`#短号要说的话`）——与频道手打等价，不打折。 */
   async function sendSteer(): Promise<void> {
     if (detail == null || steerText.trim().length === 0) return;
     const text = steerText.trim();
@@ -124,7 +124,7 @@ export function TaskDetailView(): ReactElement {
             {label}
           </span>
         ) : null}
-        {/* 插话入口（2026-10-16 批）：`#短号 要说的话` 直通（steer 到员工下一步前；与频道同路径）。 */}
+        {/* 插话入口（2026-10-16 批）：`#短号要说的话` 直通（steer 到员工下一步前；与频道同路径）。 */}
         {detail ? (
           <span className="tdv__steer" data-testid="task-steer">
             <input
@@ -163,7 +163,7 @@ export function TaskDetailView(): ReactElement {
             {detailSnap.error}
           </span>
         ) : null}
-        {/* 挂载 3（BRK17）：详情操作失败回执（如「撤销结束」超 7 天窗口）——不静默。 */}
+        {/* 挂载 3：详情操作失败回执（如「撤销结束」超 7 天窗口）——不静默。 */}
         {detailSnap.actionNotice ? (
           <span
             className="task-detail-view__notice"
@@ -210,14 +210,14 @@ export function TaskDetailView(): ReactElement {
           </span>
         ) : null}
       </div>
-      {/* UI-2：详情本体抽为 TaskDetailBody（项目页行内展开复用同一组件）。 */}
+      {/* 详情本体抽为 TaskDetailBody（项目页行内展开复用同一组件）。 */}
       <TaskDetailBody />
     </section>
   );
 }
 
 /**
- * UI-2 抽出：详情**本体**（`<TaskDetail>` 的全部 props 接线）——整页视图与项目页行下展开共用。
+ *  抽出：详情**本体**（`<TaskDetail>` 的全部 props 接线）——整页视图与项目页行下展开共用。
  * `embedded`：行内模式——不自动选第一个任务、Esc 交给 `onEsc`（收起行）、取数回刷走 `reload`（不切视图）。
  */
 export function TaskDetailBody({ embedded = false, onEsc, reload }: {
@@ -283,7 +283,7 @@ export function TaskDetailBody({ embedded = false, onEsc, reload }: {
 
   const taskLabel = settingTask?.shortId ?? (settingTask ? `T${settingTask.id}` : null);
 
-  /** UG-03：复用已实现的高置信命令（加预算 / 模型 / 用技能）；**拒绝结构化回传**（`rejected`）→
+  /** 复用已实现的高置信命令（加预算 / 模型 / 用技能）；**拒绝结构化回传**（`rejected`）→
    *  就地显示在 popover 里，不当成功。回执原文同时落老板频道（同一份事实）。 */
   const runTaskCommand = async (text: string): Promise<TaskSettingResult> => {
     const result = await sendMessage({ text, attachments: [] });
@@ -293,16 +293,16 @@ export function TaskDetailBody({ embedded = false, onEsc, reload }: {
     return { ok: true };
   };
 
-  // OPT-EXT-13 成本 tab：选中任务变化时拉单任务成本（含 byModel）。
+  //  成本 tab：选中任务变化时拉单任务成本（含 byModel）。
   useEffect(() => {
     if (selected != null) void loadTaskCosts(selected);
   }, [selected]);
 
   const label = detail ? `${detail.task.shortId ?? `#${detail.task.id}`} · ${detail.task.title}` : null;
-  // M1-3：等待文案**只由单一映射表产出**（`waitingReason.ts`）；无等待 → 空数组 → 不渲染占位。
+  // 等待文案**只由单一映射表产出**（`waitingReason.ts`）；无等待 → 空数组 → 不渲染占位。
   const waitTexts = (detail?.waits ?? []).map((wait: TaskWaitDTO) => waitingReasonText(wait));
 
-  // UI-2：行内模式的 Esc＝收起行（输入中/确认条/抽屉在场时不抢——守卫与整页一致）。
+  // 行内模式的 Esc＝收起行（输入中/确认条/抽屉在场时不抢——守卫与整页一致）。
   useEffect(() => {
     if (!embedded) return;
     const onKey = (event: KeyboardEvent): void => {
@@ -331,7 +331,7 @@ export function TaskDetailBody({ embedded = false, onEsc, reload }: {
         refTargets={detailSnap.refTargets as unknown as ReadonlyArray<{ id: number; shortId: string | null; title: string }>}
         onReferenceArtifact={(artifactId, targetTaskId, mode) => void referenceArtifact(artifactId, targetTaskId, mode)}
         referenceNotice={detailSnap.referenceNotice}
-        // BRK16-a（挂载 3）：产物读/打开/文件夹 + GAP11 导出档案（导出是任务级：带上当前任务 id）
+        // -a（挂载 3）：产物读/打开/文件夹 + 导出档案（导出是任务级：带上当前任务 id）
         onReadArtifact={(artifactId, mode) => void readArtifact(artifactId, mode)}
         onExportArchive={(openAction) => {
           if (detail) void exportTaskArchive(detail.task.id, openAction);

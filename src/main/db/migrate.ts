@@ -1,12 +1,12 @@
 /**
- * 迁移执行器（DEV §4.1「迁移与台账」）。
+ * 迁移执行器（「迁移与清单」）。
  *
  * 机制：
- *  - 台账 `schema_migrations(version PK, name, applied_at, checksum)` 是可审计的已应用清单。
+ *  - 清单 `schema_migrations(version PK, name, applied_at, checksum)` 是可审计的已应用清单。
  *  - `PRAGMA user_version` 只作快速门槛/兼容旧库（0 = 空库）。
  *  - **一个迁移 = 一个事务**：应用 DDL + 写 `schema_migrations` + 置 `user_version`；
  *    任一步失败 → 整体 ROLLBACK（`user_version` 也是事务性的，已实测）。
- *  - 版本号已存在于台账 → 跳过；`checksum` 不匹配 → 报错（禁止改写历史迁移）。
+ *  - 版本号已存在于清单 → 跳过；`checksum` 不匹配 → 报错（禁止改写历史迁移）。
  *  - **迁移期 FK 关闭**（sqlite.org 官方「12 步法」）：每个迁移在 `foreign_keys = OFF` 下执行、
  *    `finally` 恢复 ON——**重建带子表外键的表**必须如此（`PRAGMA foreign_keys` 只能在事务外切换；
  *    「一迁移一事务」不受影响：开关在 BEGIN 前 / COMMIT 后）。首个用例：`008` 重建 `reports`
@@ -41,7 +41,7 @@ interface LedgerRow {
   checksum: string | null;
 }
 
-/** 确保台账存在（幂等）。迁移器启动先调它，才能读取「已应用清单」。 */
+/** 确保清单存在（幂等）。迁移器启动先调它，才能读取「已应用清单」。 */
 export function ensureLedger(db: SqliteDb): void {
   db.exec(LEDGER_DDL);
 }

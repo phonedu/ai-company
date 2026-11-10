@@ -1,5 +1,5 @@
 /**
- * T0.5 演示数据（**仅 `AICO_T05_DEMO=1` 且库为空时执行**，供 UI 截图基线 / 人工查看）。
+ *  演示数据（**仅 `AICO_T05_DEMO=1` 且库为空时执行**，供 UI 截图基线 / 人工查看）。
  * 不是生产路径；用最小 SQL 造一条「进行中任务 + 决策卡 + 受理卡 + 会话」，让老板频道有内容可渲染。
  */
 import { homedir } from 'node:os';
@@ -104,7 +104,7 @@ export function seedDemoData(db: SqliteDb, repo: ChatRepo): void {
     now: at - 55_000,
   });
 
-  // 左栏分组演示：再放几个不同 state 的任务（T0.6 验收②：ready → [data-testid=queue-item]）
+  // 左栏分组演示：再放几个不同 state 的任务（验收②：ready → [data-testid=queue-item]）
   const extra: Array<{ short: string; title: string; state: string }> = [
     { short: 'T-1043', title: '官网首页改版', state: 'ready' },
     { short: 'T-1044', title: '数据平台接入', state: 'paused' },

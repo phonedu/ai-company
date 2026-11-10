@@ -1,9 +1,9 @@
 /**
- * Crepe 主题变量（S13-A / RW-29，2026-10-28 老板真机带回）。
+ * Crepe 主题变量（/，2026-10-28 老板真机带回）。
  *
  * 根因：Crepe 的 `theme/common/*` 只写结构与用法，全部颜色/阴影走 `--crepe-color-*` 变量；
  * 变量真源在其 `theme/frame/style.css`（浅）与 `theme/frame-dark/style.css`（深）。
- * 我们此前只引 common 叶子 → 变量缺失 → 块菜单/工具栏 颜色与背景失效（浅色下白字、叠影）。
+ * 我们此前只引 common 叶子 → 变量缺失 → 块菜单/工具栏颜色与背景失效（浅色下白字、叠影）。
  *
  * 这里按应用主题（prefers-color-scheme，由 ui.theme→nativeTheme 驱动）成对声明变量；
  * 数值照抄上游 frame / frame-dark（2026-10-28 核对 crepe 7.22.3），字号对齐应用 15px 正文。
@@ -38,7 +38,7 @@
   --crepe-shadow-1: 0px 1px 3px 1px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.3);
   --crepe-shadow-2: 0px 2px 6px 2px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.3);
 
-  /* RW-29 补（2026-11-05 老板真机）：选中块浅灰底上白字不可见——强制选中态文字用深色 */
+  /*  补（2026-11-05 老板真机）：选中块浅灰底上白字不可见——强制选中态文字用深色 */
   --crepe-color-on-selected: #1c1c1c;
 }
 

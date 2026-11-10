@@ -1,13 +1,13 @@
 /**
- * T0.6「手工推进」引擎侧走查驱动（**非测试文件**；供UI 对齐 / T0.8 复用）。
+ * 「手工推进」引擎侧走查驱动（**非测试文件**；供UI 对齐 / 复用）。
  *
  * 用法：
- *   .\scripts\with-node22.ps1 pnpm test          # 先编译出 dist
+ *   .\scripts\with-node22.ps1 pnpm test # 先编译出 dist
  *   .\scripts\with-node22.ps1 node dist\test\fixtures\t06-walkthrough.js
  *
  * 逐步 `engine.dispatch({scope,id,event,payload})`，打印每步：
- *   event → tasks.state（+ resume_state/ready_since）→ 新增 task_events.kind → plan_steps。
- * `autoSchedule:false`：每次 dispatch 只走一步，便于逐条对照 05 §3.1。
+ *   event → tasks.state（resume_state/ready_since）→ 新增 task_events.kind → plan_steps。
+ * `autoSchedule:false`：每次 dispatch 只走一步，便于逐条对照。
  */
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -89,18 +89,18 @@ function progress(stepIdx: number, state: 'pending' | 'running' | 'done' | 'skip
   });
 }
 
-// ② 主链 + 一次 paused 往返（逐条对照 05 §3.1.1）
-await step('triage'); // inbox → planning            [task_triaged]
+// ② 主链 + 一次 paused 往返（逐条对照）
+await step('triage'); // inbox → planning [task_triaged]
 await step('plan_drafted', { steps: ['收集资料', '写初稿', '校对'] }); // planning(不变) [plan_drafted] + plan_steps 初始化
 await step('plan_reviewed'); // planning → awaiting_approval [plan_reviewed]
-await step('plan_approved'); // awaiting_approval → ready     [plan_approved] + ready_since
-await step('start_task'); // ready → executing               [task_started]
+await step('plan_approved'); // awaiting_approval → ready [plan_approved] + ready_since
+await step('start_task'); // ready → executing [task_started]
 progress(1, 'done', '资料齐了'); // 第 1 步 done（进度条 1/3）
 progress(2, 'running'); // 第 2 步 running
-await step('pause'); // executing → paused             [task_paused]
-await step('resume'); // paused → ready               [task_resumed]
-await step('start_task'); // ready → executing               [task_started]
-await step('all_work_items_done'); // executing → verifying   [verification_started]
+await step('pause'); // executing → paused [task_paused]
+await step('resume'); // paused → ready [task_resumed]
+await step('start_task'); // ready → executing [task_started]
+await step('all_work_items_done'); // executing → verifying [verification_started]
 await step('verification_completed', { verdict: 'pass' }); // verifying → done [verification_completed, task_completed]
 
 console.log('T06_WALKTHROUGH ' + JSON.stringify(rows, null, 0));

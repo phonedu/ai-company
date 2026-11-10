@@ -2,7 +2,7 @@
  * N5 余账（2026-10-16）· **运行时兜底链**——主模型不可用（401/429/5xx/模型不存在…）⇒ 按
  * `models.fallback_chain` 逐级降级（≤5）＋**降级记事件**（`agent_model_fallback`）；非分类错误不降级。
  *
- * 口径＝08 §10.3「主模型不可用（故障/限流/Key 失效）→ 自动降级到下一个，降级记事件」。
+ * 口径＝「主模型不可用（故障/限流/Key 失效）→ 自动降级到下一个，降级记事件」。
  * 真库（内存）＋真执行器；runtime 用可控抛错假件；只断事实（调用序列/事件行）。
  */
 import test from 'node:test';
@@ -144,7 +144,7 @@ test('兜底链：整链耗尽 → **件进 failed（error 事件，异常卡通
   const { db, taskId, wiId } = setup();
   try {
     // ① 全链失败（主 + 两跳都 503）→ 件按真值表进 failed（`running --error--> failed`）⇒ 异常卡经
-    //   任务级失败聚合（BRK2 通路）；**401/503 从此可见**（此前只有 action_failed 日志）。
+    //   任务级失败聚合（通路）；**401/503 从此可见**（此前只有 action_failed 日志）。
     setFallbackChain(['a/one', 'b/two']);
     const all = makeFlakyRuntime(['HTTP 503 overloaded', 'HTTP 503 overloaded', 'HTTP 503 overloaded']);
     const events: EngineEvent[] = [];

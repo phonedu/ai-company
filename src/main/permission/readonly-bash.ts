@@ -1,5 +1,5 @@
 /**
- * MP1-F19 · 只读命令快速通道（保守解析器；**这是安全边界放宽，宁可漏放、不可错放**）。
+ *  · 只读命令快速通道（保守解析器；**这是安全边界放宽，宁可漏放、不可错放**）。
  *
  * 理念对齐（W1 写边界）：边界管**写**不管读——`ls/find/grep` 这类只读探索不应逐次打扰老板；
  * 但读也可能外泄（`cat ~/.ssh/id_rsa`），所以读同样圈在**已授权根**（项目根/工作目录）内。
@@ -28,7 +28,7 @@ export const READONLY_BASH_BINARIES: ReadonlySet<string> = new Set([
 const DESTRUCTIVE_FLAGS = /^-+(delete|exec|execdir|exec-batch|ok|okdir|fprint|fprintf|fls|x|X|pre|pre-command)(?:=|[^a-z-]|$)/i;
 
 /**
- * MP1-F19 二次加固（D4 复核抓到「短选项附加值」族：`fd -xrm`、`rg -f/etc/passwd`、`tree -ofile`）：
+ *  二次加固（复核抓到「短选项附加值」族：`fd -xrm`、`rg -f/etc/passwd`、`tree -ofile`）：
  * 选项参数改**正向白名单**——逐命令枚举安全旗标，未知名形态一律回落原有门禁。
  *  - `short`：无值/文本值短旗标的**字母集合**（捆绑 `-lah` 逐字母检查；值为路径的旗标一概不入，
  *    如 grep/rg 的 `-f`、tree 的 `-o`——附加值形态因此被构造性堵死）；
@@ -122,7 +122,7 @@ export function isReadOnlyBashCommand(
   if (text.length === 0) return false;
   // ① 结构关
   if (/[>`<]|\$\(|\r|\n/.test(text)) return false;
-  // && 链允许（每段都要过白名单——`cd 项目根 && ls -la` 是模型最常用形态，D5 复核实机
+  // && 链允许（每段都要过白名单——`cd 项目根 && ls -la` 是模型最常用形态， 复核实机
   // 2026-10-26 抓到一刀切拒 && 把良性只读链全打回 strict 问一次）。残余单 &（后台）与
   // 引号内藏的结构符由下方 token 级检查兜底。
   const authorized = [roots.projectRoot, roots.cwd].filter((r): r is string => typeof r === 'string' && r.length > 0);

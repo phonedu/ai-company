@@ -1,4 +1,4 @@
-// 渲染层状态（valtio）：全部由主进程 IPC 驱动，渲染层不做业务逻辑（DEV §7.2）。
+// 渲染层状态（valtio）：全部由主进程 IPC 驱动，渲染层不做业务逻辑。
 import { proxy } from 'valtio';
 
 import { getApi } from './api';
@@ -14,7 +14,7 @@ import { loadViewState, resolveView, saveViewState, type RestorableView } from '
 import { projectsFromTasks, resolveStaffingProject } from './components/projectView';
 import { parseReadState, type ReadSurface } from './components/readStateModel';
 
-/** 中栏视图（`DEV §7.1` 中栏视图；2026-10-17 双栏改版：项目概览并入「项目树」页右栏、
+/** 中栏视图（`` 中栏视图；2026-10-17 双栏改版：项目概览并入「项目树」页右栏、
  *  员工·当前任务并入「公司大厅」页右栏——`project` 路由退役（仅恢复游标兼容），新增 `hall` 右栏分区态）。 */
 export type CenterView = 'channel' | 'task' | 'hall' | 'inbox' | 'employee' | 'settings' | 'projects' | 'archive' | 'notes';
 
@@ -23,7 +23,7 @@ export const session = proxy({
   error: null as string | null,
   view: 'channel' as CenterView,
   selectedTaskId: null as number | null,
-  // 2026-10-18（老板裁）：」项目树/归档「站在导航栏就是导航——**开关语义退役**（原两枚开关字段
+  // 2026-10-18（决定）：」项目树/归档「站在导航栏就是导航——**开关语义退役**（原两枚开关字段
   // 已删除），改为中栏两页（`projects` / `archive` 视图；左栏任务列表回归纯状态分组）。
   /** 当前打开项目概览的项目 id。 */
   selectedProjectId: null as number | null,
@@ -48,12 +48,12 @@ export const session = proxy({
 export const messages = proxy({ list: [] as HumanMessageDTO[] });
 export const cards = proxy({
   list: [] as ReportDTO[],
-  /** M4-C-4：待我处理的首载/失败态（空态不伪装成“没有事”）。 */
+  /** 待我处理的首载/失败态（空态不伪装成“没有事”）。 */
   loading: false,
   loaded: false,
   error: null as string | null,
 });
-/** M3-REM-1c：未读读数来自服务端 `read_cursors`；`seenAt` 只作旧 localStorage 的一次性迁移来源。 */
+/** 1c：未读读数来自服务端 `read_cursors`；`seenAt` 只作旧 localStorage 的一次性迁移来源。 */
 export const inbox = proxy({
   seenAt: loadSeenAt(),
   /** `channel:cards`（驱 badge/待办）。 */
@@ -88,7 +88,7 @@ export function dismissToast(id: number): void {
 }
 export const tasks = proxy({
   list: [] as TaskDTO[],
-  /** BRK17 组（挂载 3）：左栏任务区回执（归档成功/失败；不静默消失）。 */
+  /**  组（挂载 3）：左栏任务区回执（归档成功/失败；不静默消失）。 */
   notice: null as string | null,
   /** 2026-11-03（逐页错误注入）：列表加载态/失败态——失败不得伪装成「0 个任务」。 */
   loading: false,
@@ -99,15 +99,15 @@ export const assistant = proxy({ starting: false });
 
 /** G8：员工运行时状态（由主进程 `evt:agent` 推送；`failed` 时界面显式提示「不可用」）。 */
 export const agent = proxy<{ status: AgentStatusDTO | null }>({ status: null });
-/** `OPT-EXT-13` 用量可视：今日成本聚合（`cost:summary`；空 => `null`）。 */
+/** `` 用量可视：今日成本聚合（`cost:summary`；空 => `null`）。 */
 export const cost = proxy<{ summary: CostSummaryDTO | null }>({ summary: null });
 /** R3-2：顶栏槽位真读数（`scheduler:slots`＝占用/上限；`null` = 引擎未装配 → 显 `—`）。 */
 export const slots = proxy<{ data: { running: number; total: number } | null }>({ data: null });
-/** `OPT-EXT-13` 成本 tab：单任务成本汇总（`cost:summary{taskId}`）。 */
+/** `` 成本 tab：单任务成本汇总（`cost:summary{taskId}`）。 */
 export const taskCost = proxy<{ data: CostSummaryDTO | null }>({ data: null });
-/** GenUI 卡片 schema（M1，`UI §4.7`）：按 `schemaId` 存被 `evt:message{schemaPatch}` 更新过的版本。 */
+/** GenUI 卡片 schema（，`UI §4.7`）：按 `schemaId` 存被 `evt:message{schemaPatch}` 更新过的版本。 */
 export const schemas = proxy({ byId: {} as Record<string, GenUiSchema> });
-/** 公司大厅（简单版，B0/B1）：员工 + 轻量部门 + 真实协作流向。 */
+/** 公司大厅（简单版，B0/）：员工 + 轻量部门 + 真实协作流向。 */
 export const hall = proxy({
   loading: false,
   error: null as string | null,
@@ -120,17 +120,17 @@ export const workstation = proxy({
   error: null as string | null,
   data: null as EmployeeDetailDTO | null,
 });
-/** T0.7 任务详情（`task:get` 详情形状）。 */
+/**  任务详情（`task:get` 详情形状）。 */
 export const taskDetail = proxy({
   taskId: null as number | null,
   loading: false,
   error: null as string | null,
   data: null as TaskDetailDTO | null,
-  /** G-C（M2 §7 序 3）：引用候选目标任务（非归档、不含本任务；缺省 → 引用控件不可用）。 */
+  /** G-C（§7 序 3）：引用候选目标任务（非归档、不含本任务；缺省 → 引用控件不可用）。 */
   refTargets: [] as Array<{ id: number; shortId: string | null; title: string }>,
   /** G-C：最近一次引用的结果回执（人话；失败也显式给出）。 */
   referenceNotice: null as string | null,
-  /** BRK16-a（挂载 3）：最近一次产物读预览（仅 `read` 模式产预览；`open`/`reveal` 不产）。 */
+  /** -a（挂载 3）：最近一次产物读预览（仅 `read` 模式产预览；`open`/`reveal` 不产）。 */
   artifactPreview: null as {
     artifactId: number;
     name: string;
@@ -143,20 +143,20 @@ export const taskDetail = proxy({
     text: string;
     truncated: boolean;
   } | null,
-  /** BRK16-a：最近一次产物操作回执（读/打开/文件夹；失败也显式给出）。 */
+  /** -a：最近一次产物操作回执（读/打开/文件夹；失败也显式给出）。 */
   artifactNotice: null as string | null,
-  /** GAP11：最近一次导出回执（含落盘路径；打开失败随 `⚠️` 一并如实给出）。 */
+  /** 最近一次导出回执（含落盘路径；打开失败随 `⚠️` 一并如实给出）。 */
   exportNotice: null as string | null,
-  /** BRK17 组（挂载 3）：最近一次**详情操作**失败回执（如「撤销结束」超 7 天窗口被引擎拒绝；不静默）。 */
+  /**  组（挂载 3）：最近一次**详情操作**失败回执（如「撤销结束」超 7 天窗口被引擎拒绝；不静默）。 */
   actionNotice: null as string | null,
-  /** GAP8：计划编辑回执（保存/保存并批准；失败也给出人话）。 */
+  /** 计划编辑回执（保存/保存并批准；失败也给出人话）。 */
   planNotice: null as string | null,
-  /** M3-P-4：变更集合并回执（成功 commit / 冲突文件 / 拒绝原因）。 */
+  /** 变更集合并回执（成功 commit / 冲突文件 / 拒绝原因）。 */
   mergeNotice: null as string | null,
-  /** S13-G/D-N07：最近一次合并冲突（结构化文件列表）与对应变更集；无冲突为 null。 */
+  /** /：最近一次合并冲突（结构化文件列表）与对应变更集；无冲突为 null。 */
   mergeConflicts: [] as string[],
   mergeConflictChangesetId: null as number | null,
-  /** M3-N-2：变更集回滚回执（成功反向提交 / 检查点守卫拒绝原因）。 */
+  /** 变更集回滚回执（成功反向提交 / 检查点守卫拒绝原因）。 */
   rollbackNotice: null as string | null,
   /** B-2：变更集丢弃回执（成功/幂等/守卫拒绝原因）。 */
   discardNotice: null as string | null,
@@ -167,7 +167,7 @@ export const archiveView = proxy({
   notice: null as string | null,
 });
 
-/** `OPT-EXT-13`：拉今日成本（`since` = 今日 0 点；**空表 => costRows:0**，顶栏据此显 `—`）。 */
+/** ``：拉今日成本（`since` = 今日 0 点；**空表 => costRows:0**，顶栏据此显 `—`）。 */
 export async function loadCostSummary(now: number = Date.now()): Promise<void> {
   const api = getApi();
   if (!api?.cost) return;
@@ -187,7 +187,7 @@ export async function loadSlots(): Promise<void> {
   }
 }
 
-/** `OPT-EXT-13` 成本 tab：拉单任务成本（含 `byModel`）。 */
+/** `` 成本 tab：拉单任务成本（含 `byModel`）。 */
 export async function loadTaskCosts(taskId: number): Promise<void> {
   const api = getApi();
   if (!api?.cost) return;
@@ -220,7 +220,7 @@ export async function loadChannel(): Promise<void> {
   try {
     const [rawMessages, rawCards] = await Promise.all([
       // 取**最新** N 条（DAO 返回时仍按时间升序）：旧口径取最旧 50/100 会让新消息/新卡永远不出现，
-      // 未读游标也永远清不掉（M3 联动审计 P0-2）。
+      // 未读游标也永远清不掉（联动审计 P0-2）。
       api.chat.list({ limit: benchListLimit(100), latest: true }),
       api.inbox.list({ limit: 50, latest: true }),
     ]);
@@ -245,7 +245,7 @@ export async function loadChannel(): Promise<void> {
 
 /**
  * 应用服务端 `read:state` / `read:mark` 的返回。
- * **必须按 surface 分面**：messages 的读数绝不能写进 cards 的 badge（M3 联动审计 P0-2）。
+ * **必须按 surface 分面**：messages 的读数绝不能写进 cards 的 badge（联动审计 P0-2）。
  */
 function applyReadState(raw: unknown, expectedSurface: ReadSurface): void {
   const state = parseReadState(raw, expectedSurface);
@@ -265,7 +265,7 @@ function applyReadState(raw: unknown, expectedSurface: ReadSurface): void {
 }
 
 /**
- * M3-REM-1c：拉服务端未读读数；cards 首拉时顺带做一次旧 `localStorage` 游标迁移。
+ * 1c：拉服务端未读读数；cards 首拉时顺带做一次旧 `localStorage` 游标迁移。
  * 失败**显式置 unknown**（UI 显 `—`），不保留旧值、不写假 0。
  */
 export async function loadReadState(surface: 'channel:cards' | 'channel:messages' = 'channel:cards'): Promise<void> {
@@ -396,7 +396,7 @@ function applyMessageItems(items: unknown): void {
 
 /**
  * 订阅主进程推送（`evt-sink` 统一信封 `evt:batch` = `{channel,batchSeq,items[],emitAt}`）。
- * M0 只做「某域有更新 → 重载频道」；同时保留 legacy 的 `evt:message`（bench / 旧路径）。
+ *  只做「某域有更新 → 重载频道」；同时保留 legacy 的 `evt:message`（bench / 旧路径）。
  * 返回合并退订函数。
  */
 // ── K1 知识库 ─────────────────────────────────────────────────────────
@@ -445,7 +445,7 @@ export function subscribeEvents(): () => void {
     } else if (envelope?.channel === 'evt:hall') {
       void loadHall();
     } else if (envelope?.channel === 'evt:notify' || envelope?.channel === 'evt:inbox') {
-      // BRK15（挂载 2）：新卡/通知/待办变化 → 实时刷新（频道＋「待我处理」同源 `loadChannel`；不靠下一次拉取）
+      // （挂载 2）：新卡/通知/待办变化 → 实时刷新（频道＋「待我处理」同源 `loadChannel`；不靠下一次拉取）
       void loadChannel();
     } else if (envelope?.channel === 'evt:read') {
       // 读游标变化（桌面动作/IM 批准/另一入口）→ 两个 surface 各自重拉，绝不互相覆盖。
@@ -460,7 +460,7 @@ export function subscribeEvents(): () => void {
         pushToast({ title: last.title, text: last.text });
       }
     } else if (envelope?.channel === 'evt:open-view') {
-      // GAP3：托盘菜单/OS 通知点击 → 回到对应任务或视图（主进程保证挂载后才推）。
+      // 托盘菜单/OS 通知点击 → 回到对应任务或视图（主进程保证挂载后才推）。
       const items = (envelope.items ?? []) as Array<{ taskId?: unknown; view?: unknown }>;
       const last = items[items.length - 1];
       if (typeof last?.taskId === 'number') void openTaskDetail(last.taskId);
@@ -509,7 +509,7 @@ export async function sendMessage(input: {
   if (!api) return null;
   session.sending = true;
   session.error = null;
-  // 乐观上屏（老板 2026-10-26 真机反馈：发消息长时间不出现）：不等 IPC 里的语义分类（也是一次模型调用），
+  // 乐观上屏（2026-10-26 真机反馈：发消息长时间不出现）：不等 IPC 里的语义分类（也是一次模型调用），
   // 先把这条消息按发送时间插进频道流；loadChannel 拉到真库列表后整体替换，临时项自然消失（id<0 不会重复）。
   const optimisticId = -Date.now();
   messages.list = [
@@ -530,7 +530,7 @@ export async function sendMessage(input: {
       projectId: session.selectedProjectId,
     })) as { messageId?: number; resolution?: ResolutionDTO; rejected?: string | null } | undefined;
     await loadChannel();
-    // UG-03：`rejected` 非空 = 高置信命令被拒（回执已落频道）；调用方可就地显示，不当成功。
+    // `rejected` 非空 = 高置信命令被拒（回执已落频道）；调用方可就地显示，不当成功。
     return { resolution: result?.resolution ?? { kind: 'chat' }, rejected: result?.rejected ?? null };
   } catch (error) {
     session.error = error instanceof Error ? error.message : String(error);
@@ -541,7 +541,7 @@ export async function sendMessage(input: {
 }
 
 /**
- * GenUI 卡片意图（M1，`UI §4.7`）：**一次点击 = 恰好一条 `chat:card-action` IPC**。
+ * GenUI 卡片意图（，`UI §4.7`）：**一次点击 = 恰好一条 `chat:card-action` IPC**。
  * 只发**意图**（不含副作用）；主进程一个入口过 `permissionGate`。
  */
 export async function cardIntent(intent: GenUiIntent, card?: ReportDTO): Promise<void> {
@@ -558,7 +558,7 @@ export async function cardIntent(intent: GenUiIntent, card?: ReportDTO): Promise
 }
 
 /**
- * 补跑失败原因 → 人话（裁决 8 / 换方向复核 P2-5）。未知原因原样透出（不吞、不美化）。
+ * 补跑失败原因 → 人话（决定 8 / 换方向复核-5）。未知原因原样透出（不吞、不美化）。
  */
 export function refireReasonText(reason: string): string {
   if (reason.startsWith('task_reopen_refused') && reason.includes('7 天')) return '任务结束已超过 7 天，不能再撤销完成去补跑；需要的话请续办任务。';
@@ -585,13 +585,13 @@ export async function answerCard(card: ReportDTO, chosen: string): Promise<{ ok:
       message?: string;
       refire?: { ok: boolean; reason: string; workItemId: number | null } | null;
     } | undefined;
-    // P0/V1（S13-E 对抗审查）：作答失败不得静默——失败不推进已读游标、不动卡，并回执人话。
+    // P0/V1（对抗审查）：作答失败不得静默——失败不推进已读游标、不动卡，并回执人话。
     if (res && res.ok === false) {
       const message = res.message ?? '作答失败（原因未提供）';
       pushToast({ title: '作答失败', text: message });
       return { ok: false, error: message };
     }
-    // 裁决 8（换方向复核 P2-5）：批准成功但**没补跑成**时必须告诉老板原因——
+    // 决定 8（换方向复核-5）：批准成功但**没补跑成**时必须告诉老板原因——
     // 此前只看 ok 字段，超窗/预算/需拍板全静默，老板会以为已经补跑了。
     if (res?.refire != null && res.refire.ok !== true) {
       pushToast({ title: '已批准，但没能补跑', text: refireReasonText(res.refire.reason ?? '') });
@@ -623,7 +623,7 @@ export async function acknowledgeCard(card: ReportDTO): Promise<{ ok: boolean; e
 }
 
 /**
- * F-08（2026-10-25）：批量标记已阅（**只用于 report 卡**；决策/异常仍需逐张处理）。
+ * （2026-10-25）：批量标记已阅（**只用于 report 卡**；决策/异常仍需逐张处理）。
  * 串行逐张 ack；任一张失败即停并返回已处理数/错误，最后统一刷新一次同源列表。
  */
 export async function acknowledgeCards(cardsToAck: readonly ReportDTO[]): Promise<{ count: number; error: string | null }> {
@@ -687,7 +687,7 @@ export async function answerMailboxAsk(askDedupeKey: string, answer: string): Pr
   return true;
 }
 
-// ── T0.6：任务列表（左栏分组）+ 手工建单/推进 ─────────────────────────
+// ──：任务列表（左栏分组）+ 手工建单/推进 ─────────────────────────
 
 /** 左栏列表长度上限（**显式给，不许无界查询**；`UI §515`）。 */
 export const TASK_LIST_LIMIT = 200;
@@ -695,7 +695,7 @@ export const TASK_LIST_LIMIT = 200;
 export const TASK_TERMINAL_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
- * F-06（2026-11-06 终验）：主进程 `initDatabaseAndIpc()` 是异步的，而 `createWindow()` 在其之前执行
+ * （2026-11-06 终验）：主进程 `initDatabaseAndIpc()` 是异步的，而 `createWindow()` 在其之前执行
  *（main/index.ts whenReady）——渲染层首次加载可能抢在 `ipcMain.handle` 注册前，抛
  * `No handler registered for 'project:list'`，页面随即停在「加载失败」且**不会自动重试**。
  * 这里只对这类启动竞态错误做**有界重试**（40×500ms，≈20s），其它错误立即抛出（不掩盖真故障）。
@@ -740,8 +740,8 @@ export async function loadTasks(opts: { includeArchived?: boolean; now?: number 
   }
 }
 
-/** 受理建任务（落 `inbox`）；GAP13（挂载 3）：验收标准与预算随表单一并入档（`riskLevel` 缺省＝主进程缺省 1）；
- *  D-11（编制）：`ownerId` 随行（建任务对话框「谁来做」；缺省不传 ⇒ 主进程按编制/缺省链解析）。 */
+/** 受理建任务（落 `inbox`）；（挂载 3）：验收标准与预算随表单一并入档（`riskLevel` 缺省＝主进程缺省 1）；
+ *  （编制）：`ownerId` 随行（建任务对话框「谁来做」；缺省不传 ⇒ 主进程按编制/缺省链解析）。 */
 export async function createTask(
   goal: string,
   opts?: {
@@ -777,7 +777,7 @@ export async function createTask(
   return created ?? null;
 }
 
-/** M2 尾（G-D）：跨项目全局搜索（命令面板第三组；空查询/未接线 → null）。 */
+/**  尾（G-D）：跨项目全局搜索（命令面板第三组；空查询/未接线 → null）。 */
 export async function searchGlobal(query: string): Promise<GlobalSearchDTO | null> {
   const api = getApi();
   const q = query.trim();
@@ -801,13 +801,13 @@ export async function transitionTask(
     | { ok?: boolean; code?: string; message?: string }
     | undefined;
   if (res && res.ok === false) {
-    // 挂载 3（BRK17）：引擎拒绝（未知迁移/守卫不过）→ 显式回执；此前异常会变成静默 reject（「点了没反应」）。
+    // 挂载 3：引擎拒绝（未知迁移/守卫不过）→ 显式回执；此前异常会变成静默 reject（「点了没反应」）。
     taskDetail.actionNotice = `操作未生效：${res.message ?? res.code ?? '未知'}`;
     return false;
   }
   taskDetail.actionNotice = null;
   await loadTasks();
-  // GAP12：打回/通过后详情要看到新结论、返工件与状态；只刷列表会让详情停在旧状态。
+  // 打回/通过后详情要看到新结论、返工件与状态；只刷列表会让详情停在旧状态。
   if (session.selectedTaskId === taskId) await openTaskDetail(taskId);
   return true;
 }
@@ -821,7 +821,7 @@ export async function renewTaskFromArchive(taskId: number): Promise<void> {
 }
 
 /**
- * GAP8：批准前保存/保存并批准计划（`task:edit-plan`）。
+ * 批准前保存/保存并批准计划（`task:edit-plan`）。
  * 返回 `null`＝成功；字符串＝失败回执（同时写进 `taskDetail.planNotice` 上屏）。
  * 无论成功/失败都重载详情与频道：失败也可能是「计划已保存、批准没生效」，界面必须反映真库现状。
  */
@@ -854,10 +854,10 @@ export async function saveTaskPlan(taskId: number, steps: string[], approve: boo
 }
 
 /**
- * M3-P-4 / BRK16-b：合并一个变更集到项目主分支（`task:merge`）。
+ *  / -b：合并一个变更集到项目主分支（`task:merge`）。
  * 成功/幂等/冲突/拒绝都给人话回执；随后重载详情（变更集状态/按钮跟着真库走）。
  */
-/** 2026-10-29 P2（D-N07）：把合并冲突派回原员工——建续办任务；失败显式回执。 */
+/** 2026-10-29 P2：把合并冲突派回原员工——建续办任务；失败显式回执。 */
 export async function reworkMergeConflict(taskId: number, changesetId: number): Promise<string | null> {
   const api = getApi();
   if (!api?.task?.reworkMergeConflict) {
@@ -928,7 +928,7 @@ export async function mergeTaskChangeset(taskId: number, changesetId: number): P
 
 /**
  * B-2：丢弃一个变更集（`task:discard`）。
- * 只改台账状态；主分支/其他工作项不动；二次调用幂等。成功/拒绝都给人话回执并重载详情。
+ * 只改清单状态；主分支/其他工作项不动；二次调用幂等。成功/拒绝都给人话回执并重载详情。
  */
 export async function discardTaskChangeset(taskId: number, changesetId: number): Promise<string | null> {
   const api = getApi();
@@ -962,7 +962,7 @@ export async function discardTaskChangeset(taskId: number, changesetId: number):
 }
 
 /**
- * M3-N-2 / GAP4：把一个变更集回滚到其工作项检查点（`task:rollback`）。
+ *  /：把一个变更集回滚到其工作项检查点（`task:rollback`）。
  * 成功/幂等/守卫拒绝都给人话回执；随后重载详情（状态/按钮跟着真库走）。
  */
 export async function rollbackTaskChangeset(taskId: number, changesetId: number): Promise<string | null> {
@@ -1007,10 +1007,10 @@ export async function rollbackTaskChangeset(taskId: number, changesetId: number)
 }
 
 /**
- * BRK17 组（挂载 3）：归档任务（`archive` 引擎事件 → `tasks.archived=1`；入口＝左栏终态任务行）。
+ *  组（挂载 3）：归档任务（`archive` 引擎事件 → `tasks.archived=1`；入口＝左栏终态任务行）。
  * 默认过滤下归档任务离开列表——回执说明去「归档」开关看（不静默消失）。
  */
-/** RW-13（M5 真机带回）：项目树任务行实时暂停/恢复——executing→pause、paused→resume。
+/** （真机带回）：项目树任务行实时暂停/恢复——executing→pause、paused→resume。
  *  通路与归档同（task:transition）；失败回执进 tasks.notice（不静默），成功清 notice 并等待拉取刷新。 */
 export async function pauseResumeTask(taskId: number, event: 'pause' | 'resume'): Promise<void> {
   const api = getApi();
@@ -1041,7 +1041,7 @@ export async function archiveTask(taskId: number): Promise<void> {
   tasks.notice = `已归档 ${task?.shortId ?? `#${taskId}`}（「归档」页可见）`;
 }
 
-// ── T0.7：任务详情（中栏视图切换 + `task:get` 详情）──────────────────────
+// ──：任务详情（中栏视图切换 + `task:get` 详情）──────────────────────
 
 /**
  * 频道卡定位（2026-10-17）：待我处理点「在频道看」→ 切频道并请求把某张卡滚进视野。
@@ -1089,14 +1089,14 @@ export function openHallCollab(): void {
   persistSession();
 }
 
-/** M3-P-5：大厅左列「活动流」按钮 → 右栏实时公司动态（不跳页）。 */
+/** 大厅左列「活动流」按钮 → 右栏实时公司动态（不跳页）。 */
 export function openHallActivity(): void {
   session.view = 'hall';
   session.hallPane = 'activity';
   persistSession();
 }
 
-/** OPT-EXT-6：把当前视图写到 localStorage（每次切视图调用；`settings:*` 落地后迁移）。 */
+/** 把当前视图写到 localStorage（每次切视图调用；`settings:*` 落地后迁移）。 */
 function persistSession(): void {
   saveViewState({
     view: session.view as RestorableView,
@@ -1107,11 +1107,11 @@ function persistSession(): void {
 }
 
 /**
- * OPT-EXT-6：启动时恢复上次视图。**失真则回落 `channel`**（id 已不存在 / 未知视图）。
+ * 启动时恢复上次视图。**失真则回落 `channel`**（id 已不存在 / 未知视图）。
  * 先 `loadTasks()` 拿真数据算现存 id 集合，再 `resolveView` 决定真正落到哪个视图。
  */
 export async function restoreSession(): Promise<void> {
-  // RW-20（M5 真机 S9 批）：范围唯一真源＝settings（主进程 note_write 等按它定落点）。
+  // （真机批）：范围唯一真源＝settings（主进程 note_write 等按它定落点）。
   // 启动即回读，防「库里有项目 id 而会话态被默认 null 覆盖」的口径分叉（UI 显公司、笔记落项目）。
   try {
     const api = getApi();
@@ -1150,13 +1150,13 @@ export async function restoreSession(): Promise<void> {
   session.view = resolved.view as CenterView;
   session.selectedTaskId = resolved.view === 'task' ? resolved.selectedTaskId : null;
   // 2026-10-26（频道范围选择器）：范围是显式设置，恢复时随视图保留（resolveView 已按现存项目校验）。
-  // RW-20：settings 回读值优先（函数头已落 session）；localStorage 只在缺 settings 时兜底。
+  // settings 回读值优先（函数头已落 session）；localStorage 只在缺 settings 时兜底。
   if (session.selectedProjectId == null) {
     session.selectedProjectId = resolved.selectedProjectId ?? null;
   }
   session.selectedEmployeeId = null;
   persistSession();
-  // S2 复核 P1（2026-11-10，独立复核实抓）：上次停在归档页时，这里只走 loadTasks()（不含
+  //  复核（2026-11-10，独立复核发现）：上次停在归档页时，这里只走 loadTasks()（不含
   // 归档行）且没拉项目列表 ⇒ 冷启动归档页假空态（0 个任务/暂无归档任务），「归档项目」的删除门
   // 也因 taskCount=0 失效。与 showArchive 同口径补齐。
   if (session.view === 'archive') {
@@ -1171,7 +1171,7 @@ export function showNotes(): void {
 }
 
 /**
- * 2026-10-18（老板裁「站在导航栏的就是导航，就该开一个页面」）：**项目树页**（中栏）——
+ * 2026-10-18（决定「站在导航栏的就是导航，就该开一个页面」）：**项目树页**（中栏）——
  * 按项目归并的任务浏览面（组题可点进项目概览）；左栏项＝导航（不再切开关）。
  */
 export function showProjectTree(): void {
@@ -1182,29 +1182,29 @@ export function showProjectTree(): void {
 /** 2026-10-18（同裁）：**归档页**——归档任务列表；进页拉一次 `includeArchived`（归档行只在页里，左栏不含）。 */
 export function showArchive(): void {
   session.view = 'archive';
-  // S2b 复核 P1（2026-11-09）：归档页要显示「归档项目」，必须拉项目列表（含已归档）——
+  //  复核（2026-11-09）：归档页要显示「归档项目」，必须拉项目列表（含已归档）——
   // 此前只拉任务，冷启动直达归档页时项目列表为空 ⇒ 归档项目区永不显示。
   void loadProjectsForOverview();
   persistSession();
   void loadTasks({ includeArchived: true });
 }
 
-/** M2-A 项目概览（2026-10-17 双栏改版）：左列点项目＝**在「项目树」页右栏切换**（不跳页）。 */
+/**  项目概览（2026-10-17 双栏改版）：左列点项目＝**在「项目树」页右栏切换**（不跳页）。 */
 export function showProject(projectId: number): void {
   session.view = 'projects';
   session.selectedProjectId = projectId;
   persistSession();
-  // RW-14：项目树点选与频道选择器同口径——范围落库，助手工具（note_write 等）跟随。
+  // 项目树点选与频道选择器同口径——范围落库，助手工具（note_write 等）跟随。
   void getApi()?.settings.set({ key: 'channel.scope_project_id', value: projectId }).catch(() => {
     /* 同上：落库失败不阻断 */
   });
 }
 
 /**
- * 频道范围选择器（老板 2026-10-26 提案落地）：老板频道「当前范围」下拉的写入口。
+ * 频道范围选择器（2026-10-26 提案落地）：老板频道「当前范围」下拉的写入口。
  * 与项目树点选写同一状态（session.selectedProjectId）——两处互同步；null＝公司（全部项目）。
  * 只改范围、不改视图（在频道里选范围不该被拽去项目树页）。
- * RW-14（M5 真机带回）：同时把范围落库 `channel.scope_project_id`（主进程 note_write 等助手
+ * （真机带回）：同时把范围落库 `channel.scope_project_id`（主进程 note_write 等助手
  * 工具读它定落点）——此前主进程无从得知范围，选了项目笔记也落全局。
  */
 export function setChannelScope(projectId: number | null): void {
@@ -1215,7 +1215,7 @@ export function setChannelScope(projectId: number | null): void {
   });
 }
 
-/** M3-REM-1c：「待我处理」视图（左栏 `leftrail-inbox`）。进入后由 `InboxView` 推进服务端卡片游标。 */
+/** 1c：「待我处理」视图（左栏 `leftrail-inbox`）。进入后由 `InboxView` 推进服务端卡片游标。 */
 export function showInbox(): void {
   session.view = 'inbox';
   persistSession();
@@ -1305,7 +1305,7 @@ export function showEmployee(employeeId: number, mode: 'ops' | 'config' = 'ops')
 
 /** 打开某任务详情：切视图 + 取 `task:get` 详情（左栏任务行点击即走这里）。 */
 /**
- * 详情取数（UI-2 抽出）：`task:get` + 引用候选，**不碰视图路由**——整页详情与项目页行内展开共用。
+ * 详情取数（抽出）：`task:get` + 引用候选，**不碰视图路由**——整页详情与项目页行内展开共用。
  */
 async function loadTaskDetailData(taskId: number): Promise<void> {
   taskDetail.taskId = taskId;
@@ -1352,7 +1352,7 @@ export async function openTaskDetail(taskId: number): Promise<void> {
   await loadTaskDetailData(taskId);
 }
 
-/** 项目页任务行下展开（UI-2）：取详情但**不切视图**——留在项目页原地渲染。 */
+/** 项目页任务行下展开：取详情但**不切视图**——留在项目页原地渲染。 */
 export async function expandTaskInline(taskId: number): Promise<void> {
   session.selectedTaskId = taskId;
   persistSession();
@@ -1360,7 +1360,7 @@ export async function expandTaskInline(taskId: number): Promise<void> {
 }
 
 /**
- * UI-2 S1 深链：频道卡 / 待办行 / 命令面板点任务 → **项目页并展开对应行**（不跳整页）。
+ *   深链：频道卡 / 待办行 / 命令面板点任务 → **项目页并展开对应行**（不跳整页）。
  * 整页详情（`view='task'`）只保留为逃生口：行内详情 ↗ / diff / 原始交流 / 归档页。
  * 任务→项目以 `tasks:list` 真值为准；列表未加载时补拉一次，仍查不到 ⇒ 回落整页详情（不静默）。
  */
@@ -1380,7 +1380,7 @@ export async function openTaskFromLink(taskId: number): Promise<void> {
   session.selectedProjectId = task.projectId;
   persistSession();
   projectPage.pendingTaskId = taskId;
-  // 与 showProject 同口径（RW-14）：项目选中即范围，助手工具（note_write 等）跟随。
+  // 与 showProject 同口径：项目选中即范围，助手工具（note_write 等）跟随。
   void getApi()?.settings.set({ key: 'channel.scope_project_id', value: task.projectId }).catch(() => {
     /* 落库失败不阻断 UI；note_write 回退全局口径 */
   });
@@ -1398,7 +1398,7 @@ export function collapseTaskInline(): void {
 }
 
 /**
- * G-C（M2 §7 序 3）：把产物**引用到目标任务**（老板显式发起；主进程做 copy 快照＋sha256＋审计）。
+ * G-C（§7 序 3）：把产物**引用到目标任务**（老板显式发起；主进程做 copy 快照＋sha256＋审计）。
  * 成功/失败都给人话回执；成功后刷新详情（新产物行要上屏——"做了就要看见"）。
  */
 export async function referenceArtifact(
@@ -1423,7 +1423,7 @@ export async function referenceArtifact(
   if (taskDetail.taskId != null) await openTaskDetail(taskDetail.taskId);
 }
 
-// ── BRK16-a（挂载 3）：产物读 / 系统打开 / 文件夹 ＋ GAP11 审计导出 ──────────
+// ── -a（挂载 3）：产物读 / 系统打开 / 文件夹 ＋ 审计导出 ──────────
 
 /**
  * 产物操作（读预览 / 系统打开 / 在文件夹中显示；`task:read-artifact`）。
@@ -1450,7 +1450,7 @@ export async function readArtifact(artifactId: number, mode: 'read' | 'open' | '
       }
     | undefined;
   if (!res || res.ok === false) {
-    // UG-05：读态失败（二进制/文件缺失/非文件）→ **元信息卡**进抽屉（消息原文 + 指路「打开/文件夹」），
+    // 读态失败（二进制/文件缺失/非文件）→ **元信息卡**进抽屉（消息原文 + 指路「打开/文件夹」），
     // 不再只丢一条错误 notice；open/reveal 失败仍走 notice（抽屉无从谈起）。
     const artifactRow = (taskDetail.data as unknown as { artifacts?: Array<{ id: number; name: string; path: string; sha256: string | null }> } | null)
       ?.artifacts?.find((a) => a.id === artifactId);
@@ -1459,7 +1459,7 @@ export async function readArtifact(artifactId: number, mode: 'read' | 'open' | '
         artifactId,
         name: artifactRow?.name ?? '（产物）',
         path: artifactRow?.path ?? '',
-        // D4 re-review must-fix：真实大小不可得（主进程读态失败不带 size）→ 0 由 meta 行显「—」，不写假 0。
+        //  re-review must-fix：真实大小不可得（主进程读态失败不带 size）→ 0 由 meta 行显「—」，不写假 0。
         size: 0,
         sha256: artifactRow?.sha256 ?? '',
         sha256Mismatch: false,
@@ -1500,7 +1500,7 @@ export async function readArtifact(artifactId: number, mode: 'read' | 'open' | '
     res.mode === 'open' ? `已用系统打开：${res.name ?? ''}` : `已在文件夹中显示：${res.name ?? ''}`;
 }
 
-/** M4-D-1（P2）：按 ref 读取归档的工具大输出（受控路径在主进程；renderer 只拿文本）。 */
+/** （P2）：按 ref 读取归档的工具大输出（受控路径在主进程；renderer 只拿文本）。 */
 export async function readToolOutput(ref: string): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
   const api = getApi();
   if (!api?.task?.readToolOutput) return { ok: false, error: '读取通道不可用（主进程未连接）' };
@@ -1517,7 +1517,7 @@ export async function readToolOutput(ref: string): Promise<{ ok: true; text: str
 }
 
 /**
- * GAP11（审计导出）：把任务档案（任务/事件/产物/成本）导出为单一 JSON 文件（`task:export`）。
+ * （审计导出）：把任务档案（任务/事件/产物/成本）导出为单一 JSON 文件（`task:export`）。
  * `openAction` 由 UI 另发（导出与打开是两件事：打开失败不回滚导出，回执里如实带 `⚠️`）。
  */
 export async function exportTaskArchive(taskId: number, openAction?: 'open' | 'reveal'): Promise<void> {
@@ -1534,7 +1534,7 @@ export async function exportTaskArchive(taskId: number, openAction?: 'open' | 'r
 }
 
 
-// ── M2 §7 序 4：文档健康（项目概览一行读数；只读检查）──────────────────
+// ── §7 序 4：文档健康（项目概览一行读数；只读检查）──────────────────
 
 /** 文档健康读数（`result` 属于 `projectId`；**换项目后不沿用**——渲染层按 id 比对，见 `docsHealthView`）。 */
 export const docsHealth = proxy({
@@ -1574,7 +1574,7 @@ export async function checkProjectDocs(projectId: number): Promise<void> {
   }
 }
 
-/** M3-DOC-3：一键整理的预览计划（项目 id + changes + token；UI 只在同项目时展示）。 */
+/** 一键整理的预览计划（项目 id + changes + token；UI 只在同项目时展示）。 */
 export interface DocsOrganizeChangeDTO {
   path: string;
   before: string | null;
@@ -1713,11 +1713,11 @@ export const settingsView = proxy({
   companyDailyBudget: null as number | null,
   /** 设置·模型与供应商：本机 Key 状态（只含掩码/来源，不含明文）。 */
   providers: [] as ProviderStatusDTO[],
-  /** D-22：自定义供应商（Pi models.json；不含 Key）。 */
+  /** 自定义供应商（Pi models.json；不含 Key）。 */
   customProviders: [] as CustomProviderDef[],
   /** 件 A：调度与费率键现值（设置页「高级」）；`null` = 未设置 → 回落缺省（不臆造）。 */
   tuning: {} as Record<string, number | null>,
-  /** OPT-M4-1：接缝矩阵（项目级覆盖读数；null＝未加载/未接线）。 */
+  /** OPT-：接缝矩阵（项目级覆盖读数；null＝未加载/未接线）。 */
   seams: null as {
     boundaries: string[];
     rows: Array<{ boundary: string; status: string; coverageRef: string | null; owner: string | null; milestone: string | null }>;
@@ -1727,7 +1727,7 @@ export const settingsView = proxy({
   saved: null as string | null,
 });
 
-/** D-22 配套：只读模型目录（设置·模型与员工；失败显式，不摆假模型）。 */
+/**  配套：只读模型目录（设置·模型与员工；失败显式，不摆假模型）。 */
 export const modelCatalog = proxy({
   loading: false,
   error: null as string | null,
@@ -1815,7 +1815,7 @@ export async function loadSettingsView(): Promise<void> {
     settingsView.customProviders = Array.isArray(customList) ? customList : [];
     settingsView.defaultProjectId = typeof def === 'number' ? def : null;
     settingsView.projects = (projects as ProjectDTO[] | undefined) ?? [];
-    // OPT-M4-1：接缝矩阵（缺通道 → null，如实不摆假表）。
+    // OPT-：接缝矩阵（缺通道 → null，如实不摆假表）。
     settingsView.seams = ((await api.seams?.list?.({})) as typeof settingsView.seams) ?? null;
     const tuning: Record<string, number | null> = {};
     [...TUNING_FIELDS, ...NOTIFY_FIELDS].forEach((f, i) => {
@@ -1885,7 +1885,7 @@ export async function saveProviderKey(provider: string, key: string): Promise<bo
   return true;
 }
 
-/** D-22：保存自定义供应商（写 Pi models.json；可选同时保存 Key）。 */
+/** 保存自定义供应商（写 Pi models.json；可选同时保存 Key）。 */
 export async function saveCustomProvider(input: {
   provider: CustomProviderDef;
   key?: string;
@@ -1914,7 +1914,7 @@ export async function saveCustomProvider(input: {
   }
 }
 
-/** D-22：测试自定义供应商（真发一次极短 completion；不打印 Key）。 */
+/** 测试自定义供应商（真发一次极短 completion；不打印 Key）。 */
 export async function testCustomProvider(id: string): Promise<{ ok: boolean; message?: string; error?: string }> {
   const api = getApi();
   if (!api?.provider?.custom) return { ok: false, error: '未连接主进程' };
@@ -1929,7 +1929,7 @@ export async function testCustomProvider(id: string): Promise<{ ok: boolean; mes
   }
 }
 
-/** D-22：删除自定义供应商（同时清本机 Key 文件）。 */
+/** 删除自定义供应商（同时清本机 Key 文件）。 */
 export async function removeCustomProvider(id: string): Promise<{ ok: boolean; error?: string }> {
   const api = getApi();
   if (!api?.provider?.custom) return { ok: false, error: '未连接主进程' };
@@ -1988,7 +1988,7 @@ export async function sendTestNotification(): Promise<void> {  const api = getAp
   }
 }
 
-// ── M3：IM 通道（微信 1:1）──────────────────────────────────────────────
+// ──：IM 通道（微信 1:1）──────────────────────────────────────────────
 export const imView = proxy({
   status: null as ImStatusView | null,
   loading: false,
@@ -2331,8 +2331,8 @@ async function refreshProjectListsBestEffort(): Promise<void> {
   }
 }
 
-/** M2 尾：软件代建项目（项目树页「＋新建项目」；父目录由主进程 dialog 选，renderer 只给名字）。
- *  M3-DOC-1：`docsTemplate` 默认 true，主进程写 `.aico/docs` 骨架；false＝只建 README。 */
+/**  尾：软件代建项目（项目树页「＋新建项目」；父目录由主进程 dialog 选，renderer 只给名字）。
+ *  `docsTemplate` 默认 true，主进程写 `.aico/docs` 骨架；false＝只建 README。 */
 export async function createProject(
   name: string,
   docsTemplate = true,
@@ -2493,7 +2493,7 @@ export const settingsEmployees = proxy<{
 export async function loadSettingsEmployees(): Promise<void> {
   const api = getApi();
   if (!api) return;
-  // UG-11：花名册**含已停用**——否则停用后从列表消失，无法重新启用。
+  // 花名册**含已停用**——否则停用后从列表消失，无法重新启用。
   const list = (await api.employee.list({ includeDisabled: true })) as
     | Array<{ id: number; name: string; role: string; mcpRefs?: string[]; active?: boolean }>
     | undefined;
@@ -2506,7 +2506,7 @@ export async function loadSettingsEmployees(): Promise<void> {
   }));
 }
 
-// ── GAP7（M3-N-3）：技能库（列表 / 安装 / 启停 / 删除）＋B3 项目默认技能集 ──────────
+// ──：技能库（列表 / 安装 / 启停 / 删除）＋ 项目默认技能集 ──────────
 
 export const skillsLibrary = proxy({
   /** null＝未加载；[]＝真空（UI 显空态，不摆假行）。 */
@@ -2613,7 +2613,7 @@ export async function removeSkill(id: number): Promise<void> {
   await loadSkills();
 }
 
-// ── GAP9（M3-N-5）：公司配置版本化（项目根 `.aico/company.json`） ────────────────
+// ──：公司配置版本化（项目根 `.aico/company.json`） ────────────────
 
 export interface CompanyDiffDTO {
   added: string[];
@@ -2788,7 +2788,7 @@ export async function rollbackCompanyConfig(projectId: number): Promise<void> {
   }
 }
 
-// ── GAP6（M3-N-4）：MCP server 库（列表/注册/启停/删除；env 值只在主进程） ──────────
+// ──：MCP server 库（列表/注册/启停/删除；env 值只在主进程） ──────────
 
 export const mcpLibrary = proxy({
   list: null as McpServerDTO[] | null,
@@ -2857,7 +2857,7 @@ export async function removeMcpServer(id: number): Promise<void> {
   await loadMcpServers();
 }
 
-/** B3：写项目默认技能集（refs＝技能名/id；主进程校验后落库）。 */
+/** 写项目默认技能集（refs＝技能名/id；主进程校验后落库）。 */
 export async function saveProjectDefaultSkills(
   projectId: number,
   refs: string[],
@@ -2872,7 +2872,7 @@ export async function saveProjectDefaultSkills(
   return { ok: true };
 }
 
-/** M2 尾：招募员工（设置 · 员工「＋招募」；成功刷新花名册/编制下拉）。 */
+/**  尾：招募员工（设置 · 员工「＋招募」；成功刷新花名册/编制下拉）。 */
 export async function recruitEmployee(input: {
   name: string;
   role: string;
@@ -2894,7 +2894,7 @@ export async function recruitEmployee(input: {
   return { ok: true, employee: res.employee };
 }
 
-/** M2 尾：改员工档案（设置 · 员工「配置 ▸」；人设/模型/思考强度/停用）。 */
+/**  尾：改员工档案（设置 · 员工「配置 ▸」；人设/模型/思考强度/停用）。 */
 export async function updateEmployee(input: {
   employeeId: number;
   name?: string;
@@ -2921,7 +2921,7 @@ export async function updateEmployee(input: {
   return { ok: true, employee: res.employee };
 }
 
-// ── 编制 v1（D-11）：项目三项缺省（默认负责人 / 默认执行员工 / 默认档）──────────────────
+// ── 编制 v1：项目三项缺省（默认负责人 / 默认执行员工 / 默认档）──────────────────
 
 /**
  * 编制员工名（下拉/摘要共用）。预填值**不落全局**：由 `loadStaffingDefaults()` 每次返回，
@@ -2966,7 +2966,7 @@ export async function loadStaffingDefaults(
     const pid = picked.projectId;
     let project = picked.project;
     const employees = ((await api.employee?.list?.()) as EmployeeDTO[] | undefined) ?? [];
-    // 编制只列执行员工：幕僚长只协调，不参与执行/负责人兜底（D-20）。
+    // 编制只列执行员工：幕僚长只协调，不参与执行/负责人兜底。
     staffingDefaults.employees = employees
       .filter((e) => e.isAssistant !== true)
       .map((e) => ({ id: e.id, name: e.name }));
@@ -3013,7 +3013,7 @@ export async function saveProjectStaffing(
 }
 
 /**
- * D-22：保存项目模型策略（设置·模型与员工）。
+ * 保存项目模型策略（设置·模型与员工）。
  * 成功 → 刷新设置页项目 DTO（读面仍走 `project:get/list`）；失败 → 人话回执（不静默）。
  */
 export async function saveProjectModelPolicy(input: {
@@ -3037,7 +3037,7 @@ export async function saveProjectModelPolicy(input: {
     }
     settingsView.saved = '项目模型策略已保存（只影响之后的员工会话）';
     await loadSettingsView();
-    // UI-2 S2 复核 P1：编辑面已搬回项目页「设置·模型」，摘要读 project:list——必须同步刷新。
+    //   复核：编辑面已搬回项目页「设置·模型」，摘要读 project:list——必须同步刷新。
     await loadProjectsForOverview();
     return { ok: true };
   } catch (error) {
@@ -3067,7 +3067,7 @@ export async function saveProjectDefaultBudget(
     }
     settingsView.saved = '项目默认任务预算已保存（只影响之后新建且未填预算的任务）';
     await loadSettingsView();
-    // UI-2 S2 复核 P1：同「项目模型」——摘要与编辑面都在项目页，保存后同步刷新列表。
+    //   复核：同「项目模型」——摘要与编辑面都在项目页，保存后同步刷新列表。
     await loadProjectsForOverview();
     return { ok: true };
   } catch (error) {
@@ -3077,7 +3077,7 @@ export async function saveProjectDefaultBudget(
   }
 }
 
-/** S13-G/D-N06：保存项目合并目标分支（null/空串 ⇒ 回到 main/master）。 */
+/** /：保存项目合并目标分支（null/空串 ⇒ 回到 main/master）。 */
 export async function saveProjectTargetBranch(
   projectId: number,
   branch: string | null,
@@ -3097,7 +3097,7 @@ export async function saveProjectTargetBranch(
     }
     settingsView.saved = branch ? `合并目标分支已设为 ${branch}` : '合并目标分支已清空（沿用 main/master）';
     await loadSettingsView();
-    // UI-2 S2 复核 P1：同上——合并目标分支的编辑面与摘要都在项目页。
+    //   复核：同上——合并目标分支的编辑面与摘要都在项目页。
     await loadProjectsForOverview();
     return { ok: true };
   } catch (error) {
@@ -3108,7 +3108,7 @@ export async function saveProjectTargetBranch(
 }
 
 /**
- * M3-DOC-4：保存项目「任务验收默认挂文档检查」开关。
+ * 保存项目「任务验收默认挂文档检查」开关。
  * 成功 → 刷新项目 DTO；失败 → 回执（不静默）。
  */
 export async function saveProjectDocsCheck(projectId: number, enabled: boolean): Promise<{ ok: boolean; error?: string }> {
@@ -3129,7 +3129,7 @@ export async function saveProjectDocsCheck(projectId: number, enabled: boolean):
   }
 }
 
-/** D-19 P1：项目级频道助手写权限（read-only/confirm/auto；保存后以 project:list 真值为准）。 */
+/**  P1：项目级频道助手写权限（read-only/confirm/auto；保存后以 project:list 真值为准）。 */
 export async function saveProjectAssistantWriteMode(
   projectId: number,
   mode: 'read-only' | 'confirm' | 'auto',
@@ -3183,7 +3183,7 @@ async function readOnboardingCompleted(): Promise<boolean | null> {
 export async function loadOnboarding(): Promise<void> {
   const api = getApi();
   if (!api?.settings) return;
-  // RW-11（M5 真机偶发，S6 批登记）：已完成用户遇一次读失败就被打回向导＝打扰。
+  // （真机偶发， 批登记）：已完成用户遇一次读失败就被打回向导＝打扰。
   // 口径：确证未完成才 show；读失败重试一次，仍失败保持 unknown（本启动不弹向导，下次启动自然再读）。
   let completed = await readOnboardingCompleted();
   if (completed === null) completed = await readOnboardingCompleted();
@@ -3214,7 +3214,7 @@ export async function finishOnboarding(): Promise<void> {
 
 /** R2-4：关联已有文件夹（**主进程 dialog 选目录**；探测结果如实回显——真事实，不美化）。 */
 /**
- * S13-E P1/D-N02：项目页「接入已有文件夹」——复用首启同一条 `project:attach`（主进程原生选目录）。
+ *  P1/：项目页「接入已有文件夹」——复用首启同一条 `project:attach`（主进程原生选目录）。
  * 成功后把频道范围切到该项目、刷新项目列表，并选中它（与首启接入同口径）。
  */
 export async function attachExistingProject(): Promise<{ ok: boolean; error?: string }> {
@@ -3277,7 +3277,7 @@ export async function attachProject(): Promise<void> {
       (p.hasGit ? 'git ✓（原地模式：每任务一分支）' : '无 git（沙盒模式）') +
       ' · ' +
       (p.suggestedCheck ? `建议验证命令：${p.suggestedCheck}` : '未找到可跑命令（建议第一个任务＝先搭测试底座）');
-    // P0/V3（S13-E 对抗审查）：首启接入后频道范围要跟着切到该项目，
+    // P0/V3（对抗审查）：首启接入后频道范围要跟着切到该项目，
     // 否则助手自称「没有绑定项目、动不了文件」，与刚选完文件夹自相矛盾。
     session.selectedProjectId = res.project.id;
     persistSession();
@@ -3333,7 +3333,7 @@ export async function checkAppUpdate(): Promise<void> {
   }
 }
 
-/** B0-9：手动下载更新（autoDownload=false；下载完才有「重启安装」）。 */
+/** 手动下载更新（autoDownload=false；下载完才有「重启安装」）。 */
 export async function downloadAppUpdate(): Promise<void> {
   appUpdate.error = null;
   try {
@@ -3360,7 +3360,7 @@ export function subscribeAppUpdateStatus(): Unsubscribe | null {
   }) ?? null;
 }
 
-// ── UI-2 项目页：行下展开状态（深链可写；同一时间只展开一行）─────────────
+// ── 项目页：行下展开状态（深链可写；同一时间只展开一行）─────────────
 export const projectPage = proxy({
   expandedTaskId: null as number | null,
   /** 深链待展开（频道/待办/命令面板点任务）；项目页挂载后一次性消费。 */

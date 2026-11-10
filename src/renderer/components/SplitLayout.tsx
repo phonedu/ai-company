@@ -1,5 +1,5 @@
 /**
- * SplitLayout · 主从两栏统一组件（2026-11-03 老板拍板方案）。
+ * SplitLayout · 主从两栏统一组件（2026-11-03 要求方案）。
  *
  * 为什么有它：设置（190）/项目树（300）/公司大厅（300）/笔记（340）四页各写各的分栏 CSS，
  * 窄窗行为漂移——大厅 34vh 拦腰截断、设置右栏顶出窗体、笔记无处理。本组件一处实现：
@@ -10,7 +10,7 @@
  *    （localStorage，同壳 `railCollapsed` 模式）。
  *
  * 断点真源：`NARROW_QUERY` 从本文件导出（壳层 AppShell 复用）——壳层右栏自动收起、
- * S11 批 CSS media query、本组件共用同一个定义，不再各写各的。
+ *  批 CSS media query、本组件共用同一个定义，不再各写各的。
  */
 import { createElement, MouseEvent as ReactMouseEvent, ReactElement, ReactNode, useEffect, useRef, useState } from 'react';
 
@@ -86,7 +86,7 @@ export function SplitLayout(props: SplitLayoutProps): ReactElement {
   const storage = props.storage ?? (typeof localStorage !== 'undefined' ? localStorage : null);
   const [collapsed, setCollapsed] = useState(() => readStackedCollapsed(props.storageKey, storage));
 
-  // T1 交互专项（S13-C 口径）：抽屉＝弹层，Esc 必须能关（与建任务/新建笔记弹层同语言）。
+  // T1 交互专项（口径）：抽屉＝弹层，Esc 必须能关（与建任务/新建笔记弹层同语言）。
   useEffect(() => {
     if (!stacked || collapsed) return;
     const onKey = (event: KeyboardEvent): void => {

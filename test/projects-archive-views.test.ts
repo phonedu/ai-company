@@ -1,5 +1,5 @@
 /**
- * 项目树页 / 归档页（2026-10-18 改页批；老板裁「站在导航栏的就是导航，就该开一个页面」）——判据：
+ * 项目树页 / 归档页（2026-10-18 改页批；决定「站在导航栏的就是导航，就该开一个页面」）——判据：
  *   ① 纯视图（props 进 DOM 出）：项目树＝按项目归并（组题可点→概览；行→详情；空态）；归档＝归档行列表
  *      （计数/空态/只列 archived=1）；
  *   ② 行＝状态点（语义色）＋短号＋题＋头像（与左栏同款 `taskVisuals`）；
@@ -56,7 +56,7 @@ test('归档回执有消费者：ProjectOverview 渲染 tasks.notice（左栏任
   const source = readFileSync('src/renderer/components/ProjectOverview.tsx', 'utf8');
   assert.ok(source.includes('tasksSnap.notice'), '归档回执未渲染（tasks.notice 无消费者）');
   assert.ok(source.includes('data-testid="project-task-notice"'), '缺归档回执 testid');
-  // UG-08：项目树任务行显示引擎 waits（空则不摆占位）。
+  // 项目树任务行显示引擎 waits（空则不摆占位）。
   assert.ok(source.includes('waitingSummary(task.waits)'), '项目树任务行未消费 task.waits');
   assert.ok(source.includes('data-testid="project-task-wait"'), '缺项目树等待原因 testid');
 });

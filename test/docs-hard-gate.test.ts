@@ -1,5 +1,5 @@
 /**
- * M3 联动修复 P1：挂了 `acceptance[].check` 的任务必须走 verifier（DOC-4 硬门），
+ *  联动修复 P1：挂了 `acceptance[].check` 的任务必须走 verifier（DOC-4 硬门），
  * 不能被 L1 抽验（未命中）绕过成自动 pass。
  */
 import assert from 'node:assert/strict';

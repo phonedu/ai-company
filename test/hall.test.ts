@@ -5,7 +5,7 @@ import { insertWorkItem, openMemoryDatabase, runMigrations, type SqliteDb } from
 import { buildHallState, UNGROUPED_ID } from '../src/main/ipc/hall.js';
 import { createSqliteChatRepo } from '../src/main/ipc/repo.js';
 
-// ─────────── M1 公司大厅 B0/B1：员工列表 + 轻量部门分组 + 真实协作流聚合 ───────────
+// ─────────── 公司大厅 B0/：员工列表 + 轻量部门分组 + 真实协作流聚合 ───────────
 
 function emp(db: SqliteDb, name: string, role = 'standard'): number {
   return Number(db.prepare("INSERT INTO employees(name, role, created_at) VALUES(?, ?, 1)").run(name, role).lastInsertRowid);

@@ -1,4 +1,4 @@
-// B0-9 真机配方：供应商 Key 落盘加密（Electron safeStorage/DPAPI）＋重启可回读。
+//  真机配方：供应商 Key 落盘加密（Electron safeStorage/DPAPI）＋重启可回读。
 //
 // 断言：
 //   ① 通过真实 IPC（`provider:set-key`）保存 Key 后，磁盘上**没有明文**，canonical 是 `.enc`（v1: 密文）；

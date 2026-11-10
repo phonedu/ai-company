@@ -1,5 +1,5 @@
 /**
- * M3-CR P0-2：旧 `aico.inbox.seenAt` 一次性迁移的纯归约。
+ *  P0-2：旧 `aico.inbox.seenAt` 一次性迁移的纯归约。
  * 只把 createdAt ≤ seenAt 的最大 card id 作为服务端游标；没有/非法 seenAt → 0。
  */
 import assert from 'node:assert/strict';

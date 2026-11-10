@@ -1,5 +1,5 @@
 /**
- * D-17 记忆注入门：员工/幕僚长/critic/verifier 的可见面不同；项目隔离。
+ *  记忆注入门：员工/幕僚长/critic/verifier 的可见面不同；项目隔离。
  * 全部内存库；不碰真实数据。
  */
 import test from 'node:test';

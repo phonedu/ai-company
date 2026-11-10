@@ -1,5 +1,5 @@
 /**
- * B3-5/D-31 · 记忆抽取提议卡（fail-closed）。
+ * / · 记忆抽取提议卡（fail-closed）。
  *
  * 口径：工作项完成时，从员工提交的 summary 抽取**候选事实**（LLM 单发 JSON——与
  * semantic-classifier 同哲学：轻量/绝不误建/可换）；候选以 **provisional** 状态写
@@ -112,7 +112,7 @@ export function memoryExtractKeyAvailable(secretsDir?: () => string): boolean {
 
 
 /**
- * 候选 → `memory_items` **provisional** 写入（08-记忆设计 §7 闸门：老板确认才升级）。
+ * 候选 → `memory_items` **provisional** 写入（08-记忆设计 §7 闸门：要求才升级）。
  * 幂等：同任务（`source.ref = task:<id>`）重复执行不重复写（按 ref+content 查重）。
  * 写入失败不抛（抽取链路绝不反噬任务收尾），返回写入条数。
  */
@@ -127,7 +127,7 @@ export async function writeCandidatesAsProvisional(
         scope: input.projectId != null && input.projectId > 0 ? { type: 'project', projectId: input.projectId } : { type: 'global' },
         kind: 'fact',
         value: c.content,
-        // D-31/B3-5：抽取候选＝**provisional**（08-记忆设计 §7 闸门）；老板确认（confidence→confirmed）
+        // /：抽取候选＝**provisional**（08-记忆设计 §7 闸门）；要求（confidence→confirmed）
         // 之后才进 brief。数值 confidence 只保留在 source.excerpt 里供排序参考。
         confidence: 'provisional',
         source: { type: 'task', ref: `task:${input.taskId}`, excerpt: `conf=${c.confidence}`, at: input.now },

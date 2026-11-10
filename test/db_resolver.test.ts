@@ -1,6 +1,6 @@
 /**
- * T0.5 依赖素材测试：human_messages / reports / approvals DAO + ResolverStore(SQLite)。
- * 在 T0.3 收口时提供（chat:send / 卡片渲染依赖这些）。
+ *  依赖素材测试：human_messages / reports / approvals DAO + ResolverStore(SQLite)。
+ * 在收口时提供（chat:send / 卡片渲染依赖这些）。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

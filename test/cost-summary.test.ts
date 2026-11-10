@@ -1,5 +1,5 @@
 /**
- * M2-A `OPT-EXT-13`「用量可视」—— 成本聚合（`summarizeCosts`，含"有牙"）。
+ *  ``「用量可视」—— 成本聚合（`summarizeCosts`，含"有牙"）。
  * 口径：**有成本行则非 0；无行 → costRows=0（由上层显 `—`，不写假 0）**。
  */
 import test from 'node:test';

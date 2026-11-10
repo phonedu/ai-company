@@ -1,7 +1,7 @@
 /**
- * B2-4（58 §1.6 P2；D-30）· 路径所有权**执行期实测**采集器。
+ * · 路径所有权**执行期实测**采集器。
  *
- * 背景：并行正确性此前建立在「路径预言」上（touched_paths 塞 brief）；B0-7 因无测量用
+ * 背景：并行正确性此前建立在「路径预言」上（touched_paths 塞 brief）； 因无测量用
  * `'.'` 整树认领兜底 ⇒ inplace 恒串行。本采集器在**工具调用执行前**（与权限闸门同点位
  * `pi.on('tool_call')`）登记员工实际触碰的路径：
  *  - `read`/`write`/`edit`/`grep`/`find` → 提取路径参数（真实触碰）；
@@ -32,7 +32,7 @@ export function extractTouchedPathsFromTool(
     return ['.'];
   }
   if (name === 'mcp_call' || name === 'mcp') return ['.'];
-  // B4b 接线审查 F2（2026-11-09）：内容工具固定产出目录/派生文件认领（并行隔离不再对这些盲区）。
+  //  接线审查 （2026-11-09）：内容工具固定产出目录/派生文件认领（并行隔离不再对这些盲区）。
   if (name === 'image_generate') return ['assets/images'];
   if (name === 'screenshot') return ['.aico/screenshots'];
   if (name === 'write_note') return ['.aico/notes'];

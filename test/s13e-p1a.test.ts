@@ -1,5 +1,5 @@
 /**
- * S13-E P1 第一批：C2 结束三选项、U-N05 阅读态隐藏编辑菜单、U-N03 主按钮对比度、U-N01/02 深色。
+ *  P1 第一批：C2 结束三选项、U-N05 阅读态隐藏编辑菜单、U-N03 主按钮对比度、U-N01/02 深色。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

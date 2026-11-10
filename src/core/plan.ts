@@ -1,5 +1,5 @@
 /**
- * 计划步骤共享校验（GAP8：批准前可编辑）。
+ * 计划步骤共享校验（：批准前可编辑）。
  *
  * 同一份口径同时供三处使用，避免「UI 放行、服务端拒」的口径漂移：
  *  - 规划会话 `submit_plan` 的步数上限；
@@ -47,7 +47,7 @@ export function normalizePlanSteps(raw: unknown): PlanStepsValidation {
 }
 
 /**
- * B2-3/D-30②：planner 结构化多工作项校验（`submit_plan.workItems`）。
+ * /：planner 结构化多工作项校验（`submit_plan.workItems`）。
  *
  * 口径：1–6 件；每件 title 必填（≤200 字）、brief 可选；deps＝**1-based 件序号**数组、
  * 必须有界；成环拒绝（含自依赖）；允许 1 件（回落单件现状）。**不静默丢非法输入**——
@@ -61,7 +61,7 @@ export interface PlanWorkItemInput {
   brief?: string;
   dependsOn?: number[];
   /**
-   * B2a 出口 B 供件：每件可指定执行员工（规划者指定＝缺省链第①优先，D-11 口径）。
+   *  出口 B 供件：每件可指定执行员工（规划者指定＝缺省链第①优先， 口径）。
    * 正整数才有效；非法/缺省 → 该件回落缺省链（spawn 侧校验，不整体拒绝）。
    */
   employeeId?: number;
@@ -105,7 +105,7 @@ export function normalizePlanWorkItems(raw: unknown): PlanWorkItemsValidation {
     if (depsRaw != null && !Array.isArray(depsRaw)) {
       return { ok: false, code: 'invalid_work_items', message: 'dependsOn 必须是数组（1-based 件序号）' };
     }
-    // D4 复核 P3-3 收紧：非整数（浮点/字符串）**响亮拒**——此前静默过滤成无依赖，
+    //  复核-3 收紧：非整数（浮点/字符串）**响亮拒**——此前静默过滤成无依赖，
     // 串行意图变并行，违背本模块「不静默丢」哲学。
     if (Array.isArray(depsRaw) && depsRaw.some((d) => typeof d !== 'number' || !Number.isInteger(d))) {
       return { ok: false, code: 'invalid_work_items', message: 'dependsOn 必须是正整数数组（1-based 件序号）' };

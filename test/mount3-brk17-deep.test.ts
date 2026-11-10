@@ -1,12 +1,12 @@
 /**
- * BRK17 深件（挂载 3 余）：resolver 侧三件生产方 —— `ask_owner` / `reopen_reply` / `confirm` 执行器。
+ *  深件（挂载 3 余）：resolver 侧三件生产方 —— `ask_owner` / `reopen_reply` / `confirm` 执行器。
  *
  * 口径：
- *  - `reopen_reply`（05 §3.1.1「提议续办，口头一次确认」）：回复链打到**已归档终态**任务 →
+ *  - `reopen_reply`：回复链打到**已归档终态**任务 →
  *    派事件（needs_decision ＋决策卡；`resume_state=done`）；终态未归档不打扰（普通消息照落）。
  *  - `confirm` 执行器：归属拿不准 → **登记待问清单**（`pending_lists`）＋问题 out 消息上屏；
  *    回序号＝第 2 步精确解析（选项带 `then` 时直通该决议——「新建任务/闲聊」也能被序号命中，「只问一次」不落空）。
- *  - `ask_owner`（PLAN「无法判断时落默认项目**或问你一次**」；`projects.ts`「未设置 → 由 resolver 走'模糊时问你一次'」）：
+ *  - `ask_owner`（「无法判断时落默认项目**或问你一次**」；`projects.ts`「未设置 → 由 resolver 走'模糊时问你一次'」）：
  *    未显式给项目 ＋ 未设默认项目 ＋ 多个项目可选 ⇒ **不自动分诊**，派 `ask_owner`（卡问一次；`resume_state=inbox`，
  *    答后回左栏「待分诊」用既有 [确认为任务] 分流）。
  *

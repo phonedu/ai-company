@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { getProvenance } from '../src/main/provenance.js';
 
-// ── OPT-M8-2：证据 provenance（gitHead/dirty/version/generatedAt），best-effort 绝不抛 ──
+// ── OPT-：证据 provenance（gitHead/dirty/version/generatedAt），best-effort 绝不抛 ──
 
 test('provenance: 采集 gitHead/dirty/version/generatedAt（注入 git）', () => {
   const p = getProvenance({

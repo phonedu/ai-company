@@ -1,4 +1,4 @@
-# src/main/engine — 引擎（T0.3）
+# src/main/engine — 引擎
 
 串行事件循环 + 状态机 + 幂等动作 + 持久化定时器 + 启动恢复。
 **唯一契约**：`FLOWS §3.1` 状态迁移真值表（本目录 `statemachine.ts` 是它的代码化）、`DEV §4/§5`、`PLAN §19`、`schema.sql`。
@@ -21,15 +21,15 @@ await engine.recover();               // ② running→interrupted ③ 重放 pe
 engine.start();                       // ⑤ 进入事件循环（异步 tick；到期的 timers 转事件）
 ```
 
-`executor` 是副作用执行器（`EffectExecutor`）：M0 用桩（记录/无真实 LLM），M1 换成 Pi 会话池。
+`executor` 是副作用执行器（`EffectExecutor`）： 用桩（记录/无真实 LLM）， 换成 Pi 会话池。
 
-## 手工驱动（T0.6「手动推进」/ 脚本化验收）
+## 手工驱动（「手动推进」/ 脚本化验收）
 
 `Engine.dispatch(event)` = 入队 + 同步排空；`autoSchedule:false` 时每次只走一步，便于逐条对照 `FLOWS §3.1`：
 
 ```ts
 // 建任务（短号在 createTask 内分配；状态 inbox；同事务落 task_created）
-const task = createTask(db, new SqliteCounterStore(db), { projectId, title: 'T0.6', goal: '走通主链', riskLevel: 1 });
+const task = createTask(db, new SqliteCounterStore(db), { projectId, title: '', goal: '走通主链', riskLevel: 1 });
 const taskId = task.id;
 
 // autoSchedule:false —— 每次 dispatch 只走一步（不在事务里自动跑调度 fixpoint），便于逐条对照
@@ -39,7 +39,7 @@ const e = (event: string, payload?: Record<string, unknown>) => ({ scope: 'task'
 await engine.dispatch(e('triage'));                                        // inbox → planning            [task_triaged]
 await engine.dispatch(e('plan_drafted', { steps: ['收集', '写稿', '校对'] })); // planning(不变) [plan_drafted] + plan_steps 初始化
 await engine.dispatch(e('plan_reviewed'));                                 // → awaiting_approval         [plan_reviewed]
-await engine.dispatch(e('plan_approved'));                                 // → ready（写 ready_since）    [plan_approved]
+await engine.dispatch(e('plan_approved'));                                 // → ready（写 ready_since）[plan_approved]
 await engine.dispatch(e('start_task'));                                    // → executing                 [task_started]
 // 进度（report_progress 工具路径；也可由幕僚长真实调用）
 projectProgressReported(db, { taskId, stepIdx: 1, state: 'done' });
@@ -51,9 +51,9 @@ await engine.dispatch(e('all_work_items_done'));                           // �
 await engine.dispatch(e('verification_completed', { verdict: 'pass' }));   // → done  [verification_completed, task_completed]
 ```
 
-- **`autoSchedule:false`**：每次 `dispatch` 只走一步；置 `true`（默认）时 `plan_approved` 后会在**同一事务**里跑调度 fixpoint，自动 `ready→executing`（见 `DEV §5`）。T0.6 逐步取证用 `false`。
-- **可跑的驱动**：`node dist\test\fixtures\t06-walkthrough.js`（源 `test/fixtures/t06-walkthrough.ts`）——逐步打印 `event → state / ready_since → 新增 kind → plan_steps`；预期 `plan_steps = 1:done,2:running,3:pending`、终态 `done`、事件流 `task_created,…,verification_completed,task_completed`。**推进按钮 / T0.8 冒烟可直接照此序列。**
-- 工作项事件用 `{ scope: 'work_item', id: workItemId, event }`。单测见 `test/engine.test.ts`（T0.3①）。
+- **`autoSchedule:false`**：每次 `dispatch` 只走一步；置 `true`（默认）时 `plan_approved` 后会在**同一事务**里跑调度 fixpoint，自动 `ready→executing`（见 `DEV §5`）。 逐步取证用 `false`。
+- **可跑的驱动**：`node dist\test\fixtures\t06-walkthrough.js`（源 `test/fixtures/t06-walkthrough.ts`）——逐步打印 `event → state / ready_since → 新增 kind → plan_steps`；预期 `plan_steps = 1:done,2:running,3:pending`、终态 `done`、事件流 `task_created,…,verification_completed,task_completed`。**推进按钮 / 冒烟可直接照此序列。**
+- 工作项事件用 `{ scope: 'work_item', id: workItemId, event }`。单测见 `test/engine.test.ts`。
 
 ## 幂等与崩溃恢复
 
@@ -69,10 +69,10 @@ await engine.dispatch(e('verification_completed', { verdict: 'pass' }));   // �
 - 渲染层动作 → `engine.dispatch({ scope, id, event, actor, payload })`（P 通道 `evt:task` 的载荷形状同 `EngineEvent`）。
 - 引擎不碰 Electron / IPC；`main/index.ts` 负责装配（openDatabase → runMigrations → recover → start）。
 
-## T0.8「重启不丢」引擎侧说明（冒烟用）
+## 「重启不丢」引擎侧说明（冒烟用）
 
 **`recover()` 做什么**（`DEV §4.5` 第 ②–④ 步；① 迁移由装配方先跑）：
-1. ② `running` 工作项 → `interrupted`（写 `work_item_interrupted`）——重启即判定「会话已死」；**任务仍 `executing` 的件随后自动 `redispatch` 回 `queued`（attempt+1，BRK8）**，暂停/阻塞/验证中的任务不擅自重派；
+1. ② `running` 工作项 → `interrupted`（写 `work_item_interrupted`）——重启即判定「会话已死」；**任务仍 `executing` 的件随后自动 `redispatch` 回 `queued`（attempt+1）**，暂停/阻塞/验证中的任务不擅自重派；
 2. ③ 重放 `action_log` 中 `pending` 的动作（幂等；`done` 的跳过）；
 3. ④ 重建 `timers`：`DELETE WHERE fired_at IS NULL` 后按**物化状态**重计划（`awaiting_approval`→`askcard_timeout`、`blocked`→`blocked_watchdog`）。
 

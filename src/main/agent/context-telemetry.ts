@@ -120,7 +120,7 @@ export const LAYER_TOKEN_CAPS: Readonly<Record<string, number>> = {
   skillIndex: 800,
   /** CTX1-6：计划复述（每轮动态；步骤多/文本长时截断，不静默丢）。 */
   planRecitation: 800,
-  /** RET-F-02：员工 L1 记忆（D-17 2k 口径；留余量给事实/检索层）。 */
+  /** RET-：员工 L1 记忆（2k 口径；留余量给事实/检索层）。 */
   employeeMemory: 1200,
 };
 
@@ -131,9 +131,9 @@ export interface CappedLayer {
 }
 
 export interface CapLayerOptions {
-  /** 标记里加一句「去哪读全文」（RET-F-01：项目约定层要给路径）。 */
+  /** 标记里加一句「去哪读全文」（RET-：项目约定层要给路径）。 */
   hint?: string;
-  /** 被截断部分的**标题目录**（RET-F-01：让模型知道漏了哪些章节，再按需 read）。 */
+  /** 被截断部分的**标题目录**（RET-：让模型知道漏了哪些章节，再按需 read）。 */
   outline?: readonly string[];
   /** `head-tail`（默认）保头尾；`tail-heavy` 保最近内容（记忆等时间序）。 */
   mode?: 'head-tail' | 'tail-heavy';

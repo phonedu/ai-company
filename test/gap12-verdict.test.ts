@@ -1,5 +1,5 @@
 /**
- * GAP12（M3-P-2）：评审/验证结论上屏 + 手动打回批注进返工项。
+ * 评审/验证结论上屏 + 手动打回批注进返工项。
  *
  * 断言：
  *  ① `task:get.reviews` 同时带 critic/verifier 结论与批注，`reports.verdict` 优先；

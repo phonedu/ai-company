@@ -1,7 +1,7 @@
 /**
- * B-4（M4）· 数据保留/清理的 IPC（`settings:maintenance`）。
+ * B-4· 数据保留/清理的 IPC（`settings:maintenance`）。
  *
- * 口径（`D-21` ②）：
+ * 口径（`` ②）：
  *  - 只清四张临时表：`remote_event_log`（过期）/`im_outbox`（sent/cancelled/expired >30d）/
  *    `task_checkpoints`（restored/invalid >30d）/`timers`（fired >30d）；
  *  - **不删** tasks/reports/artifacts/changesets；不动活跃数据；

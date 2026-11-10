@@ -9,7 +9,7 @@ import {
   listEmployees,
 } from '../src/main/db/employees.js';
 
-// ── 引导名册（老板裁定：只补幕僚长）──
+// ── 引导名册（要求：只补幕僚长）──
 // 口径：**空表才补、只补幕僚长(id=0,is_assistant=1)、幂等、非空绝不插、不臆造其它员工**。
 
 test('引导名册：空表 → 只补幕僚长(id=0, is_assistant=1)；重复调用幂等', () => {

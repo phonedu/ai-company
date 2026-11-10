@@ -1,14 +1,14 @@
 /**
- * 幕僚长（0 号员工）会话运行时 —— T0.4 主体（DEV §8 T0.4）。
+ * 幕僚长（0 号员工）会话运行时 —— 主体。
  *
  * 职责：把一次「老板频道」对话跑成一转会话，并把结果落库：
- *  - 真实回复 → `human_messages(direction='out')`（T0.5 消息流渲染）；
+ *  - 真实回复 → `human_messages(direction='out')`（消息流渲染）；
  *  - `tool_call`（start/end）→ `task_events.kind='tool_call'`（行为日志 / 员工墙）；
- *  - `report_progress` 工具 → `progress_reported` 事件 + `plan_steps` 投影（DEV §4.8）；
- *  - `text_delta` 只推流、不落库（DEV §6.2）。
+ *  - `report_progress` 工具 → `progress_reported` 事件 + `plan_steps` 投影；
+ *  - `text_delta` 只推流、不落库。
  *
  * 会话运行时（`AgentRuntime`）**可插拔**：真实 Pi 实现（`pi-runtime.ts`）或 fake；
- * 这样本模块可脱离 Pi/网络单测（DEV §9）。
+ * 这样本模块可脱离 Pi/网络单测。
  */
 import { randomUUID } from 'node:crypto';
 
@@ -20,7 +20,7 @@ import { assistantGatePolicy, assistantWriteModePrompt, resolveAssistantWriteMod
 import { persistToolCallEvent, projectProgressReported } from './tool-events.js';
 import type { AgentEvent, AgentToolCallRecord, AgentUsage, AgentRuntime } from './types.js';
 import type { SessionToolGate } from './session-tool-gate.js';
-// B2-1（57 P1-2）：幕僚长分层上下文——项目约定层/技能索引层与员工同一实现（单一真源）。
+// （57 P1-2）：幕僚长分层上下文——项目约定层/技能索引层与员工同一实现（单一真源）。
 import { capLayer, LAYER_TOKEN_CAPS } from './context-telemetry.js';
 import { contextOutline, readProjectContextDetailed, skillsLayer } from './context.js';
 
@@ -32,7 +32,7 @@ export interface AssistantRuntimeOptions {
   /** 幕僚长五层拼装的系统提示词。 */
   systemPrompt?: string;
   cwd?: string;
-  /** D-19：会话内工具闸门（与员工会话同一 `permissionGate`）；缺省不拦（仅测试/旧装配）。 */
+  /** 会话内工具闸门（与员工会话同一 `permissionGate`）；缺省不拦（仅测试/旧装配）。 */
   toolGate?: SessionToolGate;
   clock?: () => number;
   /** 流式文本回调（→ 渲染层推送；不落库）。 */
@@ -44,7 +44,7 @@ export interface AssistantTurnInput {
   text: string;
   /** 归属任务（可空 = 全局对话）。 */
   taskId?: number | null;
-  /** D-19：无任务时绑定的当前项目（任务消息仍以任务 project_id 优先）。 */
+  /** 无任务时绑定的当前项目（任务消息仍以任务 project_id 优先）。 */
   projectId?: number | null;
 }
 
@@ -70,10 +70,10 @@ function parseRefListOf(raw: unknown): string[] {
 }
 
 /**
- * B2-1（57 P1-2）· 幕僚长分层上下文：项目约定层＋技能索引层（事实层＝记忆 brief，runTurn 已有）。
+ * （57 P1-2）· 幕僚长分层上下文：项目约定层＋技能索引层（事实层＝记忆 brief，runTurn 已有）。
  *
  * 与员工同一实现（`readProjectContextDetailed` / `skillsLayer`，单一真源）；项目约定按员工同款
- * 2000 token 上限截断（带章节目录，RET-F-01 口径）；技能索引＝幕僚长（0 号）勾选 ∪ 项目默认。
+ * 2000 token 上限截断（带章节目录，RET- 口径）；技能索引＝幕僚长（0 号）勾选 ∪ 项目默认。
  * **无内容返回空串，不注入空段**（CTX 口径）。
  */
 export function buildAssistantLayers(db: SqliteDb, input: { projectId: number | null }): { projectLayer: string; skillLayer: string } {
@@ -91,7 +91,7 @@ export function buildAssistantLayers(db: SqliteDb, input: { projectId: number | 
 export class AssistantRuntime {
   private readonly sessionKey: string;
   /**
-   * D-19 P1：闸门会话维度（grant 过滤用）。与 Pi 的持久 sessionKey 分开：
+   *  P1：闸门会话维度（grant 过滤用）。与 Pi 的持久 sessionKey 分开：
    * 「本次允许」只在本应用进程内有效，重启后不会因为固定 sessionKey 变成永久授权。
    */
   private readonly gateSessionKey: string;
@@ -149,7 +149,7 @@ export class AssistantRuntime {
           errorMsg = error instanceof Error ? error.message : String(error);
         }
       }
-      // OPT-M3-1：`request_review` 工具 → 落 `review_requested` 事件（指派/强制度由引擎 requestReview 决定）
+      // OPT-：`request_review` 工具 → 落 `review_requested` 事件（指派/强制度由引擎 requestReview 决定）
       if (event.toolName === 'request_review' && taskId != null) {
         const args = startedArgs.get(event.toolCallId) ?? {};
         insertTaskEvent(db, {
@@ -169,11 +169,11 @@ export class AssistantRuntime {
     };
 
     const task = taskId != null ? (getTaskById(db, taskId) as { project_id?: number | null } | undefined) : undefined;
-    // D-19：当前项目优先级＝任务 project_id → 桌面当前选中项目 → 无（只读）。
+    // 当前项目优先级＝任务 project_id → 桌面当前选中项目 → 无（只读）。
     const projectId = task?.project_id ?? input.projectId ?? null;
     const project = projectId != null ? getProjectById(db, projectId) : undefined;
     const runCwd = project?.root_dir ?? this.options.cwd;
-    // D-19 P1：项目写模式（read-only/confirm/auto；无项目恒只读）。判定仍由同一 `permissionGate`。
+    //  P1：项目写模式（read-only/confirm/auto；无项目恒只读）。判定仍由同一 `permissionGate`。
     const writeMode = resolveAssistantWriteMode(db, projectId);
     const gatePolicy = assistantGatePolicy(writeMode);
     const gateSessionId =
@@ -211,7 +211,7 @@ export class AssistantRuntime {
           '老板要你动其他项目时，请他在频道上方「当前范围」切换后再说，不要越界尝试。'
         : '本轮未绑定项目（只读档）：可以聊天、可以用 task_status 查任务状态；命令与文件读写都不可用。'
           + '若老板要你执行命令、列目录或读写文件，不要反复尝试被拦的命令——直接回复：「请先在左栏『项目树』选择一个项目，选中后我才能在项目里干活。」';
-    // B2-1（57 P1-2）：分层拼装——项目约定层/技能索引层（无内容不注入空段）；静态→动态排序护缓存前缀。
+    // （57 P1-2）：分层拼装——项目约定层/技能索引层（无内容不注入空段）；静态→动态排序护缓存前缀。
     const layers = buildAssistantLayers(db, { projectId });
     const systemPrompt = [this.options.systemPrompt, scopePrompt, layers.projectLayer, layers.skillLayer, memoryText]
       .filter((s): s is string => typeof s === 'string' && s.length > 0)
@@ -271,7 +271,7 @@ export class AssistantRuntime {
     return this.options.runtime.abortSession?.(this.sessionKey) ?? false;
   }
 
-  /** 老板插话 → steer 目标会话（FLOWS F4）。 */
+  /** 老板插话 → steer 目标会话。 */
   steer(text: string): boolean {
     return this.options.runtime.steer(this.sessionKey, text);
   }

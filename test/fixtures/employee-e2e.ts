@@ -1,5 +1,5 @@
 /**
- * OPT-AI-1 真实会话端到端驱动（**非测试文件**；key 到位后手工跑一次，产出验收证据）。
+ *  真实会话端到端驱动（**非测试文件**；key 到位后手工跑一次，产出验收证据）。
  *
  * 用法：
  *   .\scripts\with-node22.ps1 pnpm build
@@ -63,7 +63,7 @@ try {
         const api = pi as { registerTool(t: unknown): void };
         void createReportProgressTool().then((t) => api.registerTool(t));
         void createSubmitWorkItemTool().then((t) => api.registerTool(t));
-        // B4b 接线审查 F3：行为级激活验证——四个内容工具走真注册链（声明给模型即真激活）。
+        //  接线审查：行为级激活验证——四个内容工具走真注册链（声明给模型即真激活）。
         void createWebFetchTool().then((t) => api.registerTool(t));
         void createScreenshotTool(dir).then((t) => api.registerTool(t));
         void createImageGenerateTool(dir).then((t) => api.registerTool(t));

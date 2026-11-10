@@ -1,5 +1,5 @@
 /**
- * F-05（2026-10-24）：建任务是“受理即回执”，不得同步等待规划/critic。
+ * （2026-10-24）：建任务是“受理即回执”，不得同步等待规划/critic。
  *  - 源码守门：handleTaskCreate 内不得 `await deps.engine.dispatch`；
  *  - 行为守门：dispatch 永不 resolve 时，handler 仍必须返回已建任务。
  */

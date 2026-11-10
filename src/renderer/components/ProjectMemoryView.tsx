@@ -1,5 +1,5 @@
 /**
- * B-6（M4）· 项目概览「项目记忆」纯视图（无 store 依赖，node 静态渲染可测）。
+ * B-6· 项目概览「项目记忆」纯视图（无 store 依赖，node 静态渲染可测）。
  * 容器见 `ProjectMemory.tsx`；口径：老板显式写、项目作用域、pin/忘记/提升全局。
  */
 import type { CSSProperties, ReactElement } from 'react';
@@ -42,7 +42,7 @@ export interface ProjectMemoryViewProps {
   onForget: (item: MemoryItemDTO) => void;
   onPromote: (item: MemoryItemDTO) => void;
   onRefresh: () => void;
-  /** UG-09：列表 / 搜索 / 审计（搜索/审计只读）。 */
+  /** 列表 / 搜索 / 审计（搜索/审计只读）。 */
   mode?: 'list' | 'search' | 'audit';
   query?: string;
   hits?: readonly MemoryHitDTO[];

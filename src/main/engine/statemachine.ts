@@ -1,11 +1,11 @@
 /**
- * `statemachine.ts` —— FLOWS §3.1 状态迁移真值表的**代码化**（唯一权威）。
+ * `statemachine.ts` —— 状态迁移真值表的**代码化**（唯一权威）。
  *
  * 本文件把 §3.1.1（任务，49 行）与 §3.1.2（工作项，16 行）逐行编码为数据表：
  *   `(from, event, guard) → to / 写哪些 task_events.kind / 触发哪些动作`。
- * **不得自行发明迁移**：新增状态/事件先改 FLOWS §3.1 再改本文件。
+ * **不得自行发明迁移**：新增状态/事件先改再改本文件。
  *
- * M0 范围：只实做/测试 T0.6 主链（inbox→planning→awaiting_approval→ready→executing→verifying→done）
+ *  范围：只实做/测试主链（inbox→planning→awaiting_approval→ready→executing→verifying→done）
  * 与该链上的 paused/needs_decision；其余行的**规则**（from/event/guard→to/kind）照表写全，
  * 但触发动作留 M2（`m0: false`，actions 为空或仅登记）。
  */
@@ -23,9 +23,9 @@ export interface TaskTransition {
   kinds: string[];
   patch?: (ctx: TaskTransitionContext) => TaskPatch;
   actions?: (ctx: TaskTransitionContext) => EngineAction[];
-  /** true = M0 主链/paused/needs_decision（被实现并测试）。 */
+  /** true = 主链/paused/needs_decision（被实现并测试）。 */
   m0: boolean;
-  /** 便于追溯的 FLOWS 行备注。 */
+  /** 便于追溯的行备注。 */
   note?: string;
 }
 
@@ -39,9 +39,9 @@ export interface TaskTransitionContext {
   resumeState: TaskState | null;
   stateBeforeClose: TaskState | null;
   defaultAction: string | null;
-  /** B6：超时默认动作的语义档（由 loop 从 `approvals` 行 + 白名单判定）；守卫只读它。 */
+  /** 超时默认动作的语义档（由 loop 从 `approvals` 行 + 白名单判定）；守卫只读它。 */
   defaultActionKind?: DefaultActionKind;
-  /** 进入终态的时刻（epoch ms）；`undo_finish` 的 7 天窗口用（FLOWS §3.1.1）。 */
+  /** 进入终态的时刻（epoch ms）；`undo_finish` 的 7 天窗口用。 */
   closedAt?: number | null;
   /** 是否已归档（`tasks.archived`）；已归档不允许撤销结束，只能续办。 */
   archived?: boolean;
@@ -53,26 +53,26 @@ export interface TaskTransitionContext {
    * 否则打回后重规划时键与首轮相同、`OR IGNORE` 吞掉动作 ⇒ 任务永停 `planning`（真机缺口）。
    */
   planRevision?: number;
-  /** `decision_made` 已发生数（本次事件前）；BRK25 答卡回 planning 时用它生成新重派键。 */
+  /** `decision_made` 已发生数（本次事件前）； 答卡回 planning 时用它生成新重派键。 */
   decisionRevision?: number;
   /**
    * 续跑轮次（＝已发生的 `task_resumed` 事件数；**本次事件写入前**计数 ⇒ 首次为 0）。
-   * 用途（BRK4）：暂停恢复后重跑 verifier 时，幂等键必须比暂停前那一轮大——否则
+   * 用途：暂停恢复后重跑 verifier 时，幂等键必须比暂停前那一轮大——否则
    * `dispatch_verifier:task:<id>:0` 已被 `OR IGNORE` 吞掉，恢复后无人再验收。
    */
   resumeRevision?: number;
   /**
    * 验证轮次（＝已发生的 `verification_started` 事件数；**本次事件写入前**计数 ⇒ 首轮 0）。
-   * 用途（RW-3，M5 真实测试带回）：验证 fail → 返工 → 第二次 `verification_started` 时，
+   * 用途（， 真实测试带回）：验证 fail → 返工 → 第二次 `verification_started` 时，
    * resumeRevision 仍为 0 ⇒ 键不变被 `OR IGNORE` 吞掉 ⇒ 任务永停 verifying（真机挂死）。
-   * verifier 幂等键改用本轮次（兼容覆盖 BRK4 暂停恢复场景：resume 后重验时计数同样 +1）。
+   * verifier 幂等键改用本轮次（兼容覆盖暂停恢复场景：resume 后重验时计数同样 +1）。
    */
   verifyRevision?: number;
-  /** B8：本任务短号（续办时写入 `task_renewed` payload，供“续自 T-xxx”显示）。 */
+  /** 本任务短号（续办时写入 `task_renewed` payload，供“续自 T-xxx”显示）。 */
   shortId?: string;
 }
 
-/** 「撤销结束」窗口：`done` 后 7 天内可原地复活（FLOWS §3.1.1）。 */
+/** 「撤销结束」窗口：`done` 后 7 天内可原地复活。 */
 export const UNDO_FINISH_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 const TERMINAL_STATES = new Set<TaskState>(['done', 'failed', 'cancelled']);
@@ -104,11 +104,11 @@ function act(
 }
 
 /**
- * B6：超时**允许自动执行**的默认动作白名单（**fail-closed**）。
+ * 超时**允许自动执行**的默认动作白名单（**fail-closed**）。
  *
  * - 只列**非破坏性**动作：`keep`（保持）/ `pause`（暂缓）——超时**不是**老板批准了取消/删除；
  * - **不在表内一律不自动**（含 `default_action == null`＝「一直等」、未定义 key、`variant==='danger'`）；
- * - **扩表必须显式改本常量 + `FLOWS §3.1.1`**（B6 裁定：改能力要留痕）。
+ * - **扩表必须显式改本常量 + ``**（裁定：改能力要留痕）。
  */
 export const TIMEOUT_AUTO_ACTIONS: readonly string[] = ['keep', 'pause'];
 
@@ -130,7 +130,7 @@ export function resolveDefaultActionKind(
 /**
  * 会话动作。**planning / critic 的幂等键带计划轮次**（`ctx.planRevision`；首版＝0 与旧键一致）——
  * 重规划 v+1 时若键不变，`OR IGNORE` 会吞掉动作 ⇒ 打回后无人再规划/再评审（真机缺口「重规划 v+1」）。
- * **verifier 的幂等键带 max(verifyRevision, resumeRevision)**（RW-3）：验证 fail 返工后的再验证
+ * **verifier 的幂等键带 max(verifyRevision, resumeRevision)**：验证 fail 返工后的再验证
  * （resumeRevision 不变）与暂停恢复后的再验证（verifyRevision 同步 +1）都必须能再派真验收——
  * 取两者较大值保证任一「再验证」轮的键都未被消费过（首轮＝0 与旧键一致，存量键不变）。
  */
@@ -144,10 +144,10 @@ const sessionAction = (ctx: TaskTransitionContext, phase: 'planning' | 'critic' 
     { phase },
   );
 
-/** BRK10/11：notify 动作**透传白名单**（决策卡要带 question/options/审批回挂/紧急度——不整包透传，防大载荷进 action_log）。 */
-// RW-6（M5 真机带回）：增补 `notes`/`round`——critic 打回达上限的升级必须把评审意见与轮次带上卡
+/** /11：notify 动作**透传白名单**（决策卡要带 question/options/审批回挂/紧急度——不整包透传，防大载荷进 action_log）。 */
+// （真机带回）：增补 `notes`/`round`——critic 打回达上限的升级必须把评审意见与轮次带上卡
 // （runNotifyAction 只对 critic_revise_limit 消费这两个键，截断后进 payload.body；其余升级不受影响）。
-// 多选＋自定义作答（老板 2026-10-28 指令）：`selection`（single/multi）随升级透传——员工可问多选题。
+// 多选＋自定义作答（2026-10-28 指令）：`selection`（single/multi）随升级透传——员工可问多选题。
 const NOTIFY_PASSTHROUGH_KEYS = ['question', 'options', 'selection', 'urgent', 'employeeId', 'workItemId', 'via', 'approvalId', 'permissionKey', 'reason', 'modelRejected', 'notes', 'round'] as const;
 
 const notifyAction = (ctx: TaskTransitionContext, card: string, revision = 0): EngineAction => {
@@ -159,7 +159,7 @@ const notifyAction = (ctx: TaskTransitionContext, card: string, revision = 0): E
 };
 
 /**
- * BRK17（挂载 3 余·取消，`D-9`／2026-10-16 余两态）：取消的公共动作——
+ * （挂载 3 余·取消，`D-9`／2026-10-16 余两态）：取消的公共动作——
  * ① `interrupt_work_items`：按真值表中断在跑的件（`pause_task`）＋回调停件级会话；
  * ② `notify_report{outcome:'cancelled'}`：收尾卡「已取消：…」（不谎报「完成」）。
  * 角色会话（planner/critic/verifier，不挂件）的停靠 `interrupt_work_items` 执行端一并回调（`onTaskCancelled`）。
@@ -170,7 +170,7 @@ const cancelActions = (ctx: TaskTransitionContext): EngineAction[] => [
 ];
 
 /**
- * BRK4（M3-R-1）：暂停的公共动作——**真中断在跑的件/会话**，但**不做取消收尾**：
+ * 暂停的公共动作——**真中断在跑的件/会话**，但**不做取消收尾**：
  * 已提交的件保持 submitted（恢复后聚合），queued 件保持 queued；resume 仍回 ready 走调度，
  * 由引擎在 `start_task` 后重派 interrupted 件并重新聚合（见 loop 的 pause/resume 批注）。
  */
@@ -181,7 +181,7 @@ const pauseActions = (ctx: TaskTransitionContext): EngineAction[] => [
 ];
 
 /**
- * B8 续办：登记幂等 spawn 动作 → 事务外由引擎建新任务（`createTask` 自开事务，不可嵌套）。
+ *  续办：登记幂等 spawn 动作 → 事务外由引擎建新任务（`createTask` 自开事务，不可嵌套）。
  * 键 = `renew:task:<oldTaskId>:0` ⇒ **同一旧任务最多续办一次**（第二次点续办被 `OR IGNORE` 拦下）。
  */
 const renewAction = (ctx: TaskTransitionContext): EngineAction[] => [
@@ -216,7 +216,7 @@ const close = (ctx: TaskTransitionContext): TaskPatch => ({
 
 const readyNow = (ctx: TaskTransitionContext): TaskPatch => ({ ready_since: ctx.now });
 
-// ─────────────────────────── 任务机（FLOWS §3.1.1，49 行） ───────────────────────────
+// ─────────────────────────── 任务机（，49 行） ───────────────────────────
 
 export const TASK_TRANSITIONS: readonly TaskTransition[] = [
   // —（新建）
@@ -299,7 +299,7 @@ export const TASK_TRANSITIONS: readonly TaskTransition[] = [
     event: 'plan_edited',
     to: 'KEEP',
     kinds: ['plan_edited'],
-    // GAP8：老板在批准前增删/排序计划。仍是事件驱动的 materialized 投影
+    // 老板在批准前增删/排序计划。仍是事件驱动的 materialized 投影
     // （plan_edited.payload.steps[] → plan_steps）；状态不变、不派会话、不建工作项——
     // 批准（plan_approved）仍走下一行，派工读到的就是改后的 plan_steps。
     m0: true,
@@ -312,7 +312,7 @@ export const TASK_TRANSITIONS: readonly TaskTransition[] = [
     to: 'ready',
     kinds: ['plan_approved'],
     patch: readyNow,
-    // BRK1 修：FLOWS §3.1.1 该行明写「同上一行（含建工作项）」——缺了它 ⇒ 超时通过的任务
+    //  修： 该行明写「同上一行（含建工作项）」——缺了它 ⇒ 超时通过的任务
     // `ready→executing` 零工作项、永久空转（无派工、无聚合、无汇合）。
     actions: planWorkItemsAction,
     m0: false,
@@ -342,7 +342,7 @@ export const TASK_TRANSITIONS: readonly TaskTransition[] = [
     event: 'all_work_items_done',
     to: 'verifying',
     kinds: ['verification_started'],
-    // D3：**无事可验**（聚合事件带 `verificationNeeded:false`＝全部工作项验证强度＝none，如 L0/未命中抽验）
+    // **无事可验**（聚合事件带 `verificationNeeded:false`＝全部工作项验证强度＝none，如 L0/未命中抽验）
     // → **不派 verifier 会话**（派了也没人可当 verifier ≠ 实现者，先前会响亮失败）；任务级验收由引擎如实自动 pass。
     actions: (ctx) => ((ctx.payload as { verificationNeeded?: boolean } | undefined)?.verificationNeeded === false ? [] : sessionActionV(ctx)),
     m0: true,
@@ -396,7 +396,7 @@ export const TASK_TRANSITIONS: readonly TaskTransition[] = [
   },
   // verifying
   {
-    // B2-6/D-30③：L1+ verifier pass **不自动 done**——迁 needs_decision 出签收卡
+    // /：L1+ verifier pass **不自动 done**——迁 needs_decision 出签收卡
     // （options 由 loop 侧按件清单填充：sign＋逐件 rework）；不新增状态（复用 needs_decision 回边）。
     from: 'verifying',
     event: 'verification_completed',
@@ -444,7 +444,7 @@ export const TASK_TRANSITIONS: readonly TaskTransition[] = [
     to: 'cancelled',
     kinds: ['task_cancelled'],
     patch: close,
-    // BRK17（取消余两态，2026-10-16）：验证中也真中止——已提交的件不再验证（收尾卡如实）；
+    // （取消余两态，2026-10-16）：验证中也真中止——已提交的件不再验证（收尾卡如实）；
     // 跑着的 verifier 角色会话由 `onTaskCancelled` 停（不挂件）。
     actions: cancelActions,
     m0: true,
@@ -482,14 +482,14 @@ export const TASK_TRANSITIONS: readonly TaskTransition[] = [
     event: 'decision_made',
     to: 'resume_state',
     kinds: ['decision_made'],
-    // BRK25：答复决策卡只是状态回边；resume=planning 时必须重派规划会话，否则任务永停 planning。
+    // 答复决策卡只是状态回边；resume=planning 时必须重派规划会话，否则任务永停 planning。
     actions: decisionResumeAction,
     m0: true,
   },
   {
     from: 'needs_decision',
     event: 'decision_proceed_latest',
-    // RW-21 收尾（M5 真机 S9）：「按最新版继续」＝**最新稿视同批准**（不重规划）——
+    //  收尾（真机）：「按最新版继续」＝**最新稿视同批准**（不重规划）——
     // 与 awaiting_approval+plan_approved 同语义（readyNow＋建工作项）。仅规划期升级有意义；
     // 验证期升级（resume=verifying）不适用（跳过验收＝危险，guard 拦下→作答走别的选项）。
     guard: (ctx) => ctx.resumeState === 'planning',
@@ -502,12 +502,12 @@ export const TASK_TRANSITIONS: readonly TaskTransition[] = [
   {
     from: 'needs_decision',
     event: 'askcard_timeout',
-    // B6（FLOWS §3.1.1 L252 + 裁定）：**fail-closed 白名单**——只有非破坏性默认动作才自动执行；
+    // B6（L252 + 裁定）：**fail-closed 白名单**——只有非破坏性默认动作才自动执行；
     // null（一直等）/ 白名单外 / danger 一律到期只留痕、不迁移。
     guard: (ctx) => ctx.defaultActionKind === 'auto',
     to: 'resume_state',
     kinds: ['decision_made'],
-    // BRK25：超时自动决策同样要重派（resume=planning）。
+    // 超时自动决策同样要重派（resume=planning）。
     actions: decisionResumeAction,
     m0: true,
   },
@@ -516,7 +516,7 @@ export const TASK_TRANSITIONS: readonly TaskTransition[] = [
   {
     from: 'done',
     event: 'undo_finish',
-    // 守卫（FLOWS §3.1.1）：`now - closed_at ≤ 7d` 且 `archived = 0`
+    // 守卫：`now - closed_at ≤ 7d` 且 `archived = 0`
     guard: (ctx) =>
       ctx.archived !== true && ctx.closedAt != null && ctx.now - ctx.closedAt <= UNDO_FINISH_WINDOW_MS,
     to: 'state_before_close',
@@ -526,7 +526,7 @@ export const TASK_TRANSITIONS: readonly TaskTransition[] = [
     note: '挂载 3 转正（BRK17）：UI 解除 disabled（taskActions done.undo-finish）；超窗/已归档经 task:transition 得人话回执',
   },
   {
-    // B2-6/D-30③：老板签收 → done（boss_signoff 审计；与 verifier pass 的自动 done 区分）。
+    // /：签收 → done（boss_signoff 审计；与 verifier pass 的自动 done 区分）。
     from: 'needs_decision',
     event: 'signoff',
     to: 'done',
@@ -536,7 +536,7 @@ export const TASK_TRANSITIONS: readonly TaskTransition[] = [
     m0: false,
   },
   {
-    // B2-6/D-30③：签收拒绝 → 只该件返工（spawnReworkItem retry_of 血缘），任务回 executing。
+    // /：签收拒绝 → 只该件返工（spawnReworkItem retry_of 血缘），任务回 executing。
     from: 'needs_decision',
     event: 'signoff_reject',
     to: 'executing',
@@ -611,9 +611,9 @@ export const TASK_TRANSITIONS: readonly TaskTransition[] = [
     guard: (ctx) => !isTerminalTaskState(ctx.from),
     to: 'needs_decision',
     kinds: ['decision_requested'],
-    // BRK10/11：重复升级保护——已在 `needs_decision` 时再升级**不得**把恢复目标覆盖成 `needs_decision`（保留原 resume_state）。
+    // /11：重复升级保护——已在 `needs_decision` 时再升级**不得**把恢复目标覆盖成 `needs_decision`（保留原 resume_state）。
     patch: (ctx) => ({ resume_state: ctx.from === 'needs_decision' ? (ctx.resumeState ?? ctx.from) : ctx.from }),
-    // BRK10/11：决策卡**唯一合成点**——question/options/审批回挂/紧急度随 payload 透传（见 NOTIFY_PASSTHROUGH_KEYS）；
+    // /11：决策卡**唯一合成点**——question/options/审批回挂/紧急度随 payload 透传（见 NOTIFY_PASSTHROUGH_KEYS）；
     // `notifyRevision` ＝通知版次（权限卡按 `approvalId` 分卡、员工升级按 `employeeId·序号`）——
     // 同一升级只出一张（旧断链：内联卡＋状态机卡两张；矩阵/审计于 2026-10-15 抓）。
     actions: (ctx) => [
@@ -628,7 +628,7 @@ function sessionActionP(ctx: TaskTransitionContext): EngineAction[] {
 }
 
 /**
- * BRK25：`needs_decision → planning` 的**重派**动作。
+ * `needs_decision → planning` 的**重派**动作。
  * 幂等键必须与首轮 `dispatch_planning:…:0` 及打回轮次区分：用 `planRevision*1000 + decisionRevision + 1`。
  * 仅 resumeState=planning 时生效；其它恢复态保持原语义（不凭空造规划会话）。
  */
@@ -655,12 +655,12 @@ function decisionResumeAction(ctx: TaskTransitionContext): EngineAction[] {
 }
 
 /**
- * C2（真拆派）：**规划产出工作项**（`FLOWS §3.1.2` 首行口径）——计划**成终稿**当刻登记：
+ * C2（真拆派）：**规划产出工作项**（`` 首行口径）——计划**成终稿**当刻登记：
  * L0 直通＝`plan_drafted` 当刻；L1/L2＝`plan_approved`（老板点头后，重规划不会留下孤儿工作项）。
  * 引擎侧建行（`loop.spawnPlanWorkItems`；幂等键 `plan_work_items:task:<id>:0`）。
  */
 function planWorkItemsAction(ctx: TaskTransitionContext): EngineAction[] {
-  // B2-3/D-30②：结构化多件随事件 payload 透传给 spawnPlanWorkItems（非法件由引擎侧再校验回落单件）。
+  // /：结构化多件随事件 payload 透传给 spawnPlanWorkItems（非法件由引擎侧再校验回落单件）。
   return [act('plan_work_items', 'task', ctx.taskId, 0, ctx.taskId, { workItems: ctx.payload['workItems'] ?? null, workItemsInvalid: ctx.payload['workItemsInvalid'] ?? null })];
 }
 function sessionActionC(ctx: TaskTransitionContext): EngineAction[] {
@@ -678,7 +678,7 @@ export class UnknownTransitionError extends Error {
 }
 
 /**
- * 「员工并发=1」硬守卫失败（FLOWS §0 第 4 条 / §3.1.2）。
+ * 「员工并发=1」硬守卫失败（第 4 条 / §3.1.2）。
  *
  * 引擎层显式守卫：某员工已有 `running` work item 时，任何把它引向 `running` 的迁移
  * （`dispatch` / `redispatch` / `retry`）都被拒绝——即使绕开调度器直接注入事件也一样。
@@ -725,7 +725,7 @@ export function resolveTaskTarget(row: TaskTransition, ctx: TaskTransitionContex
       return ctx.resumeState && NON_TERMINAL_STATES.has(ctx.resumeState) ? ctx.resumeState : 'inbox';
     case 'state_before_close': {
       const prev = ctx.stateBeforeClose;
-      // 「原 executing → ready」：executing 需要 work item，不能直接复活，回 ready（FLOWS §3.1.1）
+      // 「原 executing → ready」：executing 需要 work item，不能直接复活，回 ready
       if (prev == null) return 'ready';
       if (prev === 'executing') return 'ready';
       return TERMINAL_STATES.has(prev) ? 'ready' : prev;
@@ -735,7 +735,7 @@ export function resolveTaskTarget(row: TaskTransition, ctx: TaskTransitionContex
   }
 }
 
-// ─────────────────────────── 工作项机（FLOWS §3.1.2，16 行） ───────────────────────────
+// ─────────────────────────── 工作项机（，16 行） ───────────────────────────
 
 export interface WorkItemTransitionContext {
   workItemId: number;
@@ -758,7 +758,7 @@ export interface WorkItemTransition {
   to: WorkItemState | 'KEEP';
   kinds: string[];
   actions?: (ctx: WorkItemTransitionContext) => EngineAction[];
-  /** B9：WI 迁移可带的行级 patch（如 retry 的 `{ attempt: ctx.attempt + 1 }`）→ loop 写库。 */
+  /** WI 迁移可带的行级 patch（如 retry 的 `{ attempt: ctx.attempt + 1 }`）→ loop 写库。 */
   patch?: (ctx: WorkItemTransitionContext) => Record<string, unknown>;
   m0: boolean;
   note?: string;
@@ -767,7 +767,7 @@ export interface WorkItemTransition {
 const wiAction = (ctx: WorkItemTransitionContext, kind: string, revision: number): EngineAction =>
   act(kind, 'work_item', ctx.workItemId, revision, ctx.taskId, { attempt: ctx.attempt });
 
-/** BRK7：改派必须换员工并递增 attempt（新 dispatch 幂等键）；无有效 employeeId → 拒绝（不静默不动）。 */
+/** 改派必须换员工并递增 attempt（新 dispatch 幂等键）；无有效 employeeId → 拒绝（不静默不动）。 */
 const reassignPatch = (ctx: WorkItemTransitionContext): Record<string, unknown> => {
   const raw = (ctx.payload as { employeeId?: unknown } | undefined)?.employeeId;
   if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < 0) {
@@ -809,7 +809,7 @@ export const WORK_ITEM_TRANSITIONS: readonly WorkItemTransition[] = [
   { from: 'running', event: 'heartbeat_timeout', to: 'failed', kinds: ['work_item_failed'], m0: true },
   { from: 'running', event: 'pause_task', to: 'interrupted', kinds: ['work_item_interrupted'], m0: true },
   { from: 'running', event: 'crash', to: 'interrupted', kinds: ['work_item_interrupted'], m0: true, note: '启动恢复批量置 interrupted' },
-  // 阻塞式 mailbox（M2 尾）：件等同事答复时退出 running（不占员工并发槽位）；
+  // 阻塞式 mailbox（尾）：件等同事答复时退出 running（不占员工并发槽位）；
   // 答复到达 → 回 queued（下一拍调度重派，答复由未读回灌进下一轮简报）。
   { from: 'running', event: 'ask_blocked', to: 'blocked', kinds: ['work_item_blocked'], m0: true },
   { from: 'blocked', event: 'answer_received', to: 'queued', kinds: ['work_item_unblocked'], m0: true },
@@ -833,7 +833,7 @@ export const WORK_ITEM_TRANSITIONS: readonly WorkItemTransition[] = [
     to: 'running',
     kinds: ['work_item_started'],
     m0: true,
-    // B9：**重派** — attempt+1 作 revision（新幂等键）+ **patch 真递增 attempt**（否则幂等键永远不变 = 静默 no-op）。
+    // **重派** — attempt+1 作 revision（新幂等键）+ **patch 真递增 attempt**（否则幂等键永远不变 = 静默 no-op）。
     patch: (ctx) => ({ attempt: ctx.attempt + 1 }),
     actions: (ctx) => [act('dispatch', 'work_item', ctx.workItemId, ctx.attempt + 1, ctx.taskId, { attempt: ctx.attempt + 1 })],
   },
@@ -896,7 +896,7 @@ export type WorkItemTransitionOutcome = {
   to: WorkItemState | null;
   kinds: string[];
   actions: EngineAction[];
-  /** B9：行级 patch（如 retry 的 `attempt+1`）；loop 会合并进 `updateWorkItem`。 */
+  /** 行级 patch（如 retry 的 `attempt+1`）；loop 会合并进 `updateWorkItem`。 */
   patch: Record<string, unknown>;
 };
 

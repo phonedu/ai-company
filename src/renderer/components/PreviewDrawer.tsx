@@ -1,5 +1,5 @@
 /**
- * UG-05 · 统一预览抽屉（聊天附件 / 任务产物共用）。
+ *  · 统一预览抽屉（聊天附件 / 任务产物共用）。
  *
  * 两种变体只差 class/testid（兼容既有契约）；交互/焦点/关闭/Esc/加载/错误/截断逻辑同一份。
  * - artifact：右侧 480 抽屉（`td__drawer-*` / `artifact-*`）。
@@ -22,8 +22,8 @@ export interface PreviewDrawerData {
   loading?: boolean;
   error?: string;
   /**
-   * 文本是否为 Markdown（2026-11-05 老板裁「抽屉内只读渲染」）：true 时用只读渲染器
-   * （MilkdownEditor/Crepe）显示，并可显式切「看原文」；不自动回落裸源码（RW-28 口径）。
+   * 文本是否为 Markdown（2026-11-05 决定「抽屉内只读渲染」）：true 时用只读渲染器
+   * （MilkdownEditor/Crepe）显示，并可显式切「看原文」；不自动回落裸源码（口径）。
    */
   markdown?: boolean;
   /** 正文前的显式说明（如「这是旧版本行；下面是磁盘当前内容，非当时版本」）。 */
@@ -43,9 +43,9 @@ export function PreviewDrawer({ data, onClose, variant = 'artifact' }: PreviewDr
   const closeRef = useRef<HTMLButtonElement | null>(null);
   useFocusTrap(true, panelRef);
   /**
-   * Markdown 文本的显示模式（老板 2026-11-05 裁「抽屉内只读渲染」）：
+   * Markdown 文本的显示模式（2026-11-05 裁「抽屉内只读渲染」）：
    * 默认 `render`（只读 Crepe 排版）；`source` 仅在老板**显式**点「看原文」时进入——
-   * 不自动回落裸源码（RW-28/2026-10-28 口径：阅读态不显示源码）。
+   * 不自动回落裸源码（/2026-10-28 口径：阅读态不显示源码）。
    */
   const [view, setView] = useState<'render' | 'source'>('render');
   // 换产物时回到默认渲染态（不把上一个文件选的「看原文」带过去）。
@@ -61,7 +61,7 @@ export function PreviewDrawer({ data, onClose, variant = 'artifact' }: PreviewDr
   }, []);
 
   useEffect(() => {
-    // UG-05：Esc 只关抽屉——capture 阶段拦住并阻断后续监听（否则 TaskDetailView 的 document Esc
+    // Esc 只关抽屉——capture 阶段拦住并阻断后续监听（否则 TaskDetailView 的 document Esc
     // 会同时把详情退回频道）。capture 在 document 冒泡之前跑，`stopImmediatePropagation` 断链。
     const onKey = (event: KeyboardEvent): void => {
       if (event.key !== 'Escape') return;

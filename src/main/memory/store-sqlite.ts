@@ -151,7 +151,7 @@ export class SqliteMemoryStore implements MemoryPort {
 
     const run = this.db.transaction((): MemoryItem => {
       // ADV-1 P0-5：三条生产写路径 key 都是 null，冲突/去重机制够不着。无 key 时做同值近似去重
-      // （同 scope+kind、value 归一空白/大小写后相等 ⇒ 视为同一条事实）；不同值仍各自成行（矛盾留给 B3-5 裁决）。
+      // （同 scope+kind、value 归一空白/大小写后相等 ⇒ 视为同一条事实）；不同值仍各自成行（矛盾留给决定）。
       const same =
         key != null
           ? this.findActiveByKey(scopeType, scopeId, input.kind, key)
@@ -171,7 +171,7 @@ export class SqliteMemoryStore implements MemoryPort {
         const existingExpired =
           (existing.validTo != null && existing.validTo <= now) ||
           (existing.expiresAt != null && existing.expiresAt <= now);
-        // 两条老板确认的冲突：不静默覆盖，交给调用方出决策卡；已过期则允许新事实接替。
+        // 两条要求的冲突：不静默覆盖，交给调用方出决策卡；已过期则允许新事实接替。
         if (
           !existingExpired &&
           existing.source.type === 'boss' &&
@@ -401,8 +401,8 @@ export class SqliteMemoryStore implements MemoryPort {
     if (input.principal.kind === 'verifier') return { sections: [], totalTokens: 0, truncated: false };
     const sections: MemoryBriefSection[] = [];
 
-    // B3-5/D-31：抽取来的**未确认事实**（source=task 且 provisional）不进 brief——
-    // 08-记忆设计 §7「提议→确认」闸门：老板确认后才进上下文（员工/老板手记不受影响）。
+    // /：抽取来的**未确认事实**（source=task 且 provisional）不进 brief——
+    // 08-记忆设计 §7「提议→确认」闸门：要求后才进上下文（员工/老板手记不受影响）。
     const notUnconfirmedExtract = (it: MemoryItem): boolean =>
       !(it.source?.type === 'task' && it.confidence === 'provisional');
     const globalItems = this.list({ scope: { type: 'global' }, includeHistorical: false, limit: 100 })
@@ -411,7 +411,7 @@ export class SqliteMemoryStore implements MemoryPort {
     sections.push(this.section('global', globalItems, MEMORY_BUDGETS.global));
 
     if (input.projectId != null && input.projectId > 0) {
-      // B3-5/D-31：brief 跨 scope 去重——同事实（content 相同或互为前后缀）已在全局层的
+      // /：brief 跨 scope 去重——同事实（content 相同或互为前后缀）已在全局层的
       // 项目条目不再双出（全局提升后原项目条目保留在库，brief 里只出全局一份）。
       const norm = (s: string): string => s.replace(/\s+/g, ' ').trim();
       const globalContents = globalItems.map((it) => norm(it.value));

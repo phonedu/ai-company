@@ -81,7 +81,7 @@ export function listDueImOutbox(
 /**
  * 入站/登录成功：把 `blocked` 行放回 `pending`，由本轮 tick 再试一次。
  *
- * RW-23（S10 真机，2026-10-28）：补发**不得刷屏**——
+ * （真机，2026-10-28）：补发**不得刷屏**——
  * ① 过期不补：`created_at` 早于 `now - maxAgeMs`（缺省 24h）→ `cancelled`（last_error 留痕）；
  * ② 单次限量：只唤醒**最新** `limit` 张（缺省 5），其余留 blocked，下次入站再陆续补。
  * 老板首次在手机发消息打开 48h 回推窗口时，此前积压几十张卡不会一次性推到手机上。

@@ -5,7 +5,7 @@
 -- 与 `memory_events`（写入/取代/归档审计）。时间化：valid_from/valid_to 表示现实有效性，
 -- created_at/updated_at 表示系统何时知道；旧事实失效不删除（superseded_by 保留历史）。
 --
--- 口径见 `docs/work/design-memory-v1.md` §6；D-17。
+-- 口径见 `docs/work/design-memory-v1.md` §6；。
 CREATE TABLE IF NOT EXISTS memory_items (
   id              INTEGER PRIMARY KEY,
   scope_type      TEXT NOT NULL CHECK (scope_type IN ('project', 'global')),

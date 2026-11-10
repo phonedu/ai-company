@@ -1,10 +1,10 @@
 /**
- * `OPT-AI-13` 评测集**纯逻辑**（M2 §7 序 5）：任务集校验 · 验收判分 · 三列汇总表。
+ * `` 评测集**纯逻辑**（§7 序 5）：任务集校验 · 验收判分 · 三列汇总表。
  *
  * 口径（`work/plan-reorg-r1-r4.md` §2.1）：
  *  - 任务集＝`scripts/eval/tasks.json`，字段 `{id, title, goal, risk, acceptance:[{text, check?}], tags}`；
  *  - **判分器＝评测跑器自身**（命令型 `check`：在**任务工作区**里跑，超时/fail 一律算不通过）——
- *    这是"机器判分"，与 app 内的 verifier 会话（LLM 抽验）**分开**：评测要的是可复现的裁决；
+ *    这是"机器判分"，与 app 内的 verifier 会话（LLM 抽验）**分开**：评测要的是可复现的决定；
  *  - **有牙**：任务集必须含 ≥1 条 `impossible`（其 check 恒不通过）——判 fail 即证明判分器在工作；
  *  - 三列＝**质量**（acceptance 通过率）/ **成本**（USD）/ **时长**（wall ms）。
  *
@@ -148,7 +148,7 @@ export interface EvalRow {
   notes?: string;
 }
 
-/** 三列汇总（按 任务 × 编排 × 档 排；缺项显 `—`——不臆造 0）。 */
+/** 三列汇总（按任务 × 编排 × 档排；缺项显 `—`——不臆造 0）。 */
 export function formatEvalTable(rows: readonly EvalRow[]): string {
   const header = ['任务', '编排', '档', '终态', '判', '质量', '成本(USD)', '时长(s)', '模型'];
   const lines = [header.join('\t')];

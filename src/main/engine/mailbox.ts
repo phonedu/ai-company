@@ -1,5 +1,5 @@
 /**
- * OPT-M10-1 · 员工间结构化 mailbox（`PLAN §G-6` 裁决）。
+ * OPT- · 员工间结构化 mailbox（`` 决定）。
  *
  * 口径：
  *  - **不新增表**：投递记录落 `notifications`（`channel='employee:<to>'`），消息主体落 `task_events`
@@ -42,9 +42,9 @@ export const MAILBOX_ERROR = {
   BLOCKING_NOT_IMPLEMENTED: 'E_BLOCKING_NOT_IMPLEMENTED',
   /** R2-2：答复找不到对应提问（孤儿答复）。 */
   ASK_NOT_FOUND: 'E_ASK_NOT_FOUND',
-  /** BRK12：不能问自己。 */
+  /** 不能问自己。 */
   SELF_ASK: 'E_SELF_ASK',
-  /** BRK12：对端已有未结的互问（A↔B 互相提问）——先答再问，防互问死循环。 */
+  /** 对端已有未结的互问（A↔B 互相提问）——先答再问，防互问死循环。 */
   MUTUAL_ASK: 'E_MUTUAL_ASK',
 } as const;
 
@@ -76,7 +76,7 @@ export interface RequestAskInput {
   from: number;
   to: number;
   question: string;
-  /** true = 阻塞式：宿主把件置 `blocked`，答复到达后自动回队重派（M2 尾）。 */
+  /** true = 阻塞式：宿主把件置 `blocked`，答复到达后自动回队重派（尾）。 */
   blocking?: boolean;
   /**
    * 同一 (from,to,work_item) 下的轮次序号（默认 0），用于构造幂等键。
@@ -96,7 +96,7 @@ export interface AskRecord {
 }
 
 /**
- * B2-5/D-30：员工唤醒——ask 送达后给**空闲**目标员工派轻量 reply 工作项。
+ * /：员工唤醒——ask 送达后给**空闲**目标员工派轻量 reply 工作项。
  *
  * 口径：目标**忙**（有 running 件，全局员工并发=1）→ 'busy'（问题留在 mailbox，下次会话
  * 可见——现状不变）；同 askKey 已有 reply 件（任意未结/已结态）→ 'exists'（幂等，重放不重派）；
@@ -139,7 +139,7 @@ export function requestAsk(db: SqliteDb, input: RequestAskInput): AskRecord {
   if (input.from === input.to) {
     throw new MailboxError(MAILBOX_ERROR.SELF_ASK, `不能向自己提问（employee ${input.from}）`);
   }
-  // BRK12：A↔B 已有一条未结互问时拒绝反向新问——先答再问，防止两个员工互相提问无限挂起。
+  // A↔B 已有一条未结互问时拒绝反向新问——先答再问，防止两个员工互相提问无限挂起。
   const mutual = listOpenAsks(db).some((a) => a.from === input.to && a.to === input.from);
   if (mutual) {
     throw new MailboxError(
@@ -152,7 +152,7 @@ export function requestAsk(db: SqliteDb, input: RequestAskInput): AskRecord {
   const dedupeKey = `ask:${input.from}:${input.to}:${subject}:${seq}`;
   const channel = `employee:${input.to}`;
 
-  // 阻塞式提问（M2 尾）：不再抛错——照常投递；宿主（employee-executor）据 `blocking` 把件置 `blocked`，
+  // 阻塞式提问（尾）：不再抛错——照常投递；宿主（employee-executor）据 `blocking` 把件置 `blocked`，
   // 答复到达后由 `mailbox:answer` 派发 `answer_received` 回队（见 `handleMailboxAnswer`）。
 
   // 幂等：已投递过同键（重放/重试）→ 不再重复写事件与投递行（副作用整体幂等）。
@@ -310,7 +310,7 @@ export function listOpenAsks(db: SqliteDb): OpenAsk[] {
   return out;
 }
 
-/** 发给某员工的未结提问（BRK12：被问员工在下次会话看到点名问，可用 `answer_colleague` 作答）。 */
+/** 发给某员工的未结提问（：被问员工在下次会话看到点名问，可用 `answer_colleague` 作答）。 */
 export function listOpenAsksForEmployee(db: SqliteDb, employeeId: number, taskId?: number | null): OpenAsk[] {
   return listOpenAsks(db).filter((a) => a.to === employeeId && (taskId == null || a.taskId === taskId));
 }

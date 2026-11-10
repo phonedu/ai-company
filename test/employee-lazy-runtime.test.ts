@@ -1,5 +1,5 @@
 /**
- * OPT-AI-1 · 懒装配工厂（2564/2570：启动不被装配阻塞 + 超时 + 三态可见 + 不换桩）。
+ *  · 懒装配工厂（2564/2570：启动不被装配阻塞 + 超时 + 三态可见 + 不换桩）。
  * 用**注入的 fake 装配器**测，不花真金、不启 Pi。
  */
 import test from 'node:test';
@@ -104,7 +104,7 @@ test('OPT-AI-1 lazy: 装配超时 → 失败态（失败可见）+ 不换桩（�
   await exec.execute(dispatchAction());
   assert.equal(lazy.status().state, 'failed');
   assert.deepEqual(calls, [], '超时后绝不执行真会话');
-  // BRK2：事件名＝工作项机真事件 `error`（此前 `work_item_failed` 不在工作项机 ⇒ 真引擎抛错）
+  // 事件名＝工作项机真事件 `error`（此前 `work_item_failed` 不在工作项机 ⇒ 真引擎抛错）
   assert.equal(events[0]!.event, 'error');
   // 2026-10-29：超时文案改人话（网络不可用/服务不可达），仍要含「超时」语义。
   assert.match(String((events[0]!.payload as { reason: string }).reason), /timeout|连接超时/i);

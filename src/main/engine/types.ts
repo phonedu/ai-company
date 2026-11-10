@@ -1,5 +1,5 @@
 /**
- * 引擎共享类型（DEV §5、PLAN §19、schema.sql 的 `action_log` 规范）。
+ * 引擎共享类型（、schema.sql 的 `action_log` 规范）。
  */
 import type { SchedulerConfig } from '../../core/scheduler.js';
 import type { TaskState } from '../../core/types.js';
@@ -45,7 +45,7 @@ export interface PersistedAction {
 }
 
 /**
- * 副作用执行器（可注入）：M0 用桩实现（记录/无真实 LLM）；
+ * 副作用执行器（可注入）： 用桩实现（记录/无真实 LLM）；
  * **必须幂等**——「已执行、未置 done」的崩溃窗口内的重放是 at-least-once。
  */
 export interface EffectExecutor {
@@ -56,12 +56,12 @@ export interface EngineConfig {
   scheduler?: Partial<SchedulerConfig>;
   /** N2：速率阈值（降档线/排队线，$/h）；缺省＝env AICO_RATE_LIMIT_USD_PER_HOUR（默认 3，排队线＝×1.5）。 */
   rateLimit?: { softUsdPerHour?: number; hardUsdPerHour?: number };
-  /** N3(P20/P22)：并发上限——**卡"正在工作"的数量，不卡人头**（闲置员工回收后 ≈ 零成本）。缺省 任务内 3 / 公司级 6。 */
+  /** N3(P20/P22)：并发上限——**卡"正在工作"的数量，不卡人头**（闲置员工回收后 ≈ 零成本）。缺省任务内 3 / 公司级 6。 */
   concurrency?: { maxPerTask?: number; maxCompany?: number };
-  /** 是否运行调度 fixpoint（DEV §5）。默认 true；手工逐步驱动（T0.6 证据）可置 false。 */
+  /** 是否运行调度 fixpoint。默认 true；手工逐步驱动（证据）可置 false。 */
   autoSchedule?: boolean;
   /**
-   * B0-3：工作项因**运行时错误**（会话超时/连接失败等 `event=error`）失败时，自动重试次数上限。
+   * 工作项因**运行时错误**（会话超时/连接失败等 `event=error`）失败时，自动重试次数上限。
    * 默认读 `AICO_TASK_AUTO_RETRY`（缺省 1；0=关，最大 5）。业务失败（未提交）不在此列。
    */
   autoRetry?: number;
@@ -76,10 +76,10 @@ export interface EngineConfig {
    * 用于「必须看到已落库状态」的副作用（如 RM-2：任务离开待决策后清理同任务 pending 卡）。
    */
   onCommitted?: (event: EngineEvent) => void;
-  /** BRK15：卡片落库回调（`evt:notify`/`evt:inbox` 实时推送的接线点；缺省＝不推，渲染层靠下一次拉取）。 */
+  /** 卡片落库回调（`evt:notify`/`evt:inbox` 实时推送的接线点；缺省＝不推，渲染层靠下一次拉取）。 */
   onCard?: (info: { taskId: number | null; kind: string; card: string }) => void;
   /**
-   * UG-02：任务截止提醒/逾期回调（由 main 注入 → `notify()` 落 alert 卡）。
+   * 任务截止提醒/逾期回调（由 main 注入 → `notify()` 落 alert 卡）。
    * **只提醒，不改状态**；终态任务的残留 timer 由引擎丢弃。
    */
   onDeadline?: (info: {
@@ -90,29 +90,29 @@ export interface EngineConfig {
     overdue: boolean;
   }) => void;
   /**
-   * BRK17/BRK4：任务级取消/暂停真中断在跑工作项后，**逐件回调**（由 main 注入 →
+   * /：任务级取消/暂停真中断在跑工作项后，**逐件回调**（由 main 注入 →
    * 真停该件的员工会话，`AgentSession.abort()`）。缺省不回调（测试/旧装配——停件仍生效，仅会话停不做）。
    */
   onWorkItemInterrupted?: (info: { workItemId: number; employeeId: number; taskId: number }) => void;
   /**
-   * BRK17/BRK4：任务级取消/暂停时**按任务**回调一次（由 main 注入 → 停不挂件的**角色会话**：
+   * /：任务级取消/暂停时**按任务**回调一次（由 main 注入 → 停不挂件的**角色会话**：
    * planner/critic/verifier——如验证中跑着的 verifier 会话）。缺省不回调。
    */
   onTaskCancelled?: (info: { taskId: number }) => void;
-  /** M1-4 接缝：提供 git runner 后，派发时解析任务工作目录、完成时按 `touched_paths` 提交。 */
+  /**  接缝：提供 git runner 后，派发时解析任务工作目录、完成时按 `touched_paths` 提交。 */
   git?: import('../git/index.js').GitRunner;
   /** worktree 根目录（默认 `<repo>/../.aico-worktrees`）。 */
   worktreesBaseDir?: string;
-  /** M1-1：受管工作单元台账管理器（与会话生命周期配套）。 */
+  /** 受管工作单元清单管理器（与会话生命周期配套）。 */
   effectScopes?: import('./effect-scope.js').EffectScopeManager;
   /**
-   * OPT-M9-1：权限闸门（**默认开启**——副作用动作执行前过 `permissionGate`）。
+   * OPT-：权限闸门（**默认开启**——副作用动作执行前过 `permissionGate`）。
    * 传 `false` 显式关闭（仅测试/明确无需防护时）；传对象覆盖缺省能力档/放行档/项目根。
    */
   permission?: PermissionConfig | false;
 }
 
-/** OPT-M9-1：默认引擎路径的权限配置（缺省对每个动作按任务/项目从 DB 解析）。 */
+/** OPT-：默认引擎路径的权限配置（缺省对每个动作按任务/项目从 DB 解析）。 */
 export interface PermissionConfig {
   /** 员工能力档缺省（`employees.capability_tier` 缺失时）。默认 `standard`。 */
   capabilityTier?: 'sandbox' | 'standard' | 'trusted';

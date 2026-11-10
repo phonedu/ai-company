@@ -1,12 +1,12 @@
-// 渲染层 DTO（与主进程 IPC 返回结构一致；形状以 DEV §7.3 为准）。
-// 附件只带元信息、**不带路径**（D1 铁律）。
+// 渲染层 DTO（与主进程 IPC 返回结构一致；形状以为准）。
+// 附件只带元信息、**不带路径**（铁律）。
 import type { TaskWaitDTO } from './components/waitingReason.js';
 
 export interface AttachmentDTO {
   name: string;
   size: number;
   type: string;
-  /** 不透明文件令牌（D1）：非路径。M0 可缺省。 */
+  /** 不透明文件令牌：非路径。 可缺省。 */
   fileToken?: string;
 }
 
@@ -29,7 +29,7 @@ export interface HumanMessageDTO {
 
 export type ReportKind = 'report' | 'ask' | 'alert' | 'notification';
 
-/** M3-REM-1c：服务端未读游标读数（`inbox:read-state` / `inbox:read-mark`）。 */
+/** 1c：服务端未读游标读数（`inbox:read-state` / `inbox:read-mark`）。 */
 export interface ReadStateDTO {
   principal: string;
   surface: string;
@@ -50,7 +50,7 @@ export interface CardOptionDTO {
 /** 卡片（由 `reports` 行投影；`kind` 决定版式，`state` 决定可操作性）。 */
 export interface ReportDTO {
   id: number;
-  /** v8/BRK21：`null` = 全局卡（不属任何任务；UI 显示「全局」）。 */
+  /** v8/：`null` = 全局卡（不属任何任务；UI 显示「全局」）。 */
   taskId: number | null;
   shortId?: string | null;
   /** MP1-9：任务所属项目（全局卡/无任务 → null/缺省）。 */
@@ -60,11 +60,11 @@ export interface ReportDTO {
   state: string;
   createdAt: number;
   approvalId?: number | null;
-  /** RW-21：审批行 options 兜底（卡 payload 缺 options 的历史卡由此出按钮）；无/空 → null/缺省。 */
+  /** 审批行 options 兜底（卡 payload 缺 options 的历史卡由此出按钮）；无/空 → null/缺省。 */
   approvalOptions?: Array<{ key: string; label?: string }> | null;
-  /** GAP12：`reports.verdict` 真列（pass/fail/partial…）；无结论 → null/缺省。 */
+  /** `reports.verdict` 真列（pass/fail/partial…）；无结论 → null/缺省。 */
   verdict?: string | null;
-  /** GAP12：独立验证者员工 id（`reports.verifier_employee_id`）。 */
+  /** 独立验证者员工 id（`reports.verifier_employee_id`）。 */
   verifierEmployeeId?: number | null;
   payload: {
     title?: string;
@@ -72,16 +72,16 @@ export interface ReportDTO {
     card?: string;
     tldr?: string;
     question?: string;
-    /** GAP12：评审/验证文字批注（critic/verifier/manual reject）。 */
+    /** 评审/验证文字批注（critic/verifier/manual reject）。 */
     notes?: string;
-    /** D-22：模型/Key 硬拒的人话原因（决策卡卡面直接展示）。 */
+    /** 模型/Key 硬拒的人话原因（决策卡卡面直接展示）。 */
     modelRejected?: string;
-    /** GAP12：结论来源角色（critic/verifier）。 */
+    /** 结论来源角色（critic/verifier）。 */
     role?: string;
-    /** GAP12：结论（`reports.verdict` 缺省时的事件/payload 兜底）。 */
+    /** 结论（`reports.verdict` 缺省时的事件/payload 兜底）。 */
     verdict?: string;
     options?: CardOptionDTO[];
-    /** 多选＋自定义作答（老板 2026-10-28 指令）：'multi'＝选项可勾选、统一提交（chosen=k1+k2）；缺省＝单选即点。 */
+    /** 多选＋自定义作答（2026-10-28 指令）：'multi'＝选项可勾选、统一提交（chosen=k1+k2）；缺省＝单选即点。 */
     selection?: string;
     /** 权限卡结构化读法（卡片可读性批）：who/action/project 三行人话＋折叠 session；缺省回落 question 原串。 */
     permissionDetail?: { who: string; action: string; project: string; session?: string | null; params?: string };
@@ -90,7 +90,7 @@ export interface ReportDTO {
     summary?: string;
     /** E-16：卡正文（多行 Markdown 纯文本；招募卡的人设/模型/技能等）。频道卡与收件行都渲染；缺省不渲染。 */
     body?: string;
-    /** GAP8：计划批准卡携带的计划全文（编辑后随 `task:edit-plan` 同步刷新）。 */
+    /** 计划批准卡携带的计划全文（编辑后随 `task:edit-plan` 同步刷新）。 */
     planSteps?: string[];
     /** 日报（notification）的结构化摘要；缺省/空 → 不渲染读数行。 */
     digest?: {
@@ -112,7 +112,7 @@ export type ChannelItem =
   | { kind: 'message'; at: number; message: HumanMessageDTO }
   | { kind: 'card'; at: number; card: ReportDTO };
 
-/** `OPT-EXT-13` 用量可视：成本聚合（`cost:summary` 返回）。 */
+/** `` 用量可视：成本聚合（`cost:summary` 返回）。 */
 export interface CostSummaryDTO {
   /** 计入的成本行数（**0 ⇒ 顶栏显 `—`，不写假 0**）。 */
   costRows: number;
@@ -139,24 +139,24 @@ export interface TaskDTO {
   priority: number;
   riskLevel: number;
   createdAt: number;
-  /** UI-2：最近更新（任务行相对时间；`task:list` 直读 `tasks.updated_at`）。 */
+  /** 最近更新（任务行相对时间；`task:list` 直读 `tasks.updated_at`）。 */
   updatedAt?: number;
   readySince: number | null;
-  /** M2 尾：截止时刻（epoch ms；未设 ⇒ null）。 */
+  /**  尾：截止时刻（epoch ms；未设 ⇒ null）。 */
   deadline?: number | null;
   acceptance: unknown[];
-  /** BRK13（挂载 3）：预算/已耗/余额（未设 ⇒ null；任务头与成本面板显示用）。 */
+  /** （挂载 3）：预算/已耗/余额（未设 ⇒ null；任务头与成本面板显示用）。 */
   budgetTokens?: number | null;
   costTokens?: number;
   budgetLeftTokens?: number | null;
-  /** `tasks.archived`（0/1）：归档＝**筛选开关**（非 state；M2-A 归档口径）。 */
+  /** `tasks.archived`（0/1）：归档＝**筛选开关**（非 state； 归档口径）。 */
   archived: number;
-  /** 所属项目名/别名（`task:list` join 出来；M2-A 项目分组/概览）。 */
+  /** 所属项目名/别名（`task:list` join 出来； 项目分组/概览）。 */
   projectName: string | null;
   projectAlias: string | null;
   /** 所属项目接入模式（`inplace` ⇒ 不产生变更集）。 */
   projectAccessMode: string | null;
-  /** M1-3（`PLAN §10 第 4 条`）：当前等待原因（空/缺省 = 不等待）。数据来自引擎 hold，渲染层**不得推断**。 */
+  /** （` 第 4 条`）：当前等待原因（空/缺省 = 不等待）。数据来自引擎 hold，渲染层**不得推断**。 */
   waits?: TaskWaitDTO[];
   /** 执行员工（2026-10-16 左栏批；`task:list` 面 join：**最新一件**工作项的负责人）。无件 ⇒ null。 */
   executor?: { id: number; name: string | null } | null;
@@ -175,25 +175,25 @@ export interface ProjectDTO {
   attention: string;
   accessMode: string;
   defaultEmployeeIds: number[];
-  /** 编制（D-11）：默认负责人（`null`＝未设置 → 缺省链兜底）。 */
+  /** 编制：默认负责人（`null`＝未设置 → 缺省链兜底）。 */
   defaultOwnerId: number | null;
-  /** 编制（D-11）：默认档 0/1/2（`null`＝未设置 → 建任务 db 缺省 1）。 */
+  /** 编制：默认档 0/1/2（`null`＝未设置 → 建任务 db 缺省 1）。 */
   defaultRiskTier: number | null;
-  /** D-19 P1：项目级频道助手写权限（read-only/confirm/auto；未设＝confirm）。 */
+  /**  P1：项目级频道助手写权限（read-only/confirm/auto；未设＝confirm）。 */
   assistantWriteMode: 'read-only' | 'confirm' | 'auto';
-  /** M3-DOC-4：项目级文档检查开关（默认 true）。 */
+  /** 项目级文档检查开关（默认 true）。 */
   docsCheckEnabled: boolean;
   defaultSkills: string[];
   allowedProviders: string[];
-  /** D-22：项目默认模型（null＝未设置）。 */
+  /** 项目默认模型（null＝未设置）。 */
   defaultModel: string | null;
-  /** D-22：模型级允许清单（空数组＝不额外限制）。 */
+  /** 模型级允许清单（空数组＝不额外限制）。 */
   allowedModels: string[];
-  /** D-22：fixed | employee_first | assistant（assistant 写侧暂拒）。 */
+  /** fixed | employee_first | assistant（assistant 写侧暂拒）。 */
   modelPolicy: 'fixed' | 'employee_first' | 'assistant';
   /** v19：新任务默认 token 预算（null＝不限）。 */
   defaultBudgetTokens: number | null;
-  /** S13-G/D-N06：合并目标分支（null＝沿用 main/master）。 */
+  /** /：合并目标分支（null＝沿用 main/master）。 */
   targetBranch: string | null;
   archived: number;
   archivedAt: number | null;
@@ -266,7 +266,7 @@ export interface EmployeeDTO {
   /** 幕僚长（0 号）也在墙上（`UI §6.1`）。 */
   isAssistant?: boolean;
   active?: boolean;
-  /** GAP6：MCP 分配 refs（设置·MCP 分配矩阵只读）。 */
+  /** MCP 分配 refs（设置·MCP 分配矩阵只读）。 */
   mcpRefs?: readonly string[];
   /** 2026-10-16（大厅批）：员工卡读数（主进程聚合）；缺省 ⇒ 按无数据渲染（不臆造动作）。 */
   activity?: {
@@ -423,7 +423,7 @@ export interface MailboxAskDTO {
   at: number;
 }
 
-/** M2 尾（G-D）：跨项目全局搜索结果（只读；各组 ≤6）。 */
+/**  尾（G-D）：跨项目全局搜索结果（只读；各组 ≤6）。 */
 export interface GlobalSearchDTO {
   query: string;
   tasks: Array<{ id: number; shortId: string | null; title: string; projectId: number; projectName: string | null }>;
@@ -432,7 +432,7 @@ export interface GlobalSearchDTO {
   total: number;
 }
 
-/** M3：IM 通道状态（`im:bind {action:'status'}` 返回；本轮只做微信 1:1）。 */
+/** IM 通道状态（`im:bind {action:'status'}` 返回；本轮只做微信 1:1）。 */
 export interface ImStatusView {
   channel: 'im:wechat';
   state: 'disabled' | 'login_required' | 'login_pending' | 'connecting' | 'connected' | 'error';
@@ -455,7 +455,7 @@ export interface ProviderStatusDTO {
   fileConfigured: boolean;
 }
 
-/** D-22 配套：模型目录条目（只读；价格 USD/1M tokens；Key 只回来源）。 */
+/**  配套：模型目录条目（只读；价格 USD/1M tokens；Key 只回来源）。 */
 export interface ProviderCatalogEntryDTO {
   provider: string;
   providerLabel: string;

@@ -9,7 +9,7 @@
 // `src/main/db/migrations.ts` 运行时只读常量；`test/migrations-packaging.test.ts` 在源码树存在时
 // 断言「常量 === 对应 .sql 逐字一致」——与 G-10「单一真源」同族：让两处不一致**结构上被测试抓到**。
 //
-// 用法：node scripts/gen-migrations.mjs   （或 `pnpm gen:migrations`，其接线由 package.json owner 添加）
+// 用法：node scripts/gen-migrations.mjs （或 `pnpm gen:migrations`，其接线由 package.json owner 添加）
 // 说明：扫描目录下全部 `NNN_name.sql`（升序）；若目标 `.ts` 已存在则**保留其原有头部注释**，
 //       只重写 `export const ... = \`...\`;` 主体，避免无谓 diff。
 import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs';
@@ -44,7 +44,7 @@ for (const file of files) {
 
   const header = existsSync(outTs)
     ? (readFileSync(outTs, 'utf8').split('export const')[0] ?? '')
-    : `/**\n * ${file.replace(/\.sql$/, '.ts')} — 迁移内联常量（**打包安全**；运行时零文件系统依赖）。\n * 与同目录 \`${file}\` 逐字一致（\`test/migrations-packaging.test.ts\` 校验漂移）。\n */\n`;
+    : `/** \n * ${file.replace(/\.sql$/, '.ts')} — 迁移内联常量（**打包安全**；运行时零文件系统依赖）。\n * 与同目录 \`${file}\` 逐字一致（\`test/migrations-packaging.test.ts\` 校验漂移）。\n */\n`;
 
   writeFileSync(outTs, `${header}export const ${name} = \`${escapeTemplate(sql)}\`;\n`);
   wrote += 1;

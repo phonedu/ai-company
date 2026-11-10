@@ -1,5 +1,5 @@
--- 023_work_item_deps.sql — B2-3/D-30②：多工作项 DAG（依赖限同任务内）＋返工件血缘。
--- 为什么：58 §6-2「1 任务=1 工作项」使调度多件队列永远喂不满；D-30② 推翻该裁决——
+-- 023_work_item_deps.sql —：多工作项 DAG（依赖限同任务内）＋返工件血缘。
+-- 为什么：-2「1 任务=1 工作项」使调度多件队列永远喂不满； 推翻该决定——
 -- planner 产 2-N 件带依赖；调度按依赖门控；失败粒度=单件。
 CREATE TABLE IF NOT EXISTS work_item_deps (
   work_item_id INTEGER NOT NULL REFERENCES work_items(id),

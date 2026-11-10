@@ -1,5 +1,5 @@
 /**
- * 测试用 fake 会话运行时（DEV §9：AgentRuntime 设计成接口 → 用 fake 实现单测）。
+ * 测试用 fake 会话运行时（：AgentRuntime 设计成接口 → 用 fake 实现单测）。
  * 不碰网络、不花真金；按脚本产出事件与结果。
  */
 import type { AgentEvent, AgentRunInput, AgentRunResult, AgentRuntime } from './types.js';

@@ -1,5 +1,5 @@
 /**
- * B0-9③ 真链路补充：外发命令在**会话工具闸门**里被拦下并出「权限请求」卡（不只纯函数判定）。
+ *  真链路补充：外发命令在**会话工具闸门**里被拦下并出「权限请求」卡（不只纯函数判定）。
  *
  * 口径：SessionToolGate.evaluate（Pi `tool_call` 钩子同路径）→ permissionGate →
  * persistSessionGateDecision（ask → 权限请求卡 + approvals 行）。本测试走真实类与真实库，

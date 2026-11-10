@@ -14,8 +14,8 @@ import {
 import { Engine } from '../src/main/engine/index.js';
 import type { EngineEvent, PersistedAction } from '../src/main/engine/types.js';
 
-// ── OPT-AI-1：无凭据 → 「不可用」执行器（派发即失败、绝不 mock 兜底） ──
-// BRK2 修：事件名必须是工作项机**真事件** `error`（`running --error--> failed`，05 §3.1.2 L284-285）；
+// ──：无凭据 → 「不可用」执行器（派发即失败、绝不 mock 兜底） ──
+//  修：事件名必须是工作项机**真事件** `error`（`running --error--> failed`，L284-285）；
 // 此前派 `work_item_failed`（不在工作项机里）⇒ 真引擎抛 `UnknownTransitionError`、件卡 `running`、任务永停
 // `executing`、无失败卡——只有行为日志里一条 `action_failed`（假绿测试用假 dispatch 断言"发了该事件"）。
 
@@ -98,7 +98,7 @@ test('BRK2 全链（**真引擎**，非假 dispatch）：无凭据派发 → 件
   }
 });
 
-// ── 规划静默（2026-10-15 矩阵格 `no-credential×planning-stage` 抓；BRK3 同型）────────────────
+// ── 规划静默（2026-10-15 矩阵格 `no-credential×planning-stage` 抓； 同型）────────────────
 
 test('C1b：装配期模型不存在（规划）→ task error（模型/凭据不可用），不升级为决策卡', async () => {
   const events: EngineEvent[] = [];

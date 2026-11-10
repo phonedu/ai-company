@@ -1,11 +1,11 @@
 /**
- * UG-04 · 建单附件 → 任务输入资产。
+ *  · 建单附件 → 任务输入资产。
  *
  * 判据：
  *  - 复制到 `项目根/inputs/<短号>/<序号>-<文件名>`；
  *  - 登记 `artifacts.kind='input'`（sha256/来源 message:id）；
  *  - 原文件名中的路径片段被丢弃（不信任原始路径）；重复导入幂等；
- *  - 失败只报文件名，不回传绝对路径（D1）。
+ *  - 失败只报文件名，不回传绝对路径。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

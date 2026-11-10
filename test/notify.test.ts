@@ -1,5 +1,5 @@
 /**
- * OPT-EXT-1 · 通知执行器（可见 / 去重 / 脱敏 / 空态）。
+ *  · 通知执行器（可见 / 去重 / 脱敏 / 空态）。
  * 每条断言**都能被弄红**（含两条"有牙"）；**空态不伪装**。
  */
 import test from 'node:test';
@@ -90,7 +90,7 @@ test('OPT-EXT-1 去重（有牙）：去掉"先查后写"这条守卫 → 直写
     insertReport(db, { taskId, kind: 'notification', payload: {}, dedupeKey: 'x', now: 1 });
     insertReport(db, { taskId, kind: 'notification', payload: {}, dedupeKey: 'x', now: 2 });
     assert.equal(listReports(db, {}).length, 2, '无守卫时叠加 → 证明上一条断言的 1 行来自短路');
-    // 台账侧仍有 DB 层 UNIQUE 兜底：同键第二写被丢弃。
+    // 清单侧仍有 DB 层 UNIQUE 兜底：同键第二写被丢弃。
     assert.equal(insertNotification(db, { channel: 'desktop', dedupeKey: 'x', sentAt: 1 }), true);
     assert.equal(insertNotification(db, { channel: 'desktop', dedupeKey: 'x', sentAt: 2 }), false, 'UNIQUE(dedupe_key) 兜底');
   } finally {

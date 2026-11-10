@@ -1,9 +1,9 @@
 /**
- * OPT-AI-1 · `rawConversation` 读模型（**派生投影，只读**；契约见 `DEV`/`PLAN M1`）。
+ *  · `rawConversation` 读模型（**派生投影，只读**；契约见 ``/` M1`）。
  *
  * 存储（不新增表）：
  *  - 员工发言 → `task_events.kind='agent_message'`（payload `{employeeId, text, mentions?:number[]}`）
- *  - 员工思考 → `task_events.kind='agent_thinking'`（payload `{employeeId, text}`）【M1 不采集】
+ *  - 员工思考 → `task_events.kind='agent_thinking'`（payload `{employeeId, text}`）【 不采集】
  *  - 工具调用 → 既有 `tool_call`（start 带 `input`、end 带 `isError`；按 `toolCallId` 配对）
  *  - 老板原话 → 既有 `human_messages`（`direction='in'`）
  *

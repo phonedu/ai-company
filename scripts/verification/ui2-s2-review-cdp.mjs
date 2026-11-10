@@ -1,4 +1,4 @@
-// UI-2 S2/S2b 复核修复真机配方（2026-11-10）：
+//  S2/ 复核修复真机配方（2026-11-10）：
 //   ① 项目页「设置·模型」编辑面——打开表单 → 改默认预算/合并目标分支/策略+默认模型 → 保存 →
 //      摘要即时回显（真 DOM）；杀进程后回读真库，确认三列持久化（真库）。
 //   ② 归档页「归档项目」区——非空项目删除键禁用、空项目可点；点「恢复」后行消失且库里 archived=0。
@@ -277,9 +277,9 @@ try {
     },
   });
 
-  // 冷启动恢复路径（独立复核实抓）：上次视图=archive → **进程级重启**（不是 location.reload——
+  // 冷启动恢复路径（独立复核发现）：上次视图=archive → **进程级重启**（不是 location.reload——
   // 旧 DOM 里已有 archive-project-row，等它会立即返回，第二轮复核实测断言其实发生在 reload 前）。
-  // ⚠️ 必须优雅关窗：taskkill /F 会丢 localStorage 的异步落盘（实抓：强制杀后重启 cursor=null，
+  // ⚠️ 必须优雅关窗：taskkill /F 会丢 localStorage 的异步落盘（发现：强制杀后重启 cursor=null，
   // 视图回落 channel，冷启动步骤永远等不到归档行）。
   await evalIn(`localStorage.setItem('aico.session.view', JSON.stringify({view:'archive',selectedTaskId:null,selectedProjectId:null,selectedEmployeeId:null})); window.close(); true`);
   await sleep(3000);

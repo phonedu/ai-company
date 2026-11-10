@@ -3,7 +3,7 @@
  *
  * 口径（检索设计口径 §5/§7）：
  *  - 只做**确定性**文本扫描（Rust/TS/JS 声明 + Markdown 标题 + 文件索引），不引 tree-sitter/图数据库/向量库；
- *  - 文件范围：`.rs/.toml/.md/.ts/.tsx/.js/.jsx/.json`（B0-1：此前只认 Rust 三件套，对 TS 项目等于空图）；
+ *  - 文件范围：`.rs/.toml/.md/.ts/.tsx/.js/.jsx/.json`（：此前只认 Rust 三件套，对 TS 项目等于空图）；
  *  - 输出**小而排过序**的答案，不把整张图塞进上下文（否则又是一次大工具输出）；
  *  - 查询为空时只给文件索引（路径＋条目数）；带 `query` 时按路径/符号匹配，最多 `maxChars`。
  */
@@ -37,7 +37,7 @@ export function isRepoMapEnabled(env: NodeJS.ProcessEnv = process.env): boolean 
   return raw === 'on' || raw === '1' || raw === 'true';
 }
 
-/** 行级符号识别（确定性；Rust + TS/JS + Markdown 标题）。B0-1：补 TS/JS 声明。 */
+/** 行级符号识别（确定性；Rust + TS/JS + Markdown 标题）。：补 TS/JS 声明。 */
 function symbolOf(line: string): { kind: string; name: string } | null {
   const fn = /^\s*(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?fn\s+([A-Za-z_][A-Za-z0-9_]*)/.exec(line);
   if (fn) return { kind: 'fn', name: fn[1] as string };

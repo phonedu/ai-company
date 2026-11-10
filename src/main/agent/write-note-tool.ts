@@ -31,7 +31,7 @@ export async function createWriteNoteTool(db: SqliteDb) {
           details: { ok: false, path: '', error: '' },
         };
       }
-      // B4b 接线审查 F1（2026-11-09）：项目根优先取**本会话 cwd**（与门禁/其它工具同源）——
+      //  接线审查 （2026-11-09）：项目根优先取**本会话 cwd**（与门禁/其它工具同源）——
       // 旧逻辑取「全局最近一次 task_started 的任务」，多项目并发时会把笔记写进**别人的项目**。
       // ctx 缺失（旧调用方/单测）回落旧查询，行为不变。
       let rootDir: string | undefined = sessionCwd(ctx, '') || undefined;

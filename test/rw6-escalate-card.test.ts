@@ -1,5 +1,5 @@
 /**
- * RW-6（M5 真机带回，2026-10-27）· `critic_revise_limit` 升级卡必须带 critic 意见。
+ * （真机带回，2026-10-27）· `critic_revise_limit` 升级卡必须带 critic 意见。
  *
  * 真机事实：评审连续打回达上限升级老板时，卡面只有「需要你决策（T-1001）」＋ reason 代号——
  * critic 的打回理由（notes）没上卡，老板拿到卡无法决策（真机靠查库才知道反对点）。
@@ -94,7 +94,7 @@ test('RW-10: done 完成卡存在 open changeset 时提示「产物在暂存工�
     ).run(taskId);
     // 免验聚合：verificationNeeded=false ⇒ 引擎如实自动 pass ⇒ done ＋ 完成卡（此时 open changeset 在场）
     await engine.dispatch({ scope: 'task', id: taskId, event: 'all_work_items_done', payload: { verificationNeeded: false } });
-    // B2-6/D-30③：L1+（含免验）pass 现迁 needs_decision（签收卡）——补老板签收步，done 后才有完成卡
+    // /：L1+（含免验）pass 现迁 needs_decision（签收卡）——补签收步，done 后才有完成卡
     if ((db.prepare('SELECT state FROM tasks WHERE id=?').get(taskId) as { state: string }).state === 'needs_decision') {
       await engine.dispatch({ scope: 'task', id: taskId, event: 'signoff', actor: 'boss', payload: { via: 'b26-regression' } });
     }

@@ -11,7 +11,7 @@ import {
 } from '../src/renderer/components/RawConversation.js';
 import { TaskDetail, type TaskDetailDTO } from '../src/renderer/components/TaskDetail.js';
 
-// ─────────── OPT-AI-1「原始交流」UI（2303 / 2328 / 2641，逐条写死）───────────
+// ─────────── 「原始交流」UI（2303 / 2328 / 2641，逐条写死）───────────
 // ① text/thinking 各自成条（思考条不渲染气泡正文） ② mentions 显式（不解析文本）
 // ③ argsDigest 主进程截断/脱敏（渲染层不展开） ④ 排序 at↑ / 同 at 按 id↑（**id 为 string**，2641）
 // ⑤ 缺数据 = 显式空态（不做假气泡） ⑥ 只读、只在本机

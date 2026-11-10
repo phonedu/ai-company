@@ -1,5 +1,5 @@
 /**
- * G3（M2）· 会话内工具耗时埋点：`tool_call_start/end` → `task_events(kind='tool_call', payload.durationMs)`。
+ * G3· 会话内工具耗时埋点：`tool_call_start/end` → `task_events(kind='tool_call', payload.durationMs)`。
  * 仅归因/留痕（**不作并发通道**：不改执行顺序、不做超时/取消）。
  */
 import test from 'node:test';
@@ -51,7 +51,7 @@ test('G3: 工具 start/end → 落 `tool_call` 事件且带 `durationMs`（归�
     });
     await exec.execute(dispatchAction(taskId, wiId));
     const allToolEvents = listTaskEvents(db, taskId).filter((e) => e.kind === 'tool_call');
-    // RET-F-08：start 也落库（带白名单 input）；耗时事件只看 end，避免把 start 混进时长断言。
+    // RET-：start 也落库（带白名单 input）；耗时事件只看 end，避免把 start 混进时长断言。
     assert.equal(allToolEvents.filter((e) => JSON.parse(e.payload).phase === 'start').length, 2, '两个 start 事件');
     const evs = allToolEvents.filter((e) => JSON.parse(e.payload).phase === 'end');
     assert.equal(evs.length, 2, '两个工具 → 两条耗时事件');

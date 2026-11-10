@@ -4,7 +4,7 @@
  * 口径：**只报从目录里真读到的事实**（存在性/来自文件内容），不臆造：
  *  - 类型标记：`.git` / `package.json` / `pyproject.toml` / `README.md`；
  *  - **建议**验收命令（**建议 ≠ 承诺**：pyproject ⇒ `pytest -q`；package.json 有 `scripts.test` ⇒ `<包管理器> test`；都没有 ⇒ `null`，由引导去"先搭测试底座"）；
- *  - **建议**接入模式：有 `.git` ⇒ `inplace`（每任务一分支）；否则 `staging`（沙盒副本）——PLAN §15.3。
+ *  - **建议**接入模式：有 `.git` ⇒ `inplace`（每任务一分支）；否则 `staging`（沙盒副本）——。
  *
  * 纯函数（注入 `io`，可脱离真实文件系统单测）；**不读项目外的任何路径**、不写任何东西。
  */

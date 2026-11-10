@@ -1,12 +1,12 @@
 /**
- * D-19 P1 · 频道助手写权限（项目级 `read-only | confirm | auto`）。
+ *  P1 · 频道助手写权限（项目级 `read-only | confirm | auto`）。
  *
- * 口径（`D-19`，设计见 设计说明 §4）：
+ * 口径（``，设计见设计说明 §4）：
  *  - **两轴不是三档大开关**：写范围恒为 `project-only`（由 `projectRoot` 硬边界保证）；
  *    项目内写模式 = `read-only`（只读）/ `confirm`（每次写/建目录先确认，默认）/ `auto`（项目内写不逐次确认）。
  *  - **`full` v1 不做**；无项目恒 `read-only`。
  *  - 模式存 `permission_policies(scope_type='project', scope_id=<projectId>).policy.assistantWriteMode`；
- *    不新增表/列，复用同一权限台账；不改员工任务会话的 `tier`/`autonomy`。
+ *    不新增表/列，复用同一权限清单；不改员工任务会话的 `tier`/`autonomy`。
  *  - 判定仍由 `permissionGate` 完成：本模块只把模式映射为能力档/放行档，并读写项目策略。
  */
 import { getPermissionPolicy, setPermissionPolicy } from '../db/permission.js';

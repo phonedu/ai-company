@@ -5,7 +5,7 @@ import { openMemoryDatabase, runMigrations } from '../src/main/db/index.js';
 import { createSqliteChatRepo } from '../src/main/ipc/repo.js';
 import { handleTaskGet } from '../src/main/ipc/ipc.js';
 
-// ── OPT-M8-1：`task:get` 产物元信息（只读、按 id 升序、空数组=无产物、按 task 定界） ──
+// ── OPT-：`task:get` 产物元信息（只读、按 id 升序、空数组=无产物、按 task 定界） ──
 // **列无关**：`artifacts.source`/`commit_sha`/`at`（003）存在则映射、缺则 null——本测试在
 // 「003 在」与「003 不在」两种世界里都必须绿（口径冻结前后都不做红源）。
 

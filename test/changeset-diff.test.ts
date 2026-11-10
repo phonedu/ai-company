@@ -1,5 +1,5 @@
 /**
- * UG-06 · 变更集只读 diff（`task:diff`）+ unified diff 投影。
+ *  · 变更集只读 diff（`task:diff`）+ unified diff 投影。
  *
  * 判据：
  *  - 只接受变更集已登记 path；绝对路径/`..` 拒；

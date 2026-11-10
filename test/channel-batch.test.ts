@@ -163,7 +163,7 @@ test('样式守门：气泡终版（.bubble--in＝accent-strong 实底）；锚�
   assert.match(bubbleIn, /color:\s*var\(--on-accent\)/, '老板气泡＝白字');
   assert.ok(rule('.channel-date').length > 0, '缺日期锚样式');
   assert.ok(rule('.channel-new').length > 0, '缺新消息锚样式');
-  // 卡片可读性批（老板 2026-10-28）：英文 key 键帽退役（IM 序号独立生成）；多选 ☑/☐ 用 card__tick。
+  // 卡片可读性批（2026-10-28）：英文 key 键帽退役（IM 序号独立生成）；多选 ☑/☐ 用 card__tick。
   assert.equal(css.includes('.card__key'), false, 'card__key 键帽应已退役');
   assert.ok(rule('.card__tick').length > 0, '缺多选勾选符样式');
   assert.ok(rule('.card__due').length > 0, '缺倒计时 chip 样式');

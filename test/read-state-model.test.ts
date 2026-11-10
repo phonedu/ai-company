@@ -1,5 +1,5 @@
 /**
- * M3 联动修复 P0-2：未读读数按 surface 分面。
+ *  联动修复 P0-2：未读读数按 surface 分面。
  * messages 的返回绝不能写进 cards 的 badge；unknown 必须携带 reason 且 unread=null。
  */
 import assert from 'node:assert/strict';

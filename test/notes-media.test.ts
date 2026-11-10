@@ -81,7 +81,7 @@ test('笔记页 Phase A：范围选择、项目分组、媒体筛选与媒体信
   assert.match(page, /item\.projectId === scopeProjectId/);
 });
 
-// RW-49（2026-11-05 老板点题「能否很快找到」）：docs 子目录限深递归——产物落
+// （2026-11-05 老板点题「能否很快找到」）：docs 子目录限深递归——产物落
 // docs/reference/、docs/guides/ 等子目录时知识页必须可见（浅扫会永远找不到）。
 test('RW-49 docs 子目录递归：子目录 md/图片进列表；隐藏与深层(>3)不扫；封顶 400', () => {
   const root = mkdtempSync(join(tmpdir(), 'aico-notes-rw49-'));
@@ -109,7 +109,7 @@ test('RW-49 docs 子目录递归：子目录 md/图片进列表；隐藏与深�
   }
 });
 
-// RW-49 补（T8b 真机）：员工产物常落项目根 docs/ 与「文档/」——同样限深递归可见。
+//  补（T8b 真机）：员工产物常落项目根 docs/ 与「文档/」——同样限深递归可见。
 test('RW-49 根下 docs/ 与 文档/ 目录递归可见', () => {
   const root = mkdtempSync(join(tmpdir(), 'aico-notes-rw49b-'));
   try {

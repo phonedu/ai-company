@@ -1,5 +1,5 @@
 /**
- * RW-51（2026-11-05 老板定性「必须做到」）：幕僚长待办卡工具——自然话驱动待办的地基。
+ * （2026-11-05 老板定性「必须做到」）：幕僚长待办卡工具——自然话驱动待办的地基。
  * 判据：boss_inbox 只读列卡（含选项与推荐）；boss_card_resolve 走既有审批真路径
  * （DAO 投影 reports resolved + needs_decision 推 decision_made 引擎事件 + 权限批准发 grant）；
  * 选项 key 不在卡面 → 明确报错并列出可选（不猜）；ack 只清卡。

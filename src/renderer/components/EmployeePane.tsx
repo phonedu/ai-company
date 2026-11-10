@@ -1,16 +1,16 @@
 /**
- * D-5 补位 ① · 员工工位页（`docs/UI.md` §2/§9）——**纯展示**（props 进、DOM 出；可 `renderToStaticMarkup` 单测）。
+ * D-5 补位 ① · 员工工位页（`docs/` §2/§9）——**纯展示**（props 进、DOM 出；可 `renderToStaticMarkup` 单测）。
  *
- * 2026-10-17（替换批·第七批，设计板 v2「两个口子分开」——老板裁「大厅看活、设置改人」）：
+ * 2026-10-17（替换批·第七批，设计板 v2「两个口子分开」——决定「大厅看活、设置改人」）：
  *  - **ops ＝「员工 · 当前任务」**（自公司大厅点头像进入；只读看活）：当前在跑（短号＋题＋状态＋〔打开任务▸〕）
  *    ／最近任务／累计成本／注「改人设 / 偏好 / 技能 → 设置 · 员工」；
  *  - **config ＝「员工设置」**（自设置 · 员工「配置 ▸」进入；改人）：五 tab＝人设与提示词 / 技能 / MCP /
  *    记忆 / 定时（任务历史移出→ops）；**偏好与档位＝下拉形态**（写入口径 NI ⇒ `disabled`＋理由，
  *    值＝真字段 `employees.model/thinking`）；人设只读＋〔保存人设〕disabled（NI）＋**五层提示词预览**
- *    （①②纪律层只读不可改——EMPLOYEES §42 口径）。
+ *    （①②纪律层只读不可改—— 口径）。
  *
  * 口径：
- *  - **只读**：招募/编辑/停用属 M1+（`DEV §7.4` 员工写入口径）→ 未实现项**如实 `disabled` + 理由**；
+ *  - **只读**：招募/编辑/停用属 M1+（`` 员工写入口径）→ 未实现项**如实 `disabled` + 理由**；
  *  - **不臆造**：成本无行 → `—`（不写假 0）；技能/MCP 名字解析不到 → 显 `#id（未登记）`；记忆/任务无 → 空态；
  *  - 状态文案：任务状态复用 `projectView.PROJECT_STATE_LABEL`（单一映射）；工作项状态未知原样显示。
  */
@@ -20,7 +20,7 @@ import type { ReactElement } from 'react';
 import type { EmployeeDetailDTO, EmployeeRefItem, SkillDTO } from '../types.js';
 import { PROJECT_STATE_LABEL } from './projectView.js';
 
-/** 工作项状态 → 中文（**显示用**；未知原样显示——`FLOWS §3.1.2` 表用原词，无文档级中文映射）。 */
+/** 工作项状态 → 中文（**显示用**；未知原样显示——`` 表用原词，无文档级中文映射）。 */
 const WORK_ITEM_STATE_LABEL: Record<string, string> = {
   queued: '排队中',
   running: '执行中',
@@ -89,22 +89,22 @@ export interface EmployeePaneProps {
   initialTab?: EmployeeTab;
   /** 2026-10-17（双栏改版）：嵌入公司大厅右栏——**不渲染页头/返回**，内容同 ops（只读看活）。 */
   embedded?: boolean;
-  /** GAP7：技能库（config 页「技能」tab 的勾选来源；缺省 ⇒ 只保留手填 refs）。 */
+  /** 技能库（config 页「技能」tab 的勾选来源；缺省 ⇒ 只保留手填 refs）。 */
   skillOptions?: readonly SkillDTO[] | null;
-  /** GAP6：MCP 库（config 页「MCP」tab 的勾选来源；只含名字/传输，不含 env 值）。 */
+  /** MCP 库（config 页「MCP」tab 的勾选来源；只含名字/传输，不含 env 值）。 */
   mcpOptions?: readonly import('../types.js').McpServerDTO[] | null;
-  /** M2 尾：改档写入口（config 页人设/模型/思考强度；缺省 ⇒ 保存 disabled，不假装可点）。 */
+  /**  尾：改档写入口（config 页人设/模型/思考强度；缺省 ⇒ 保存 disabled，不假装可点）。 */
   onUpdateEmployee?: (patch: {
     persona?: string;
     model?: string | null;
     thinking?: string | null;
-    /** OPT-AI-9：技能勾选（id 或名字；空数组＝清空）。 */
+    /** 技能勾选（id 或名字；空数组＝清空）。 */
     skills?: Array<string | number>;
-    /** GAP6：MCP 勾选（id 或名字；空数组＝清空）。 */
+    /** MCP 勾选（id 或名字；空数组＝清空）。 */
     mcps?: Array<string | number>;
-    /** UG-11：能力档（sandbox/standard/trusted）。 */
+    /** 能力档（sandbox/standard/trusted）。 */
     capabilityTier?: string;
-    /** UG-11：停用/启用；主进程 F8 守卫（有在跑/排队件时拒）。 */
+    /** 停用/启用；主进程守卫（有在跑/排队件时拒）。 */
     active?: boolean;
   }) => Promise<{ ok: boolean; error?: string }>;
 }
@@ -276,7 +276,7 @@ export function EmployeePane({
                 <div className="employee-view__grid">
                   <section data-testid="employee-prefs">
                     <h3>偏好与档位</h3>
-                    {/* M2 尾：改档写入口已接——模型为自由文本（模型目录由运行时拉取，不硬编码全表），
+                    {/*  尾：改档写入口已接——模型为自由文本（模型目录由运行时拉取，不硬编码全表），
                         空＝跟随全局默认；思考强度为枚举下拉。保存后主进程写 `employees` 真字段。 */}
                     <div className="employee-view__row">
                       <span className="employee-view__muted">偏好模型</span>
@@ -399,7 +399,7 @@ export function EmployeePane({
                     </div>
                   </section>
 
-                  {/* 五层提示词预览（EMPLOYEES §42 口径）：透明但不开放改纪律层。
+                  {/* 五层提示词预览（口径）：透明但不开放改纪律层。
                       CTX1-7：这里**只列层与来源**，不冒充完整拼装文本——真实拼装读数在任务右栏「任务上下文 · 上下文」里。 */}
                   <section data-testid="employee-prompt-layers">
                     <details>
@@ -592,7 +592,7 @@ export function EmployeePane({
                 </section>
               ) : null}
 
-              {/* 未实现项：如实 disabled + 理由（不摆假控件；`DEV §7.4` 员工写入口径）。 */}
+              {/* 未实现项：如实 disabled + 理由（不摆假控件；`` 员工写入口径）。 */}
               <p className="employee-view__unimplemented" data-testid="employee-unimplemented">
                 编辑技能/MCP、停用、记忆编辑：技能/MCP 随各自接线（OPT-AI-9/10）；停用与记忆编辑仍属未实现——本页人设/偏好已可改。
               </p>
@@ -668,7 +668,7 @@ export function EmployeePane({
                 </section>
               </div>
 
-              {/* 看活视图的指路：改人不在大厅（老板裁「大厅看活、设置改人」）。 */}
+              {/* 看活视图的指路：改人不在大厅（决定「大厅看活、设置改人」）。 */}
               <p className="employee-view__unimplemented" data-testid="employee-ops-note">
                 改人设 / 偏好 / 技能 → 设置 · 员工（花名册「配置 ▸」）。
               </p>

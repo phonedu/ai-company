@@ -1,5 +1,5 @@
 /**
- * B-4（M4）· 设置·高级「数据保留」容器：`settings:maintenance` ↔ 纯视图。
+ * B-4· 设置·高级「数据保留」容器：`settings:maintenance` ↔ 纯视图。
  * 预览只数不删；运行前二次确认；只清四张临时表。
  */
 import { useEffect, useState } from 'react';

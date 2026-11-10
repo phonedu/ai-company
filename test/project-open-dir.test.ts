@@ -1,6 +1,6 @@
 /**
  * `project:open-dir`（dogfood L-01 补口）：项目页「打开目录」。
- * 口径：renderer 只传 projectId，路径由主进程从 DB 解析（D1）；失败面如实返回，不静默。
+ * 口径：renderer 只传 projectId，路径由主进程从 DB 解析；失败面如实返回，不静默。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

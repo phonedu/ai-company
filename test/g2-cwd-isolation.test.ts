@@ -1,5 +1,5 @@
 /**
- * G2（M2）· 任务级 cwd 隔离：会话按 `(sessionKey, cwd)` 分区。
+ * G2· 任务级 cwd 隔离：会话按 `(sessionKey, cwd)` 分区。
  * 本文件只测**纯键逻辑**与**运行期传参**（真实 Pi 会话两 cwd 隔离归真机验证）。
  */
 import test from 'node:test';

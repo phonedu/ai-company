@@ -1,5 +1,5 @@
 /**
- * 桌面通知投递（M3-P-3 GAP3 收口）——把 `NotifyDelivery` 变成可单测的 OS 通知/浮层动作。
+ * 桌面通知投递（收口）——把 `NotifyDelivery` 变成可单测的 OS 通知/浮层动作。
  *
  * 口径：
  *  - 只有 `desktop` 通道弹（静默期 `digest` 不弹；员工间 mailbox `employee:*` 不弹）；

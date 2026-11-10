@@ -1,5 +1,5 @@
 /**
- * 老板 2026-11-09「其他的那就补上吧」——裁决 6/7/8 的代码侧单测：
+ * 2026-11-09「其他的那就补上吧」——决定 6/7/8 的代码侧单测：
  *  1. 图片费用入账（image-cost：PNG 尺寸 → 1k/2k 档 → 元→USD；出图成功才回调）；
  *  2. 批准后补跑（refireAfterApproval：件在跑→no-op；任务 done→重开＋返工件；件 failed→retry）；
  *  3. 内置 ffmpeg 随包完整（PE 头＋GPL 声明）。
@@ -39,7 +39,7 @@ test('裁决 7：PNG 尺寸解析 → 1k/2k 档 → 按模型定价', () => {
   // 官方按输出像素面积分档（>2,250,000 才 2K）：1792×1024=1,835,008 ⇒ 1k（独立验收 P2-2 更正）
   assert.equal(imageTierOf({ width: 1792, height: 1024 }), '1k');
   assert.equal(imageTierOf({ width: 2048, height: 1024 }), '1k', '2,097,152 仍未过 2.25M');
-  // 同向复核 P2-3：DALL-E 按尺寸档（长边 >1024 即 $0.08 档），不能套千问的面积口径。
+  // 同向复核-3：DALL-E 按尺寸档（长边 >1024 即 $0.08 档），不能套千问的面积口径。
   assert.equal(imageTierOf({ width: 1792, height: 1024 }, 'dall-e-3'), '2k');
   assert.equal(imageTierOf({ width: 1024, height: 1024 }, 'dall-e-3'), '1k');
   assert.deepEqual(imagePriceCny('dall-e-3', { width: 1792, height: 1024 }), { cny: 0.58, tier: '2k', priced: true });

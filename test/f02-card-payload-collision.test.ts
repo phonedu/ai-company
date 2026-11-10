@@ -1,5 +1,5 @@
 /**
- * F-02 回归：报告 payload 的「计划步骤交代」字段**不得**叫 `planSteps`。
+ *  回归：报告 payload 的「计划步骤交代」字段**不得**叫 `planSteps`。
  *
  * 真机现场（2026-11-06，L1 复跑）：报告卡 payload 里放了字符串 `planSteps`，而 BossChannel 的
  * 批准卡按 `payload.planSteps`（数组）渲染 `<CardPlan steps=…>` → 对字符串 `.map` → 未捕获异常

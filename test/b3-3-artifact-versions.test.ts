@@ -1,5 +1,5 @@
 /**
- * B3-3/D-31④：产物版本快照——inplace 登记时快照＋与上一版 diff。
+ * /：产物版本快照——inplace 登记时快照＋与上一版 diff。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

@@ -7,9 +7,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { CompanyHallView, collabEdgeText, groupByDepartment } from '../src/renderer/components/CompanyHallView.js';
 import type { HallStateDTO } from '../src/renderer/types.js';
 
-// ─────────────── 公司大厅（简单版 B0/B1）· 纯展示 + 分组/协作文案 ───────────────
+// ─────────────── 公司大厅（简单版 B0/）· 纯展示 + 分组/协作文案 ───────────────
 // 口径：轻量部门（零迁移配置）· 不显示负责人 · 协作**只用真实流向 + 真实次数**（没往来不画边）。
-// 手法同 T0.7：`renderToStaticMarkup` 渲染真实组件 → 数 `data-testid`（不引 jsdom）。
+// 手法同：`renderToStaticMarkup` 渲染真实组件 → 数 `data-testid`（不引 jsdom）。
 
 function countTestId(html: string, id: string): number {
   const needle = `data-testid="${id}"`;

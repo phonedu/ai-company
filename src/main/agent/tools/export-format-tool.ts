@@ -1,5 +1,5 @@
 /**
- * B4-6/D-31⑤ · 导出适配器——Markdown→平台格式转换（公众号 HTML/通用 MD/纯文本）。
+ * / · 导出适配器——Markdown→平台格式转换（公众号 HTML/通用 MD/纯文本）。
  *
  * 口径：多数中文平台无发布 API ⇒ 导出排版后内容＋导出文件，你手动贴到平台。不做 API 自动发布。
  * 导出文件与源**同目录同主名＋平台后缀**（`exportPathFor`）——工具只收一个源路径参数，
@@ -130,7 +130,7 @@ export function exportToFile(
   format: ExportFormat,
 ): { ok: true; content: string; outputPath: string } | { ok: false; error: string } {
   const outputPath = exportPathFor(sourcePath, format);
-  // B4b 安全审查 F5（2026-11-09）：导出目标已存在 → 拒绝（不静默覆盖）。
+  //  安全审查 （2026-11-09）：导出目标已存在 → 拒绝（不静默覆盖）。
   // 「导出」语义是新增产物；要重导先删旧文件。write 类工具/bash 本可覆盖项目内文件，
   // 但那是在收了明确写指令时；这里的输出路径是**派生**的，覆盖不能默认。
   if (existsSync(outputPath)) {

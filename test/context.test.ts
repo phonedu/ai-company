@@ -8,7 +8,7 @@ import { appendMemory, buildProjectMemoryBrief, insertTaskEvent, insertWorkItem,
 import { insertEmployee } from '../src/main/db/employees.js';
 import { buildEmployeeContext, buildReviewContext, personaLayer, PLATFORM_LAYER, roleLayer } from '../src/main/agent/context.js';
 
-// ── OPT-AI-1：员工上下文组装（简版五层，分段可辨识；只读） ──
+// ──：员工上下文组装（简版五层，分段可辨识；只读） ──
 
 test('AI-1 context: 五层分段 + 元数据（platform/role/persona/baseline/task）', () => {
   const db = openMemoryDatabase();
@@ -25,7 +25,7 @@ test('AI-1 context: 五层分段 + 元数据（platform/role/persona/baseline/ta
   assert.ok(ctx.systemPrompt.includes(PLATFORM_LAYER));
   assert.ok(ctx.systemPrompt.includes('[角色规则]') && ctx.systemPrompt.includes('engineer'));
   assert.ok(ctx.systemPrompt.includes('[员工人设]') && ctx.systemPrompt.includes('偏好小步提交'));
-  // N4（OPT-AI-4）：任务基线（含验收/简报/证据索引）在 **system 段** ⇒ 压缩后仍在（构造性保证）。
+  // N4：任务基线（含验收/简报/证据索引）在 **system 段** ⇒ 压缩后仍在（构造性保证）。
   assert.ok(ctx.systemPrompt.includes('[任务基线]'), 'system 段必须有任务基线段');
   assert.ok(ctx.systemPrompt.includes('验收标准：产物行数==查询数；空态不伪装'), '验收标准必须进 system 段（压缩不丢）');
   assert.ok(ctx.systemPrompt.includes('任务：修渲染；目标：让 tab 正确'));

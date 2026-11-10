@@ -16,7 +16,7 @@ export { Crepe } from '@milkdown/crepe';
 // @ts-ignore -- NodeNext 解析 @milkdown/kit/utils 类型失败（Bundler 下正常）
 export { replaceAll } from '@milkdown/kit/utils';
 
-// RW-17（M5 真机 S9 批）：Crepe 主题 CSS 从未装载——列表圆点与文字错位、表格无框线全是裸奔渲染。
+// （真机批）：Crepe 主题 CSS 从未装载——列表圆点与文字错位、表格无框线全是裸奔渲染。
 // 注意：frame-dark.css／style.css 这类聚合文件靠 @import 拼装，Vite 依赖预构建不内联它们＝
 // 构建产物只剩一条死 @import（真机验证过）；必须按叶子直引（本文件已核对叶子内无二级 @import）。
 import '@milkdown/crepe/theme/common/reset.css';
@@ -28,7 +28,7 @@ import '@milkdown/crepe/theme/common/cursor.css';
 import '@milkdown/crepe/theme/common/link-tooltip.css';
 import '@milkdown/crepe/theme/common/toolbar.css';
 
-// RW-29（S13-A，老板真机：块菜单文字变白/大面积重合）：common 叶子只写结构，颜色/阴影
+// （，老板真机：块菜单文字变白/大面积重合）：common 叶子只写结构，颜色/阴影
 // 全走 --crepe-color-* 变量，变量真源在 frame / frame-dark 主题里——此前未引 → 浅色下白字叠影。
 // 本文件按应用主题成对声明变量（数值照抄上游，字号对齐 15px），与上面叶子一起进懒块。
 import '../assets/crepe-theme.css';

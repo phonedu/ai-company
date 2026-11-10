@@ -9,7 +9,7 @@ export const SQL_005_CONCURRENCY_COMPANY_COST = `-- 005_concurrency_company_cost
 --   **C2 公司级开销**：\`costs.task_id\` 放宽为可空 —— 幕僚长闲聊、全局检索这类**无任务的共享开销**从此可记账。
 --     SQLite 改 \`NOT NULL\` 需**重建表**（12 步法）：本重建**列集保持不变**（含 004 的 \`project_id\`/\`cache_*\`），
 --     数据原样搬迁、索引重建；**老库升级零破坏**、可重复跑（IF NOT EXISTS 与幂等 INSERT 已保证）。
---   注：\`employees.state\`（闲置休眠）**本批不加** —— 等实现休眠时随其迁移一起加，避免"加了没人用"的悬空列。
+--   注：\`employees.state\`（闲置休眠）**本次不加** —— 等实现休眠时随其迁移一起加，避免"加了没人用"的悬空列。
 ALTER TABLE tasks ADD COLUMN max_parallel_work_items INTEGER;
 
 CREATE TABLE costs_rebuild (

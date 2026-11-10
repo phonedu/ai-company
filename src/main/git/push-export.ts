@@ -1,5 +1,5 @@
 /**
- * B3-7/D-31⑤ · 交付出口——git push P0 最小形态＋产物导出（md/html）。
+ * / · 交付出口——git push P0 最小形态＋产物导出（md/html）。
  *
  * push 口径（research-git-remote-backup §2.3 P0）：识别现有 remote；显式〔推送〕按钮触发；
  * 直接复用系统 git 凭据（不存/不传密码）；失败给人话原因；**永不自动 push**。
@@ -53,7 +53,7 @@ export function pushBranch(projectRoot: string, remoteName: string, branch: stri
   if (!remotes.some((r) => r.name === remoteName)) {
     return { ok: false, remote: remoteName, branch, output: `remote '${remoteName}' 不存在（可用：${remotes.map((r) => r.name).join(', ') || '无'}）。` };
   }
-  // MIMOSA-1（2026-11-10 消解静态扫描时发现的真缺陷）：branch 原样进 argv 第三位，
+  // 静态扫描-1（2026-11-10 消解静态扫描时发现的真缺陷）：branch 原样进 argv 第三位，
   // `--all`/`--force` 这类以 - 开头的值会被 git 当选项（等价于对全部分支强推）。
   // 形状白名单＋禁前导 -；remote 已由 listRemotes 名单精确校验。
   if (!/^[A-Za-z0-9._/-]+$/.test(branch) || branch.startsWith('-')) {

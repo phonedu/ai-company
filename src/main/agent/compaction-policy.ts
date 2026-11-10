@@ -1,5 +1,5 @@
 /**
- * N4（`OPT-AI-4`）· **压缩可观测**（纯逻辑，可 node 测；无 IO、不依赖 Pi）。
+ * N4（``）· **压缩可观测**（纯逻辑，可 node 测；无 IO、不依赖 Pi）。
  *
  * 背景（核实自底座）：
  *  - 底座**默认开自动压缩**（`settings.compaction.enabled ?? true`）；auto 路径（threshold/overflow）

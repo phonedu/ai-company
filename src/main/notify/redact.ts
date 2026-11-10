@@ -1,5 +1,5 @@
 /**
- * OPT-EXT-1 · 通知载荷脱敏（`src/main/notify/`）。
+ *  · 通知载荷脱敏（`src/main/notify/`）。
  *
  * 口径（2894/2918）：**通知载荷不得含密钥/令牌，也不得含绝对用户路径**。
  * 纯函数、**不改调用方对象**（深拷贝改写）；与 `agent/raw-conversation.ts#redactArgsDigest` 同族。

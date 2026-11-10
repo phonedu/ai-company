@@ -1,5 +1,5 @@
 /**
- * 自动更新控制器（2026-11-06 D5 后老板裁：GitHub）。
+ * 自动更新控制器（2026-11-06 后决定：GitHub）。
  *
  * 设计：**纯控制器**——electron-updater 的实例与事件通过 `UpdaterLike` 注入，Node 单测里用
  * 假实现即可覆盖状态机；main 只负责把状态推给渲染层。
@@ -28,7 +28,7 @@ export interface UpdateStatus {
   /** 人话状态（UI 直接显示；不藏错误）。 */
   message: string;
   canCheck: boolean;
-  /** 已发现新版本、等老板点「下载」（B0-9：autoDownload=false）。 */
+  /** 已发现新版本、等老板点「下载」（：autoDownload=false）。 */
   canDownload?: boolean;
   canInstall: boolean;
   checkedAt?: number;
@@ -39,7 +39,7 @@ export interface UpdaterLike {
   autoInstallOnAppQuit: boolean;
   on(event: string, listener: (arg?: unknown) => void): unknown;
   checkForUpdates(): Promise<unknown>;
-  /** B0-9：手动下载（autoDownload=false 后由控制器显式调用）。 */
+  /** 手动下载（autoDownload=false 后由控制器显式调用）。 */
   downloadUpdate(): Promise<unknown>;
   quitAndInstall(isSilent?: boolean, isForceRunAfter?: boolean): void;
 }
@@ -56,7 +56,7 @@ export interface UpdateControllerDeps {
 export interface UpdateController {
   getStatus(): UpdateStatus;
   check(): Promise<UpdateStatus>;
-  /** B0-9：老板确认后手动下载（autoDownload=false）。 */
+  /** 要求后手动下载（autoDownload=false）。 */
   download(): Promise<{ ok: boolean; error?: string }>;
   install(): { ok: boolean; error?: string };
 }
@@ -106,7 +106,7 @@ export function createUpdateController(deps: UpdateControllerDeps): UpdateContro
   const busy = (): boolean => status.phase === 'checking' || status.phase === 'downloading';
 
   if (deps.enabled) {
-    // B0-9（58 §3.1 洞 2）：**不自动下载、不自动装**——签名缺失前，发布源被劫持一次即全员静默 RCE。
+    // **不自动下载、不自动装**——签名缺失前，发布源被劫持一次即全员静默 RCE。
     // 发现新版本只提示，老板点「下载」才下载；点「重启安装」才装。
     deps.updater.autoDownload = false;
     deps.updater.autoInstallOnAppQuit = false;

@@ -1,5 +1,5 @@
 /**
- * B4-1/D-29 · WebFetch——HTTP GET 读取网页正文（走 external ask 闸门）。
+ * / · WebFetch——HTTP GET 读取网页正文（走 external ask 闸门）。
  *
  * 口径：`fetch` API GET 请求；HTML 提取正文（去 script/style/tag 留文本）；
  * 截断 8KB（与 read_doc 同哲学）；走 permissionGate external 类（每次弹卡批准）。

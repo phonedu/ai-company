@@ -1,5 +1,5 @@
 /**
- * OPT-M3-1 · 独立验证：强制度分级（L0 免 / L1 抽验 / L2 强制）+ 实现者≠验证者 + 未验证不得 done。
+ * OPT- · 独立验证：强制度分级（L0 免 / L1 抽验 / L2 强制）+ 实现者≠验证者 + 未验证不得 done。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -149,7 +149,7 @@ test('OPT-M3-1: L0 免验 → 提交即自动接受；review_reject → rejected
     await engine.dispatch({ scope: 'work_item', id: wiA.id, event: 'submit_work_item', actor: 'employee:1' });
     assert.equal(getWorkItem(db, wiA.id)?.state, 'done', 'D3：免验件提交即接受');
 
-    // reject → rejected → redispatch → running：**reject 只对"需验件"可达**（D3 后免验件不停在 submitted）
+    // reject → rejected → redispatch → running：**reject 只对"需验件"可达**（后免验件不停在 submitted）
     // ⇒ 另起一个 L2 任务上的工作项来走这条路径。
     const taskId2 = mkTask(db, projectId, 2);
     const wiB = insertWorkItem(db, { taskId: taskId2, employeeId: 1, title: 'b', brief: 'b', now: 2 });

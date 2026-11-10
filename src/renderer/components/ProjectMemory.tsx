@@ -1,5 +1,5 @@
 /**
- * B-6（M4）· 项目概览「项目记忆」容器：`memory:manage` ↔ 纯视图。
+ * B-6· 项目概览「项目记忆」容器：`memory:manage` ↔ 纯视图。
  * 口径：老板显式写；项目作用域；pin/忘记（软归档）/提升全局；空态不伪装。
  */
 import { useEffect, useRef, useState } from 'react';

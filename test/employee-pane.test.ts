@@ -1,7 +1,7 @@
 /**
  * D-5 员工视图（纯展示）——2026-10-17 工位批改版：**两视图拆分**后按模式断言。
  *   ops（看活）＝当前在跑/最近任务/累计成本/指路注；config（改人）＝五 tab（人设与提示词/技能/MCP/记忆/定时）
- *   ＋偏好可改（M2 尾写入口）＋五层预览。
+ *   ＋偏好可改（尾写入口）＋五层预览。
  * 口径不变：空态不伪装 / 未实现如实 disabled＋理由 / 无 id 不白屏（含"有牙"）。
  */
 import test from 'node:test';
@@ -91,12 +91,12 @@ test('config（改人）：五 tab；偏好可改（M2 尾写入口）＋人设�
   }
   assert.match(html, /data-testid="employee-persona"/, '缺省 tab＝人设与提示词');
   assert.match(html, /你是内容运营，写东西先给结论。/);
-  // M2 尾：偏好写入口已接——模型输入可编辑（真字段现值），思考强度下拉可改。
+  //  尾：偏好写入口已接——模型输入可编辑（真字段现值），思考强度下拉可改。
   assert.doesNotMatch(html, /data-testid="employee-model-select"[^>]*disabled/);
   assert.match(html, /data-testid="employee-model-select"[^>]*placeholder="例如 deepseek\/deepseek-flash；空＝跟随"/);
   assert.doesNotMatch(html, /data-testid="employee-thinking-select"[^>]*disabled/);
   assert.match(html, /当前生效：模型 跟随全局默认 · 思考强度 medium/);
-  // UG-11：能力档可写；停用/启用按钮在场（幕僚长禁用；有在跑件由主进程 F8 拒）。
+  // 能力档可写；停用/启用按钮在场（幕僚长禁用；有在跑件由主进程拒）。
   assert.match(html, /data-testid="employee-capability-select"/);
   assert.match(html, /data-testid="employee-active-toggle"/);
   assert.match(html, /停用员工/);

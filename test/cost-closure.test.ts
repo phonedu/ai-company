@@ -1,5 +1,5 @@
 /**
- * OPT-AI-8 成本闭环 —— 底座已算好的 `cost` 与 `cacheRead/cacheWrite` **真落库**（此前只丢 tokens）。
+ *  成本闭环 —— 底座已算好的 `cost` 与 `cacheRead/cacheWrite` **真落库**（此前只丢 tokens）。
  *
  * 判据（本文件头注即真源）：
  *  - 员工会话跑完 → `costs` 行：`usd` / `cache_read_tokens` / `cache_write_tokens` / `project_id` / `model` **与假运行器的输入逐一相等**（不硬编码）；

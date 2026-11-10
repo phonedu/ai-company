@@ -18,7 +18,7 @@ import {
 } from '../src/main/ipc/ipc.js';
 import { Engine, makeRecordingExecutor } from '../src/main/engine/index.js';
 
-// ───────────────────────── T0.5 · 老板频道 IPC 测试 ─────────────────────────
+// ───────────────────────── · 老板频道 IPC 测试 ─────────────────────────
 // 用**真实 SQLite 内存库 + 真迁移**，走 `handle*` 纯函数（与 ipcMain 同一实现）。
 
 const AT = 1_700_000_000_000;
@@ -192,7 +192,7 @@ test('T0.4 接线：chat:send 触发幕僚长 runTurn（fire-and-forget，用假
   await new Promise((resolve) => setTimeout(resolve, 0));
   assert.deepEqual(calls, [{ text: '你好', taskId: null, projectId: null }]);
 
-  // D-19：桌面当前项目随 chat:send 传入（无任务时作为助手项目上下文）
+  // 桌面当前项目随 chat:send 传入（无任务时作为助手项目上下文）
   await handleChatSend(deps, { text: '项目内', projectId: 7 }, AT);
   await new Promise((resolve) => setTimeout(resolve, 0));
   assert.equal(calls[1]?.projectId, 7);
@@ -213,7 +213,7 @@ test('D0 对话→建任务：`new_task` 裁定**被执行**（建任务 ＋ 消
     titleGuess: '竞品简报',
   });
 
-  // ① 无引擎：建任务（D1 需要引擎才分诊）——如实停在 inbox，不假装已分诊
+  // ① 无引擎：建任务（需要引擎才分诊）——如实停在 inbox，不假装已分诊
   const result = await handleChatSend({ ...deps, classify, triageMode: 'classifier' }, { text: '把这周的竞品动态整理成一页简报' }, AT);
   assert.equal(result.resolution.kind, 'new_task');
   const tasks = handleTaskList({ ...deps }, {});
@@ -227,7 +227,7 @@ test('D0 对话→建任务：`new_task` 裁定**被执行**（建任务 ＋ 消
   assert.match(String(receipt?.content), /已受理 T-\d+/);
   assert.equal(receipt?.taskId, tasks[0]!.id, '受理回执也挂到任务上');
 
-  // ② 有引擎：D1 自动分诊 → 直接进 planning
+  // ② 有引擎： 自动分诊 → 直接进 planning
   const db2 = openMemoryDatabase();
   runMigrations(db2);
   const repo2 = createSqliteChatRepo(db2);

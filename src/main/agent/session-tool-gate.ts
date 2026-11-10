@@ -1,5 +1,5 @@
 /**
- * G1（M2）· **会话内工具调用过 `permissionGate`**。
+ * G1· **会话内工具调用过 `permissionGate`**。
  *
  * 缺口（`docs/work/ledger-m2-engine-gaps.md` G1）：闸门此前只作用于**引擎动作**，Pi 会话内建的
  * `write`/`edit`/`bash` 等**不过闸** → 会话内可直接写文件/跑命令。
@@ -38,19 +38,19 @@ import type { SqliteDb } from '../db/open.js';
 /** 一次运行的归属上下文（`run()` 前写入、`finally` 清除）。 */
 export interface RunGateContext {
   employeeId: number;
-  /** D-19：频道助手等无任务会话可为 null；有任务时仍走任务项目。 */
+  /** 频道助手等无任务会话可为 null；有任务时仍走任务项目。 */
   taskId: number | null;
-  /** D-19：无任务时显式绑定的项目（频道助手当前项目）。 */
+  /** 无任务时显式绑定的项目（频道助手当前项目）。 */
   projectId?: number | null;
   workItemId?: number | null;
   cwd?: string;
-  /** D-19：覆盖项目根解析（幕僚长项目 cwd；无项目时仍以该 cwd 作为只读根）。 */
+  /** 覆盖项目根解析（幕僚长项目 cwd；无项目时仍以该 cwd 作为只读根）。 */
   projectRoot?: string;
-  /** D-19：无项目→sandbox（只读）；有项目→standard。 */
+  /** 无项目→sandbox（只读）；有项目→standard。 */
   capabilityTier?: CapabilityTier;
-  /** D-19：项目放行档覆盖（缺省用项目/全局策略）。 */
+  /** 项目放行档覆盖（缺省用项目/全局策略）。 */
   autonomy?: Autonomy;
-  /** D-19 P1：频道助手项目写模式（审计/确认卡展示用；判定仍由 autonomy/capabilityTier 决定）。 */
+  /**  P1：频道助手项目写模式（审计/确认卡展示用；判定仍由 autonomy/capabilityTier 决定）。 */
   writeMode?: AssistantWriteMode;
   /** G1 余项：会话维度（最小范围 = 会话 × 规则）；缺省时仅享任务级 grant。 */
   sessionKey?: string;
@@ -71,14 +71,14 @@ export interface GateDecisionInfo {
   reason: string;
   rule?: string;
   toolName: string;
-  /** B4b 安全批（审查 F1）：工具入参原文——审批卡/审计要带「到底要干什么」（展示侧再脱敏截断）。 */
+  /**  安全批（审查）：工具入参原文——审批卡/审计要带「到底要干什么」（展示侧再脱敏截断）。 */
   input?: Record<string, unknown>;
   run: RunGateContext | null;
   sessionId: string | null;
 }
 
 /**
- * B4b 安全批（2026-11-09 审查 F1）：工具入参摘要——审批卡上让老板看到「到底要把什么发出去」
+ *  安全批（2026-11-09 审查）：工具入参摘要——审批卡上让老板看到「到底要把什么发出去」
  * （image_generate 的 prompt、web_fetch 的 URL、export_format 的路径、bash 的命令）。
  * 文本参数平铺；超长截断（卡面可读）；**调用方再过 redactPayload**（本函数不做脱敏）。
  */
@@ -101,7 +101,7 @@ export interface SessionToolGateDeps {
   /** 决策回调（engine/agent 侧写 `permission_decision` / `permission_requested`+`approvals`）——**单写者**。 */
   onDecision?: (info: GateDecisionInfo) => void;
   /**
-   * D-19 P1：放行回调（仅 `allow`；不改既有 `onDecision` 只在 deny/ask 回调的契约）。
+   *  P1：放行回调（仅 `allow`；不改既有 `onDecision` 只在 deny/ask 回调的契约）。
    * 频道助手用它把**实际执行的写/命令**落审计；任务会话不接。
    */
   onAllow?: (info: GateDecisionInfo) => void;
@@ -123,7 +123,7 @@ export class SessionToolGate {
   hasRun(sessionId: string): boolean {
     return this.contexts.has(sessionId);
   }
-  /** B2-4：会话归属读口（实测路径采集与闸门同一 sessionId 事实源）；查无 → null。 */
+  /** 会话归属读口（实测路径采集与闸门同一 sessionId 事实源）；查无 → null。 */
   runOf(sessionId: string): RunGateContext | null {
     return this.contexts.get(sessionId) ?? null;
   }
@@ -147,17 +147,17 @@ export class SessionToolGate {
       { taskId: run.taskId, projectId: run.projectId ?? null, employeeId: run.employeeId, cwd: run.cwd },
       this.deps.defaults ?? {},
     );
-    // D-19：频道助手按“当前项目”覆盖根/能力档/放行档；无项目时 sandbox（只读）。
+    // 频道助手按“当前项目”覆盖根/能力档/放行档；无项目时 sandbox（只读）。
     const ctx = {
       ...base,
       ...(run.projectRoot != null ? { projectRoot: run.projectRoot } : {}),
       ...(run.capabilityTier != null ? { capabilityTier: run.capabilityTier } : {}),
       ...(run.autonomy != null ? { autonomy: run.autonomy } : {}),
-      // B2-7：员工任务会话（employeeId>0）标记——bash 内 git 写子命令一律 deny（宿主收口）。
+      // 员工任务会话（employeeId>0）标记——bash 内 git 写子命令一律 deny（宿主收口）。
       employeeSession: run.employeeId > 0,
     };
     // G1 余项（最小范围 = 会话 × 规则）：只享「本会话」或「任务级（回落）」的 grant。
-    // D-19 P1：频道 grant（assistantOnly）不得扩散到同项目员工任务会话。
+    //  P1：频道 grant（assistantOnly）不得扩散到同项目员工任务会话。
     const grants = (ctx.policy?.grants ?? []).filter(
       (g) =>
         (!g.assistantOnly || run.employeeId === 0) &&
@@ -175,7 +175,7 @@ export class SessionToolGate {
       sessionId,
     };
     if (result.decision === 'allow') {
-      // B4b 安全批（审查 F2）：spend grant 用后即焚——「批准一次」＝真一次，下次同工具再弹卡。
+      //  安全批（审查）：spend grant 用后即焚——「批准一次」＝真一次，下次同工具再弹卡。
       // external 类不消费（对外放行保持会话内有效，既有 UX 不变）。
       // 复验 N3（2026-11-09）：审计/簿记写失败不反噬会话（与本仓惯例一致）——响亮报错后照常放行。
       if (result.rule === 'grant:consent:spend' && run.taskId != null) {
@@ -185,7 +185,7 @@ export class SessionToolGate {
           console.error(`[gate] spend grant 消费失败（不阻断放行）：${error instanceof Error ? error.message : String(error)}`);
         }
       }
-      // D-19 P1：只给显式接线的装配层（频道助手）审计放行；既有调用方不接＝行为不变。
+      //  P1：只给显式接线的装配层（频道助手）审计放行；既有调用方不接＝行为不变。
       this.deps.onAllow?.(info);
       return {};
     }
@@ -216,7 +216,7 @@ export function extractSessionId(ctx: unknown): string | null {
  * `allow`/unmanaged 不落库。装配层可注入自己的写入者覆盖。
  */
 export function persistSessionGateDecision(db: SqliteDb, info: GateDecisionInfo, now: number = Date.now()): void {
-  // D-19：频道助手无任务时没有 task_events/approvals 的锚点——由装配层走频道审计；此处不臆造 taskId。
+  // 频道助手无任务时没有 task_events/approvals 的锚点——由装配层走频道审计；此处不臆造 taskId。
   if (!info.run || info.run.taskId == null || info.decision === 'allow') return;
   insertTaskEvent(db, {
     taskId: info.run.taskId,
@@ -230,15 +230,15 @@ export function persistSessionGateDecision(db: SqliteDb, info: GateDecisionInfo,
       decision: info.decision,
       reason: info.reason,
       rule: info.rule ?? null,
-      // B4b 安全批（审查 F1）：入参摘要随事件/卡落库（脱敏后）——审批不再盲批。
+      //  安全批（审查）：入参摘要随事件/卡落库（脱敏后）——审批不再盲批。
       params: String(redactPayload(toolInputSummary(info.input))),
     },
   });
   if (info.decision === 'ask') {
-    // BRK10（挂载 2，2026-10-15）：会话工具权限请求**可见化**——此前只建 approvals 行 ⇒「待我处理」看不到。
+    // （挂载 2，2026-10-15）：会话工具权限请求**可见化**——此前只建 approvals 行 ⇒「待我处理」看不到。
     // 现：建审批行 → 落真卡（`待我处理` 数据源＝reports）→ `report_id` 回挂（批准按钮寻址）。
     // 任务机**不动**（会话闸门无引擎句柄；批准后 grant 生效、工具重试即放行——G1 口径不变）。
-    // 去重键分代（B4b 复验 N1，2026-11-09）：spend grant 用后即焚后会有**第二次询问**，而旧卡已
+    // 去重键分代（复验 N1，2026-11-09）：spend grant 用后即焚后会有**第二次询问**，而旧卡已
     // resolved——沿用固定键会被 notify 去重吞掉（老板看不到第二次请求）。键＝固定键＋「同问已作答次数」
     // 代号：同一代内反复询问同键（待批期间只一张卡）；每作答一次进一代（下一次询问出新卡）。
     // 第 0 代＝原固定键（不带后缀）⇒ 升级前在途的卡完全兼容。
@@ -261,7 +261,7 @@ export function persistSessionGateDecision(db: SqliteDb, info: GateDecisionInfo,
         title: `权限请求：${info.toolName}`,
         card: 'permission',
         question,
-        // 卡片可读性批（老板 2026-10-28）：结构化「谁/干什么/哪个项目」——渲染层优先三行人话。
+        // 卡片可读性批（2026-10-28）：结构化「谁/干什么/哪个项目」——渲染层优先三行人话。
         permissionDetail: sessionPermissionDetail(db, info, '会话工具'),
         options,
         employeeId: info.run.employeeId,
@@ -275,14 +275,14 @@ export function persistSessionGateDecision(db: SqliteDb, info: GateDecisionInfo,
   }
 }
 
-/** D-19 P1：频道助手哪些工具算“写操作/外发”（放行时要落审计）。 */
+/**  P1：频道助手哪些工具算“写操作/外发”（放行时要落审计）。 */
 function isAuditedChannelTool(toolName: string): boolean {
   const category = toolCategory(toolName);
   return category === 'write' || category === 'command' || category === 'install' || category === 'external' || category === 'spend';
 }
 
 /**
- * D-19 P1：频道助手（无任务会话）的权限决策落库。
+ *  P1：频道助手（无任务会话）的权限决策落库。
  *
  * - `ask`：建 `approvals`（`task_id=null`）+ 全局权限卡（`reports`/`notifications`）；
  *   选项 `approve_once`（本应用会话）/`approve_project`（本项目）/`deny`。
@@ -338,7 +338,7 @@ export function persistChannelGateDecision(
       title: `权限请求：${info.toolName}`,
       card: 'permission',
       question,
-      // 卡片可读性批（老板 2026-10-28）：结构化「谁/干什么/哪个项目」。
+      // 卡片可读性批（2026-10-28）：结构化「谁/干什么/哪个项目」。
       permissionDetail: channelPermissionDetail(db, info),
       options,
       employeeId: run.employeeId,
@@ -356,7 +356,7 @@ export function persistChannelGateDecision(
   );
 }
 
-/** D-19 P1：频道助手**实际放行**的写/命令/外发落审计（不改闸门判定）。 */
+/**  P1：频道助手**实际放行**的写/命令/外发落审计（不改闸门判定）。 */
 export function recordChannelAllowAudit(
   db: SqliteDb,
   info: GateDecisionInfo,
@@ -369,7 +369,7 @@ export function recordChannelAllowAudit(
 }
 
 /** 频道助手审计（`action_log`，`task_id=null`；立即 done，不参与崩溃重放）。 */
-// ── 卡片可读性批（老板 2026-10-28）：权限卡结构化 detail 构造 ─────────────────
+// ── 卡片可读性批（2026-10-28）：权限卡结构化 detail 构造 ─────────────────
 
 /** 员工名查表；查不到回落「员工 #id」，assistant（id 0）＝幕僚长。 */
 function employeeDisplayName(db: SqliteDb, employeeId: number | null | undefined): string {

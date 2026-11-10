@@ -1,5 +1,5 @@
 /**
- * GAP12（M3-P-2）UI：结论人话/色调、任务详情结论组、打回批注合成动作。
+ * GAP12UI：结论人话/色调、任务详情结论组、打回批注合成动作。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

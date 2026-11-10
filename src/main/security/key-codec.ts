@@ -1,5 +1,5 @@
 /**
- * B0-9：把 Electron `safeStorage`（Windows DPAPI / macOS Keychain / Linux libsecret）接到
+ * 把 Electron `safeStorage`（Windows DPAPI / macOS Keychain / Linux libsecret）接到
  * 供应商 Key 的落盘编解码器上（`agent/provider-keys.ts` 只依赖接口，不 import Electron）。
  *
  * 口径：只在主进程 ready 后调用一次；`isEncryptionAvailable()=false`（无密钥环）时

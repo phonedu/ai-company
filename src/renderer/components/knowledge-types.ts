@@ -1,7 +1,7 @@
 /**
- * K1 知识库 · 列表条目类型与键（2026-10-28 RW-19 从 KnowledgePage 抽出）。
+ * K1 知识库 · 列表条目类型与键（2026-10-28 从 KnowledgePage 抽出）。
  *
- * RW-19（M5 真机 S9 批）：键曾为 `projectId-name`，同项目同名条目（周报助手两份 README：
+ * （真机批）：键曾为 `projectId-name`，同项目同名条目（周报助手两份 README：
  * `.aico/docs/README.md` 文档＋根目录产物）撞键 → React 按键对账行为未定义 → 旧 DOM 残留
  * （搜索过滤后幻影卡片常驻、甚至与「没有匹配的内容」空态并存；真机 CDP fiber 对质实锤，
  * 幻影节点 index=全量数组末位）。键改含 type＋path——文件全路径在扫描面内唯一。
@@ -26,8 +26,8 @@ export function knowledgeItemKey(item: NoteItem): string {
 }
 
 /**
- * RW-18（M5 真机 S9 批登记，老板 2026-10-28 裁 A）：「＋新建笔记」落点跟随当前范围——
- * 与 RW-14（助手 note_write 落点）同语义：范围内落该项目 `.aico/notes/`，范围＝公司落全局；
+ * （真机批登记，2026-10-28 裁 A）：「＋新建笔记」落点跟随当前范围——
+ * 与 （助手 note_write 落点）同语义：范围内落该项目 `.aico/notes/`，范围＝公司落全局；
  * 提示文案随落点如实变化（不臆造落点）。
  */
 export function newNoteTarget(scopeProjectId: number | null): {

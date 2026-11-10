@@ -1,4 +1,4 @@
-# `src/main/agent` —— 员工会话运行时（OPT-AI-1）
+# `src/main/agent` —— 员工会话运行时
 
 > 实现细节的**契约真源**。规则正文（里程碑口径）见 `PLAN M1`；本文件给**接口与字段**。
 
@@ -27,12 +27,12 @@
   回调**返回 `undefined`** ⇒ 底座照常压缩（**只观测、不夺权**）。
 - **回写语义**：会话调 `submit_work_item` → 引擎事件 `submit_work_item`（→`submitted`）；**未提交** → `agent_settled{submitted:false,lastOutput}`（→`failed`，**失败可见、不静默**）。
 - **`ask_colleague`**：执行器观察到即调 `engine/mailbox.requestAsk`（`task_events.question_asked` + `notifications`；**不进人类频道**）。
-- **`answer_colleague`**（BRK12）：被问员工在【同事提问】拿到 `askDedupeKey`；执行器校验 `to=本员工` 后调 `answerAsk(via='employee')`，阻塞式提问的对方件派 `answer_received` 唤醒。
+- **`answer_colleague`**：被问员工在【同事提问】拿到 `askDedupeKey`；执行器校验 `to=本员工` 后调 `answerAsk(via='employee')`，阻塞式提问的对方件派 `answer_received` 唤醒。
 - **持久化**：`persistDir` = 用户数据目录（`~/.aico/sessions/...`）；按 `sessionKey` 派生稳定 id，`findById/open` 续用。
   **N4**：幕僚长（`pi-assistant.ts`，`sessionKey='boss-channel:assistant'`）接线处同样传 `defaultSessionDir(userData)`——
   此前缺省 inMemory ⇒ 每次启动幕僚长失忆（重启继续 = 产品的"记得上次说到哪"）。
 - **无凭据**：`createEmployeeRuntime` **抛错**；装配方转「不可用执行器」（`work_item_failed{reason:'no_credential'}`），**绝不回落录制桩**。
-- **已知缺口（M2）**：会话**内部**工具调用（内建 write 等）**不过 `permissionGate`**；会话 cwd = 构造期 cwd（worktree/staging 的任务级 cwd 隔离 → M2）。
+- **已知缺口**：会话**内部**工具调用（内建 write 等）**不过 `permissionGate`**；会话 cwd = 构造期 cwd（worktree/staging 的任务级 cwd 隔离 →）。
 
 ## 3. `rawConversation` 读模型（前端唯一数据源）
 
@@ -55,5 +55,5 @@ interface RawItem {
 
 **硬口径**：① `text`/`thinking` **各自成条**；② `mentions` **显式 `number[]`**；③ `argsDigest` **主进程截断 ≤120 且脱敏**（密钥/令牌/密码不出现）；④ 排序 `at`↑、同 `at` 按 `id`↑。
 **空态**：缺失/空 → **`[]`**（渲染层显式空态，**绝不臆造占位气泡**）；逐字段可缺（只有 `thinking` 或只有 `toolCall` 也要能渲染，**不用空串 `text` 兜底**）。
-**M1 采集现状（如实）**：`agent_message`（执行器落最终输出）+ `tool_call`（已有）+ 老板原话 **可投影**；**`agent_thinking` kind 已登记但 M1 不采集** → `thinking` 本轮**恒缺**（缺即不渲染，不是缺陷）。
+** 采集现状（如实）**：`agent_message`（执行器落最终输出）+ `tool_call`（已有）+ 老板原话 **可投影**；**`agent_thinking` kind 已登记但不采集** → `thinking` 本轮**恒缺**（缺即不渲染，不是缺陷）。
 **隐私**：本视图**只读、只在本机、绝不进人类频道**（`UI §4.6`）。

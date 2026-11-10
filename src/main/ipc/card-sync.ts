@@ -1,5 +1,5 @@
 /**
- * RM-2（D4 must-fix 2）：任务离开待决策/待批准后清同任务 pending ask 卡的**纯判据**。
+ * RM-2（must-fix 2）：任务离开待决策/待批准后清同任务 pending ask 卡的**纯判据**。
  *
  * 用 statemachine 的**真实事件名**，不猜 `task_started`/`task_completed` 这类不存在的名字；
  * 仍保留任务状态门：`needs_decision`/`awaiting_approval` 期间不动卡。

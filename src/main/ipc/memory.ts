@@ -1,9 +1,9 @@
 /**
- * B-6（M4）· 记忆 `P1b` 的 IPC 写入口（`memory:manage`）。
+ * B-6· 记忆 `P1b` 的 IPC 写入口（`memory:manage`）。
  *
- * 口径（`D-17` / `D-21` ⑤）：
+ * 口径（`` / `` ⑤）：
  *  - 只做老板显式写：`remember/update/pin/forget/promote`；不做自动写、向量检索、跨项目读取；
- *  - `search/audit` 为**内部动作**（F-4 P-04）：保留给频道检索/未来诊断，M4 不提供独立 UI；
+ *  - `search/audit` 为**内部动作**（F-4 P-04）：保留给频道检索/未来诊断， 不提供独立 UI；
  *  - 作用域显式：`global` 或 `project:<id>`；项目必须存在；不猜当前项目；
  *  - 全局事实只由老板写（本通道就是老板 UI/命令）；提升需 `{by:'boss', confirmed:true}`；
  *  - 检索复用 `MemoryPort.search`（当前 LIKE/词项排序，不冒充 FTS5）；

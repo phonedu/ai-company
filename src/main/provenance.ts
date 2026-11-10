@@ -1,5 +1,5 @@
 /**
- * 证据「可回指 / provenance」（OPT-M8-2）：给门禁 / 验收 / 基准的产出附
+ * 证据「可回指 / provenance」（OPT-）：给门禁 / 验收 / 基准的产出附
  * `gitHead` + `dirty` + `version` + `generatedAt`，让「红也留痕」时能回指到某个提交与工作区状态。
  *
  * 纯采集、**best-effort**：任何一步采集失败 → 该字段为 `null`（**绝不抛**）。

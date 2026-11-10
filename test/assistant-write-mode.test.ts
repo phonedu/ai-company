@@ -1,5 +1,5 @@
 /**
- * D-19 P1 · 频道助手写权限（项目级 read-only/confirm/auto）+ 确认卡/grant/审计。
+ *  P1 · 频道助手写权限（项目级 read-only/confirm/auto）+ 确认卡/grant/审计。
  *
  * 覆盖：
  *  - 模式解析（无项目只读、缺省 confirm、项目覆盖全局）；

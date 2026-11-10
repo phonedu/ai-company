@@ -1,5 +1,5 @@
 /**
- * T0.4 幕僚长生命周期（冷启预热 + 就绪可见）—— 不联网单测（1351）。
+ *  幕僚长生命周期（冷启预热 + 就绪可见）—— 不联网单测（1351）。
  * 覆盖：未就绪 → onWaiting（供接线处推 `assistant_starting`）；就绪 → 正常 runTurn；不可用 → null、不重试。
  */
 import test from 'node:test';

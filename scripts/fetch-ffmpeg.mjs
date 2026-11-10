@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 取内置 ffmpeg（老板 2026-11-09 裁决 6：「不大就内置在我们的软件里面」）。
+ * 取内置 ffmpeg（2026-11-09 决定 6：「不大就内置在我们的软件里面」）。
  *
  * 为什么不在仓库里存 79MB 二进制：仓库克隆体积会被永久拖大；改为**构建时取**——
  * 固定版本 + 固定 sha256 与体积（.gz 与解压后 exe **都校验**），不符就红。
@@ -29,7 +29,7 @@ const EXPECT_GZ_BYTES = 29581307;
 const EXPECT_GZ_SHA256 = '8883a3dffbd0a16cf4ef95206ea05283f78908dbfb118f73c83f4951dcc06d77';
 const EXPECT_EXE_BYTES = 82797568;
 const EXPECT_EXE_SHA256 = '04e1307997530f9cf2fe35cba2ca7e8875ca91da02f89d6c7243df819c94ad00';
-/** 上游随包许可证（GPL-3.0 全文，独立验收 S13：只给 URL 不算随包分发合规）。 */
+/** 上游随包许可证（GPL-3.0 全文，独立验收：只给 URL 不算随包分发合规）。 */
 const GPL_URL = 'https://registry.npmmirror.com/-/binary/ffmpeg-static/b6.1.1/win32-x64.LICENSE';
 const EXPECT_GPL_BYTES = 35147;
 

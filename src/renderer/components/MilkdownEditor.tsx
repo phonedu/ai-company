@@ -23,7 +23,7 @@ interface CrepeInstance {
 export interface MilkdownApi {
   getMarkdown: () => string;
   /**
-   * 2026-11-06（D4 复核）：编辑器**自己规范化后**的初始正文。判脏必须拿它当基线——
+   * 2026-11-06（复核）：编辑器**自己规范化后**的初始正文。判脏必须拿它当基线——
    * 用磁盘原文比会把 Crepe 的规范化回吐（尾部换行等）误判成用户修改。
    */
   getBaseline: () => string;
@@ -37,7 +37,7 @@ interface MilkdownEditorProps {
   placeholder?: string;
   style?: Record<string, string | number>;
   /**
-   * 只读渲染（S13-A / RW-28，老板 2026-10-28 裁）：阅读态＝同一 Crepe 渲染器只读化——
+   * 只读渲染（/，2026-10-28 裁）：阅读态＝同一 Crepe 渲染器只读化——
    * **只显示渲染后的内容，不显示源码**；渲染失败时显式报错（不退回裸源码）。
    */
   readOnly?: boolean;
@@ -95,11 +95,11 @@ export function MilkdownEditor({ value, onChange, placeholder, style, readOnly =
             editable.setAttribute('autocapitalize', 'off');
           }
         } catch { /* 属性设置失败不影响编辑 */ }
-        // RW-28：阅读态只读化（工具栏/块把手随之隐藏；内容仍可由 replaceAll 注入）。
+        // 阅读态只读化（工具栏/块把手随之隐藏；内容仍可由 replaceAll 注入）。
         if (readOnly) crepe.setReadonly?.(true);
         // 设初值：replaceAll 是 @milkdown/kit/utils 的 action（Crepe 7.x 无 setMarkdown）。
         crepe.editor.action(replaceAll(lastSetRef.current) as unknown as (ctx: unknown) => void);
-        // 2026-11-06（终验 g3 带回 / D4 复核修）：Crepe 会把注入内容**规范化**后回吐
+        // 2026-11-06（终验 g3 带回 / 复核修）：Crepe 会把注入内容**规范化**后回吐
         // （如尾部换行/列表符号），与传入原文不逐字相等 → 上层判「有未保存修改」→ 退出编辑弹
         // 原生 confirm（未改一字也弹）。把规范化后的正文同时记为基线与 lastSet：
         // 初值回吐不算用户修改；父层未换文时 [value, ready] effect 也不再重复 replaceAll。
@@ -133,14 +133,14 @@ export function MilkdownEditor({ value, onChange, placeholder, style, readOnly =
     };
   }, [attempt]);
 
-  // RW-32：readOnly 变化时同步只读态（即使调用方未重建实例，也不把编辑态锁死）。
+  // readOnly 变化时同步只读态（即使调用方未重建实例，也不把编辑态锁死）。
   useEffect(() => {
     if (!ready) return;
     try { crepeRef.current?.setReadonly?.(readOnly); } catch { /* ignore */ }
   }, [readOnly, ready]);
 
   // 外部 value 变化时同步到编辑器（不触发 onChange 防循环）。
-  // 2026-11-06（D4 复核）：只认「父层真的换了文」——initial 注入后 lastSetRef 已是规范化正文，
+  // 2026-11-06（复核）：只认「父层真的换了文」——initial 注入后 lastSetRef 已是规范化正文，
   // 若还拿它和 value 比，ready 翻真时会把原文再灌一遍，刚建的基线立刻失效。
   useEffect(() => {
     if (crepeRef.current && ready && value !== lastExternalRef.current) {
@@ -162,8 +162,8 @@ export function MilkdownEditor({ value, onChange, placeholder, style, readOnly =
     }
   }, [value, ready]);
 
-  // 失败回落（RW-28 + 2026-10-29 编辑态同口径）：**任何状态都不退回裸源码**——
-  // 老板 2026-10-28：「编辑态和阅读的时候都不显示源码」。失败=显式报错 + 可重试。
+  // 失败回落（2026-10-29 编辑态同口径）：**任何状态都不退回裸源码**——
+  // 2026-10-28：「编辑态和阅读的时候都不显示源码」。失败=显式报错 + 可重试。
   if (failed) {
     return createElement('div', {
       'data-testid': readOnly ? 'milkdown-readonly-failed' : 'milkdown-edit-failed',
@@ -188,7 +188,7 @@ export function MilkdownEditor({ value, onChange, placeholder, style, readOnly =
   }
 
   // 正常渲染：Crepe 容器
-  // RW-16（M5 真机 S9 批）：容器必须自己可滚——外层链全是 overflow:hidden，编辑内容超高时
+  // （真机批）：容器必须自己可滚——外层链全是 overflow:hidden，编辑内容超高时
   // 滚轮无处作用＝长文档下半部永远看不见（新建弹层固定高度时尤其致命）。
   return createElement('div', {
     'data-testid': readOnly ? 'milkdown-readonly' : 'milkdown-editor',

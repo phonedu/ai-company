@@ -115,7 +115,7 @@ test('B12: `agent_settled` 的 `submitted` 判据**不看调用方 payload**，�
       updateWorkItem(db, wiId, { state: 'running', result: JSON.stringify({ summary: 'ok' }), started_at: 1 });
       const engine = new Engine(db, makeRecordingExecutor(), { now: () => 100, autoSchedule: false });
       await engine.dispatch({ scope: 'work_item', id: wiId, event: 'agent_settled', actor: 'employee:7' });
-      // 真实有 result ⇒ 视为已提交；D3 后：免验件（默认 L1 未命中抽验）提交即自动接受 → done
+      // 真实有 result ⇒ 视为已提交； 后：免验件（默认 L1 未命中抽验）提交即自动接受 → done
       assert.equal(getWorkItem(db, wiId)?.state, 'done', '视为已提交 ⇒（免验）自动接受 ⇒ done（不看 payload）');
     } finally {
       db.close();

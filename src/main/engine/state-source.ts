@@ -1,9 +1,9 @@
 /**
- * OPT-M2-1 · 「状态位同源」结构守卫。
+ * OPT- · 「状态位同源」结构守卫。
  *
  * 硬口径：**同一状态只有一个写入源**（单一真源），冲突即红。
- *  - `tasks.state`       —— 真源 = 状态机投影（`engine/loop.ts`）经 DAO（`db/tasks.ts`）写入；**其它文件不得直接写 `state` 列**。
- *  - `work_items.state`  —— 真源 = `engine/loop.ts` 经 `db/work_items.ts` 写入。
+ *  - `tasks.state` —— 真源 = 状态机投影（`engine/loop.ts`）经 DAO（`db/tasks.ts`）写入；**其它文件不得直接写 `state` 列**。
+ *  - `work_items.state` —— 真源 = `engine/loop.ts` 经 `db/work_items.ts` 写入。
  *
  * `findStateWriterViolations` 是纯函数（吃源码文本），供 `test/doc-consistency.test.ts`
  * 既扫**真实 src**（应零违规），也吃**合成违规**（证明守卫有牙）。

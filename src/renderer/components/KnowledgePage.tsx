@@ -13,7 +13,7 @@ import { knowledgeItemKey, newNoteTarget, type NoteItem } from './knowledge-type
 import { SplitLayout } from './SplitLayout.js';
 
 const TYPE_LABEL: Record<string, string> = { note: '笔记', doc: '文档', artifact: '产物', media: '媒体', text: '文本', file: '文件' };
-// D3-3 类型重划（老板 2026-11-03）：媒体只收图/视频/音频；txt/csv 等归文本；pdf/office/html 归文档。
+// D3-3 类型重划（2026-11-03）：媒体只收图/视频/音频；txt/csv 等归文本；pdf/office/html 归文档。
 const FILTERS = ['全部', '笔记', '文档', '产物', '媒体', '文本', '文件'] as const;
 const ICON_BY_TYPE: Record<string, string> = { note: '📝', doc: '📄', artifact: '📦', media: '🎬', text: '📋', file: '🗂️' };
 
@@ -62,7 +62,7 @@ export function KnowledgePage(): ReactElement {
   const [bodyHitPaths, setBodyHitPaths] = useState<Set<string>>(new Set());
   const [bodySearching, setBodySearching] = useState(false);
   const [selection, setSelection] = useState<Set<string>>(new Set());
-  // S13-B 遗留：超大笔记分章（默认第 1 章；换笔记回第 1 章）。
+  //  遗留：超大笔记分章（默认第 1 章；换笔记回第 1 章）。
   const [readChunk, setReadChunk] = useState(0);
   // 2026-10-29 性能：编辑态不逐键把全文回传（避免 Crepe 每键 serialize）；保存时读一次。
   const editApiRef = useRef<MilkdownApi | null>(null);
@@ -116,7 +116,7 @@ export function KnowledgePage(): ReactElement {
     setSelection(new Set());
   }, [scope, filter, query]);
 
-  // S13-C（老板真机交互走查）：新建笔记弹层要能用 Esc 关闭（与建任务弹层一致）。
+  // （老板真机交互走查）：新建笔记弹层要能用 Esc 关闭（与建任务弹层一致）。
   useEffect(() => {
     if (!creating) return;
     const onKey = (event: KeyboardEvent): void => {
@@ -288,7 +288,7 @@ export function KnowledgePage(): ReactElement {
     if (!editing) return false;
     const now = editApiRef.current?.getMarkdown();
     if (now == null) return false;
-    // 2026-11-06（终验 g3 带回 / D4 复核修）：优先和**编辑器自己的规范化基线**比——初值回吐
+    // 2026-11-06（终验 g3 带回 / 复核修）：优先和**编辑器自己的规范化基线**比——初值回吐
     // （尾部换行/列表符号）不算用户修改。拿磁盘原文比会误报；而用 trim 兜底又会把
     // 「首行缩进改 4 空格」（Markdown 变代码块）当成没改而静默丢弃。
     const base =
@@ -399,7 +399,7 @@ export function KnowledgePage(): ReactElement {
 
   const handleCreate = useCallback(async () => {
     if (newName.trim().length === 0) return;
-    // RW-18（老板 2026-10-28 裁 A）：落点跟随当前范围（与助手 note_write 同语义）。
+    // （2026-10-28 裁 A）：落点跟随当前范围（与助手 note_write 同语义）。
     const target = newNoteTarget(session.selectedProjectId);
     try {
       const result = (await window.api?.notes?.write({ projectId: target.projectId, name: newName.trim(), content: newContent })) as
@@ -796,7 +796,7 @@ export function KnowledgePage(): ReactElement {
                   )
                 : null,
               createElement(MilkdownEditor, {
-                // RW-32（老板真机：点「编辑」仍不可编辑）：阅读/编辑在同一位置，React 会复用
+                // （老板真机：点「编辑」仍不可编辑）：阅读/编辑在同一位置，React 会复用
                 // 同一个 Crepe 实例——只读状态被粘住。key 不同 → 切换即重建（可编辑）。
                 // 2026-10-29 性能：大笔记按章编辑（每章 <=40KB），key 随章号重建。
                 key: editChunks != null ? `knowledge-edit-${editChunkIndex}` : 'knowledge-edit',
@@ -807,7 +807,7 @@ export function KnowledgePage(): ReactElement {
               }),
             )
           : createElement('div', {
-              // RW-28（老板 2026-10-28 裁）：阅读态**只渲染**，不显示 Markdown 源码；
+              // （2026-10-28 裁）：阅读态**只渲染**，不显示 Markdown 源码；
               // 与编辑态同一个 Crepe 渲染器（只读化），样式一致。
               'data-testid': 'knowledge-readonly',
               style: { flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '8px 16px' },
@@ -865,7 +865,7 @@ export function KnowledgePage(): ReactElement {
           onChange: (e: Event) => setNewName((e.target as HTMLInputElement).value),
           style: { fontSize: 13, padding: '6px 10px', border: '.5px solid var(--separator)', borderRadius: 'var(--radius-sm)' },
         }),
-        // RW-18（老板 2026-10-28 裁 A）：落点跟随当前范围，提示随落点如实变化。
+        // （2026-10-28 裁 A）：落点跟随当前范围，提示随落点如实变化。
         createElement('p', { style: { fontSize: 12, color: 'var(--text-dim)', margin: 0 } }, newNoteTarget(session.selectedProjectId).hint),
         createElement('div', {
           'data-testid': 'knowledge-create-content',

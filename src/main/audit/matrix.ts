@@ -14,7 +14,7 @@
  *    配好 Key 也不重试（动作已置 done）。**已修（2026-10-15）**：兜底执行器×2 接管任务级 phase 派发
  *    → `escalate`（`needs_decision` ＋决策卡）。恢复面「答卡后再派规划」为共缺口（`decision_made`
  *    回边无再派发＋幂等键轮次问题）——报备，随批 R 一并设计。
- *  - **`empty-db × daily-digest`：`BRK21` 已修（2026-10-15，迁移 `008`「可空列」方案 A）**——
+ *  - **`empty-db × daily-digest`：`` 已修（2026-10-15，迁移 `008`「可空列」方案 A）**——
  *    曾实锤：哨兵 `task_id=0` 撞 `reports.task_id REFERENCES tasks(id)`、`digest.ts` 注释「无 FK 校验」
  *    不成立；现 `task_id` 可空、无任务 ⇒ `null`（全局卡）、UI 显示「全局」。
  */

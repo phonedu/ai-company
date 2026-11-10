@@ -1,8 +1,8 @@
 /**
- * B2-4（58 §1.6 P2；D-30）：路径所有权改执行期实测——预言退役为提示。
+ * 路径所有权改执行期实测——预言退役为提示。
  *
- * 背景：并行正确性此前建立在「路径预言」上（touched_paths 塞 brief）；B0-7 因无测量
- * 用 `'.'` 整树认领兜底 ⇒ inplace 恒串行。启用多件并行（B2-3）前必须换实测：
+ * 背景：并行正确性此前建立在「路径预言」上（touched_paths 塞 brief）； 因无测量
+ * 用 `'.'` 整树认领兜底 ⇒ inplace 恒串行。启用多件并行前必须换实测：
  *  - **实测**：员工会话内 read/edit/write 实际触碰的路径（工具调用**执行前**登记），
  *    非**只读** bash/mcp 保守认领整树（`'.'`）——宁可串行、不可互踩；
  *  - **判定**：派发时候选实测路径 ∩ 在跑实测路径 → hold(path_conflict)；
@@ -102,7 +102,7 @@ test('B2-4: 实测路径登记后，同 root 的后到件按实测 hold(path_con
     const claims = listRunningPathClaims(db);
     const claimA = claims.find((c) => c.workItemId === a.id);
     assert.ok(claimA && claimA.paths.includes('src/a.ts'), '实测认领落库并可在 running 集合读到');
-    // 实测语义（D-30）：冲突判定用**候选件已有的实测/血缘**——未测的全新件乐观放行
+    // 实测语义：冲突判定用**候选件已有的实测/血缘**——未测的全新件乐观放行
     // （否则回到 '.' 恒串行）；运行中重叠窗口由「登记即见」+ git 白名单兜底，余量风险留痕。
     assert.deepEqual(engine.pathConflictsFor(b.id), [], '未测的全新件乐观放行（实测语义）');
     // B 曾实测过（重试/中断再派）：实测路径与 A 相交 → hold

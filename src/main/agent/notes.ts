@@ -40,7 +40,7 @@ export const SEARCH_TEXT_MAX_CHARS = 8 * 1024;
 /** 列表/搜索读取上限（字节）：24KB 足够覆盖 8K 中文字符，任何 md 都不会整读。 */
 export const LIST_READ_MAX_BYTES = 24 * 1024;
 
-// D3 老板抽查（2026-11-03）类型重划：媒体只收图/视频/音频；可读文本归 text；
+//  老板抽查（2026-11-03）类型重划：媒体只收图/视频/音频；可读文本归 text；
 // pdf/office/html 归 doc；其余归 file。md 仍按目录定 note/doc/artifact。
 const LIST_IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.ico', '.avif', '.svg']);
 const LIST_VIDEO_EXT = new Set(['.mp4', '.webm', '.ogv', '.mov', '.m4v']);
@@ -166,7 +166,7 @@ function scanDir(dir: string, type: NoteItem['type'], projectId: number | null, 
   walk(dir, 0);
   return out;
 
-  // RW-49（2026-11-05 老板点题「能否很快找到」）：docs/ 限深递归——产物常落 docs/reference/、
+  // （2026-11-05 老板点题「能否很快找到」）：docs/ 限深递归——产物常落 docs/reference/、
   // docs/guides/ 等子目录，浅扫会让人在知识页永远找不到。深度 ≤3、跳过隐藏与依赖目录、
   // 单树封顶 400 条（防异常大仓拖垮列表）。
   function walk(dir: string, depth: number): void {
@@ -218,10 +218,10 @@ export function listNotes(opts: { projects: Array<{ id: number; name: string; ro
   const items: NoteItem[] = [];
   for (const p of opts.projects) {
     items.push(...scanDir(join(p.rootDir, '.aico', 'notes'), 'note', p.id, p.name));
-    // RW-49：docs 限深递归（产物常落子目录）；项目根与 notes/ 保持浅层。
+    // docs 限深递归（产物常落子目录）；项目根与 notes/ 保持浅层。
     items.push(...scanDir(join(p.rootDir, '.aico', 'docs'), 'doc', p.id, p.name, { recursive: true }));
     items.push(...scanDir(p.rootDir, 'artifact', p.id, p.name));
-    // RW-49 补（真机 T8b）：员工产物常落项目根 docs/（如 docs/reference/）与中文项目
+    //  补（真机 T8b）：员工产物常落项目根 docs/（如 docs/reference/）与中文项目
     // 的「文档/」（如中文项目）——这两个约定目录同样限深递归，否则知识页永远找不到。
     items.push(...scanDir(join(p.rootDir, 'docs'), 'artifact', p.id, p.name, { recursive: true }));
     items.push(...scanDir(join(p.rootDir, '文档'), 'artifact', p.id, p.name, { recursive: true }));

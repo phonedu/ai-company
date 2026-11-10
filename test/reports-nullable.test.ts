@@ -1,7 +1,7 @@
 /**
- * BRK21 / 迁移 `008_reports_nullable_task` —— `reports.task_id` 放宽可空（全局卡）＋**老库升级零破坏**。
+ *  / 迁移 `008_reports_nullable_task` —— `reports.task_id` 放宽可空（全局卡）＋**老库升级零破坏**。
  *
- * 每条可弄红：老库（007 ＋ 子表引用数据）→ 008 重建后 数据逐字段不变 / 外键一致 / NULL 可插 /
+ * 每条可弄红：老库（007 ＋ 子表引用数据）→ 008 重建后数据逐字段不变 / 外键一致 / NULL 可插 /
  * 索引在 / `user_version` 前进；按任务查卡时全局卡天然不混入。
  */
 import test from 'node:test';

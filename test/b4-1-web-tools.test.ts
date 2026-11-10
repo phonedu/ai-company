@@ -1,5 +1,5 @@
 /**
- * B4-1/B4-2/D-29：Web 工具＋截图工具——纯函数测试。
+ * //：Web 工具＋截图工具——纯函数测试。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

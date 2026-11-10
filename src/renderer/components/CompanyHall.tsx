@@ -4,7 +4,7 @@
  *   左列点人 → `selectEmployee`（右栏切换，不跳页）；左列「部门协作」→ `openHallCollab`；
  *   「＋招募」→ 大厅内招募对话框（成功刷新花名册并选中新人，不跳频道）。
  * 纯展示与分组/协作文案逻辑在 `CompanyHallView.tsx`（可单测）；本文件只取数 + 补选。
- * 事件订阅只在 `AppShell` 全局单点（BRK19）；本组件**不得**再挂 `subscribeEvents`（避免双通道重复 reload）。
+ * 事件订阅只在 `AppShell` 全局单点；本组件**不得**再挂 `subscribeEvents`（避免双通道重复 reload）。
  */
 import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';

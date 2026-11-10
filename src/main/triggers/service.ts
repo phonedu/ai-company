@@ -1,5 +1,5 @@
 /**
- * GAP1（M3-N-1）：触发式开工 v1。
+ * 触发式开工 v1。
  *
  * 存储：复用 `timers` 表（**不新增表/迁移**）——
  *  - `kind='cron_fire'` + `task_id=NULL`：周期/每日触发模板（payload 带任务模板与下次 due）；

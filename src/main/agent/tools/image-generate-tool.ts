@@ -1,7 +1,7 @@
 /**
- * B4-4/D-29 · 图像生成工具——双通道（Qwen 兼容模式／OpenAI DALL-E）＋spend 闸。
+ * / · 图像生成工具——双通道（Qwen 兼容模式／OpenAI DALL-E）＋spend 闸。
  *
- * 口径（裁决 5，2026-11-09 老板拍板走 qwen 并提供 endpoint）：
+ * 口径（决定 5，2026-11-09 要求走 qwen 并提供 endpoint）：
  *  - **Qwen 通道**（优先）：OpenAI 兼容模式 `POST https://maas.qianwenaiapi.com/compatible-mode/v1/images/generations`，
  *    模型 `qwen-image-3.0-pro`，Key 走 `resolveProviderKey('dashscope')`（DASHSCOPE_API_KEY 或设置页
  *    「阿里云百炼（Qwen 出图）」密文）；响应兼容 `data[0].url` 与 `data[0].b64_json` 两种形状。
@@ -94,7 +94,7 @@ export function isSafeDownloadUrl(rawUrl: string): boolean {
     return false;
   }
   if (u.protocol !== 'https:') return false;
-  // SEC-E（2026-11-10，对抗测试实抓）：URL 内嵌凭据（`https://user:pass@host/x`）此前放行——
+  // SEC-E（2026-11-10，对抗测试发现）：URL 内嵌凭据（`https://user:pass@host/x`）此前放行——
   // 凭据会进日志/错误文案，且是钓鱼 URL 的常见形态；下载地址不需要凭据，一律拒。
   if (u.username.length > 0 || u.password.length > 0) return false;
   const host = hostOf(u);
@@ -151,9 +151,9 @@ async function fetchImageBytes(
   return { ok: true, bytes: Buffer.from(await imgResp.arrayBuffer()) };
 }
 
-/** Qwen 通道模型（老板 2026-11-09 指定）。 */
+/** Qwen 通道模型（2026-11-09 指定）。 */
 export const QWEN_IMAGE_MODEL = 'qwen-image-3.0-pro';
-/** Qwen 通道 endpoint（OpenAI 兼容模式；老板 2026-11-09 提供 base `https://maas.qianwenaiapi.com/compatible-mode/v1`）。 */
+/** Qwen 通道 endpoint（OpenAI 兼容模式；2026-11-09 提供 base `https://maas.qianwenaiapi.com/compatible-mode/v1`）。 */
 export const QWEN_IMAGE_ENDPOINT = 'https://maas.qianwenaiapi.com/compatible-mode/v1/images/generations';
 
 export async function qwenImageGenerate(opts: {
@@ -225,7 +225,7 @@ export async function imageGenerate(opts: {
   const timer = setTimeout(() => ctrl.abort(), timeout);
 
   try {
-    // B4b 安全审查 F10：目录创建进 try——失败给模型人话错误而非裸异常（含绝对路径）。
+    //  安全审查：目录创建进 try——失败给模型人话错误而非裸异常（含绝对路径）。
     mkdirSync(opts.outputDir, { recursive: true });
     const fetchImpl = opts.fetchImpl ?? fetch;
     const resp = await fetchImpl('https://api.openai.com/v1/images/generations', {

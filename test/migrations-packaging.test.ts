@@ -65,7 +65,7 @@ test('packaging: 内联常量与审计用 001/002 .sql 逐字一致（源码树�
   assert.equal(loadMigrations()[15]!.sql, readFileSync(file16, 'utf8'), '内联 SQL 与 016_*.sql 必须逐字一致');
   const file17 = join(process.cwd(), 'src', 'main', 'db', 'migrations', '017_memory_fts.sql');
   assert.equal(loadMigrations()[16]!.sql, readFileSync(file17, 'utf8'), '内联 SQL 与 017_*.sql 必须逐字一致');
-  // CTX-1：020 内联必须与审计件逐字一致（新增表的防漂移；018/019 为历史缺口，不在本批补）。
+  // CTX-1：020 内联必须与审计件逐字一致（新增表的防漂移；018/019 为历史缺口，不在本次补）。
   const file20 = join(process.cwd(), 'src', 'main', 'db', 'migrations', '020_context_metrics.sql');
   assert.equal(loadMigrations()[19]!.sql, readFileSync(file20, 'utf8'), '内联 SQL 与 020_*.sql 必须逐字一致');
   const file21 = join(process.cwd(), 'src', 'main', 'db', 'migrations', '021_context_metrics_model_hash.sql');

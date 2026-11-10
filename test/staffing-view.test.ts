@@ -1,5 +1,5 @@
 /**
- * 编制 v1（D-11）· 渲染侧口径（纯函数 ＋ 源码级结构守卫，repo 既有手法同 `task-create-entry`）。
+ * 编制 v1· 渲染侧口径（纯函数 ＋ 源码级结构守卫，repo 既有手法同 `task-create-entry`）。
  *
  * 口径（设计件 `docs/work/design-project-staffing.md` §4/§7）：
  *  - 未设置＝**显式**读法「未设置——按缺省链」（不臆造人名/档）；部分设置只把未设置项写「未设置」；

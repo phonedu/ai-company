@@ -1,5 +1,5 @@
 /**
- * UG-09 · 设置·权限只读审计 + 撤销。
+ *  · 设置·权限只读审计 + 撤销。
  *
  * 数据：`settings:permission-list`（permission_policies + [权限] approvals）；
  * 撤销：`settings:permission-revoke` 只删 scope 策略，二次确认；审批历史只读。

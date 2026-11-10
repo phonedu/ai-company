@@ -25,7 +25,7 @@ export interface PaletteResults {
   query: string;
   tasks: PaletteTaskItem[];
   messages: PaletteMessageItem[];
-  /** M2 尾（G-D）：跨项目全局结果（任务/消息/产物；选中即打开对应任务）。 */
+  /**  尾（G-D）：跨项目全局结果（任务/消息/产物；选中即打开对应任务）。 */
   global: PaletteGlobalItem[];
   /** 总命中数（0 ⇒ 面板显「没有匹配」空态——不摆假结果）。 */
   total: number;
@@ -37,7 +37,7 @@ export interface PaletteGlobalItem {
   id: number;
   /** 打开哪个任务（消息无任务归属 → null ⇒ 去频道）。 */
   taskId: number | null;
-  /** UG-05：产物命中保留真实 artifactId（选中后开预览；合成 id 只用于行 key）。 */
+  /** 产物命中保留真实 artifactId（选中后开预览；合成 id 只用于行 key）。 */
   artifactId?: number;
   label: string;
   /** 来源组（展示用：任务/消息/产物）。 */

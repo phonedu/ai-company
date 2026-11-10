@@ -1,11 +1,11 @@
 /**
- * 002_verification_seams.ts — v2（M1）迁移的内联常量（**打包安全**；运行时零文件系统依赖）。
+ * 002_verification_seams.ts — v2迁移的内联常量（**打包安全**；运行时零文件系统依赖）。
  * 与同目录 `002_verification_seams.sql` 逐字一致（`test/migrations-packaging.test.ts` 校验漂移）。
  */
-export const SQL_002_VERIFICATION_SEAMS = `-- 002_verification_seams.sql — v2（M1）
---   OPT-M3-1 独立验证：reports.verdict / reports.verifier_employee_id / tasks.verifier_employee_id / work_items.verifier_employee_id
---   OPT-M4-1 接缝矩阵：seams 表（boundary 枚举真源在 DEV；schema 只存文本）
--- 注：ALTER ADD COLUMN 不支持 IF NOT EXISTS；本迁移由台账保证只跑一次（schema_migrations）。
+export const SQL_002_VERIFICATION_SEAMS = `-- 002_verification_seams.sql — v2
+--   OPT- 独立验证：reports.verdict / reports.verifier_employee_id / tasks.verifier_employee_id / work_items.verifier_employee_id
+--   OPT- 接缝矩阵：seams 表（boundary 枚举真源在；schema 只存文本）
+-- 注：ALTER ADD COLUMN 不支持 IF NOT EXISTS；本迁移由清单保证只跑一次（schema_migrations）。
 ALTER TABLE reports ADD COLUMN verdict TEXT;
 ALTER TABLE reports ADD COLUMN verifier_employee_id INTEGER REFERENCES employees(id);
 ALTER TABLE tasks ADD COLUMN verifier_employee_id INTEGER REFERENCES employees(id);

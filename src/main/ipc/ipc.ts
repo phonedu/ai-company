@@ -64,8 +64,8 @@ import { READ_PRINCIPAL_BOSS, READ_SURFACE_CARDS, markRead } from '../db/read_cu
 import { digestText, emitDailyDigest } from '../notify/digest.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// T0.5 IPC 通道实现（DEV §7.3 域集合：chat / inbox / task 本轮覆盖）。
-//   铁律：入参不接受 renderer 给的任何文件系统路径（D1）；附件只收元信息。
+//  IPC 通道实现（域集合：chat / inbox / task 本轮覆盖）。
+//   铁律：入参不接受 renderer 给的任何文件系统路径；附件只收元信息。
 //   处理逻辑抽成导出的纯函数（handle*），便于用内存库单测（test/chat.test.ts）。
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -78,10 +78,10 @@ export interface AssistantPort {
 
 export interface IpcDeps {
   repo: ChatRepo;
-  /** 引擎（T0.6：手工推进）；缺失时 `task:transition` 返回 engine_unavailable。 */
+  /** 引擎（：手工推进）；缺失时 `task:transition` 返回 engine_unavailable。 */
   engine?: {
     dispatch(event: EngineEvent): Promise<void>;
-    /** M1-2/M1-3/BRK14：引擎派发 hold（WI 级：路径/速率/并发；任务级：无槽位/超预算/员工正忙）→ `waits`。可选。 */
+    /** //：引擎派发 hold（WI 级：路径/速率/并发；任务级：无槽位/超预算/员工正忙）→ `waits`。可选。 */
     listDispatchHolds?(): Array<{
       workItemId: number | null;
       taskId?: number;
@@ -93,7 +93,7 @@ export interface IpcDeps {
     schedulerSlots?(): { running: number; total: number };
     /** C4：公司日预算 hold 文案（超支时返回原因；未超/未设 → undefined）。 */
     companyDailyBudgetHold?(): string | undefined;
-    /** 裁决 8（2026-11-09）：会话权限批准后的补跑（件已不在跑时重开/重派）。可选：旧装配缺省 → 不补跑。
+    /** 决定 8（2026-11-09）：会话权限批准后的补跑（件已不在跑时重开/重派）。可选：旧装配缺省 → 不补跑。
      *  第二参＝按审批 id 绑定的件；第三参＝老板真批的那条规则（补跑只为它发授权，不猜、不扩面）。 */
     refireAfterApproval?(
       taskId: number,
@@ -101,16 +101,16 @@ export interface IpcDeps {
       approvedRule?: { rule: string; toolName: string } | null,
     ): Promise<{ ok: boolean; reason: string; workItemId: number | null }>;
   };
-  /** 幕僚长真实会话（T0.4）；**懒加载后回填**（可为 null：缺 key / 未就绪）。 */
+  /** 幕僚长真实会话；**懒加载后回填**（可为 null：缺 key / 未就绪）。 */
   assistant?: AssistantPort | null;
-  /** BRK9（挂载 2）：老板插话 → steer 进行中的员工会话（由 main 注入 `LazyEmployeeRuntime.steer`）。 */
+  /** （挂载 2）：老板插话 → steer 进行中的员工会话（由 main 注入 `LazyEmployeeRuntime.steer`）。 */
   steerEmployee?: ((sessionKey: string, text: string) => boolean) | null;
   /** 凭据变更（保存/清除 Key）→ 丢弃已装配运行时，下一次员工会话重新装配。 */
   onProviderKeyChanged?: (() => void) | null;
-  /** 语义分类器；T0.4 接真实 Pi 语义前用占位（一律 'chat'，绝不误建任务）。 */
+  /** 语义分类器； 接真实 Pi 语义前用占位（一律 'chat'，绝不误建任务）。 */
   classify?: Classify;
   /**
-   * B2-2（D-30①）：分诊模式开关——`assistant`（缺省）＝自由文本交幕僚长唯一分诊
+   * 分诊模式开关——`assistant`（缺省）＝自由文本交幕僚长唯一分诊
    * （零 LLM 分诊、不自动建任务）；`classifier`＝v0.2.1 旧链路（可回退）。
    * index.ts 从 `AICO_TRIAGE` 读取（readTriageMode）。
    */
@@ -121,58 +121,58 @@ export interface IpcDeps {
   allowFaultInjection?: boolean;
   /** 2026-10-29 P2（P-N05）：应用信息（版本/数据目录）——由 main 注入，handler 不直接碰 electron。 */
   appInfo?: () => { version: string; userDataDir: string };
-  /** M4-C：主题切换（由 main 注入 electron `nativeTheme.themeSource`）。 */
+  /** 主题切换（由 main 注入 electron `nativeTheme.themeSource`）。 */
   setTheme?: (theme: 'light' | 'dark' | 'system') => void;
-  /** BRK16-a（挂载 3）：系统打开文件（由 main 注入 electron `shell.openPath`；成功=空串、失败=错误文案）。 */
+  /** -a（挂载 3）：系统打开文件（由 main 注入 electron `shell.openPath`；成功=空串、失败=错误文案）。 */
   openPath?: (absPath: string) => Promise<string> | string;
-  /** BRK16-a：在文件夹中显示（由 main 注入 electron `shell.showItemInFolder`）。 */
+  /** -a：在文件夹中显示（由 main 注入 electron `shell.showItemInFolder`）。 */
   revealPath?: (absPath: string) => void;
-  /** BRK16-a/GAP11：导出包落盘目录（由 main 注入 `userData/exports`；缺失 ⇒ 回执 export_unavailable）。 */
+  /** -a/：导出包落盘目录（由 main 注入 `userData/exports`；缺失 ⇒ 回执 export_unavailable）。 */
   exportDir?: () => string;
-  /** UG-06：只读 diff 的 git runner（缺省 `createGitRunner()`；测试可注入假实现）。 */
+  /** 只读 diff 的 git runner（缺省 `createGitRunner()`；测试可注入假实现）。 */
   git?: import('../git/index.js').GitRunner;
-  /** M4-D-1（P2）：工具大输出归档根（由 main 注入 `userData/tool-output`；缺失 ⇒ 展开不可用）。 */
+  /** （P2）：工具大输出归档根（由 main 注入 `userData/tool-output`；缺失 ⇒ 展开不可用）。 */
   toolOutputDir?: string;
-  /** GAP7（M3-N-3）：技能受管根（由 main 注入 `userData/skills`；缺失 ⇒ 安装不可用）。 */
+  /** 技能受管根（由 main 注入 `userData/skills`；缺失 ⇒ 安装不可用）。 */
   skillsDir?: () => string;
-  /** GAP7：技能安装 DAO 直连（安装函数写 `skills` 表；由 main 注入同一库句柄）。 */
+  /** 技能安装 DAO 直连（安装函数写 `skills` 表；由 main 注入同一库句柄）。 */
   db?: import('../db/open.js').SqliteDb;
   /** 设置·模型与供应商：本机 secrets 目录（缺省 `~/.aico/secrets`；测试注入临时目录）。 */
   providerSecretsDir?: () => string;
   /** 附件：file-import 的暂存目录（缺省主进程 `userData/staged-inputs`；测试注入临时目录）。 */
   stagedFilesDir?: () => string;
-  /** GAP7：选择技能文件夹（标题与项目目录选择区分；缺省回退 `pickDirectory`）。 */
+  /** 选择技能文件夹（标题与项目目录选择区分；缺省回退 `pickDirectory`）。 */
   pickSkillDirectory?: () => Promise<string | null>;
   /** 真机反馈（2026-10-17）：设置·通知「发送测试通知」——main 注入一次 `notify()`（系统通知+托盘刷新）。 */
   notifyTest?: () => void;
-  /** GAP3：待办读数变化（答题/批准/详情直接推进）——main 注入托盘刷新，防橙点/计数悬挂。 */
+  /** 待办读数变化（答题/批准/详情直接推进）——main 注入托盘刷新，防橙点/计数悬挂。 */
   onInboxChanged?: () => void;
-  /** M3-REM-1c：读游标变化（桌面动作/IM 批准）——main 注入 `evt:read` 推送 + 托盘刷新。 */
+  /** 1c：读游标变化（桌面动作/IM 批准）——main 注入 `evt:read` 推送 + 托盘刷新。 */
   onReadChanged?: () => void;
-  /** GAP1：cron/事件触发服务（main 注入；缺省 → 命令明确拒，不静默）。 */
+  /** cron/事件触发服务（main 注入；缺省 → 命令明确拒，不静默）。 */
   triggerService?: TriggerService | null;
   /** IM 通道端口（main 装配；缺省 → `im:bind/unbind` 明确回 im_unavailable，不静默）。 */
   im?: ImBindPort | null;
   now?: () => number;
 }
 
-/** M0 占位分类器：非命令文本按闲聊处理。 */
+/**  占位分类器：非命令文本按闲聊处理。 */
 export const defaultClassify: Classify = async (): Promise<SemanticSignal> => ({
   intent: 'chat',
   confidence: 0.5,
 });
 
 /**
- * B2-2：assistant 分诊模式的语义信号——**恒 chat、零 LLM 调用**。
+ * assistant 分诊模式的语义信号——**恒 chat、零 LLM 调用**。
  * resolver 的确定性路径（命令/#引用/回复链/序号）不走本函数、不受影响；自由文本裁定
- * 全部收敛为 chat，由幕僚长会话（create_task/steer 工具）唯一分诊（D-30①）。
+ * 全部收敛为 chat，由幕僚长会话（create_task/steer 工具）唯一分诊。
  */
 export const assistantTriageClassify: Classify = async (): Promise<SemanticSignal> => ({
   intent: 'chat',
   confidence: 0.51,
 });
 
-/** B2-2：`AICO_TRIAGE` 环境变量解析（缺省/非法 → 'assistant'；大小写宽松；非法响亮告警）。 */
+/** `AICO_TRIAGE` 环境变量解析（缺省/非法 → 'assistant'；大小写宽松；非法响亮告警）。 */
 export function readTriageMode(raw: string | undefined): 'assistant' | 'classifier' {
   const v = (raw ?? '').trim().toLowerCase();
   if (v === 'classifier') return 'classifier';
@@ -182,7 +182,7 @@ export function readTriageMode(raw: string | undefined): 'assistant' | 'classifi
   return 'assistant';
 }
 
-/** 附件只保留元信息；**显式丢弃任何 path/url 字段**（D1）。 */
+/** 附件只保留元信息；**显式丢弃任何 path/url 字段**。 */
 function normalizeAttachments(raw: unknown): AttachmentMeta[] {
   if (!Array.isArray(raw)) return [];
   const out: AttachmentMeta[] = [];
@@ -196,14 +196,14 @@ function normalizeAttachments(raw: unknown): AttachmentMeta[] {
       name,
       size: typeof record.size === 'number' ? record.size : 0,
       type: typeof record.type === 'string' ? record.type : '',
-      // 保留主进程 staging 令牌（D1 例外③）；**丢弃任何 path/url 字段**。
+      // 保留主进程 staging 令牌（例外③）；**丢弃任何 path/url 字段**。
       ...(fileToken.length > 0 ? { fileToken } : {}),
     });
   }
   return out.slice(0, 10); // 单条 ≤ 10 个（UI §4.6）
 }
 
-/** UG-04：把建单消息的附件复制到项目 `inputs/T-xxxx/` 并登记为 `artifacts.kind='input'`。 */
+/** 把建单消息的附件复制到项目 `inputs/T-xxxx/` 并登记为 `artifacts.kind='input'`。 */
 export function registerTaskInputArtifacts(
   deps: IpcDeps,
   taskId: number,
@@ -255,7 +255,7 @@ export function registerTaskInputArtifacts(
       });
       registered += 1;
     } catch {
-      // 不回传绝对路径（D1）；只给文件名与原因类别。
+      // 不回传绝对路径；只给文件名与原因类别。
       errors.push(`${name}：归档失败`);
     }
   }
@@ -306,7 +306,7 @@ interface HumanMessageDTO {
 
 interface ReportDTO {
   id: number;
-  /** v8/BRK21：`null` = 全局卡（不属任何任务；渲染层显示「全局」）。 */
+  /** v8/：`null` = 全局卡（不属任何任务；渲染层显示「全局」）。 */
   taskId: number | null;
   shortId: string | null;
   /** MP1-9：任务所属项目（全局卡/无任务 → null）。 */
@@ -316,10 +316,10 @@ interface ReportDTO {
   state: string;
   createdAt: number;
   approvalId: number | null;
-  /** RW-21：审批行的 options（卡 payload 缺 options 的历史卡由此兜底出按钮）；无审批行/空 → null。 */
+  /** 审批行的 options（卡 payload 缺 options 的历史卡由此兜底出按钮）；无审批行/空 → null。 */
   approvalOptions: Array<{ key: string; label?: string }> | null;
   payload: Record<string, unknown>;
-  /** GAP12：`reports.verdict` 真列（pass/fail/partial…）；无结论 → null。 */
+  /** `reports.verdict` 真列（pass/fail/partial…）；无结论 → null。 */
   verdict: string | null;
   verifierEmployeeId: number | null;
 }
@@ -335,26 +335,26 @@ interface TaskDTO {
   priority: number;
   riskLevel: number;
   createdAt: number;
-  /** UI-2（任务行相对时间）：最近更新（`tasks.updated_at` 直读）。 */
+  /** （任务行相对时间）：最近更新（`tasks.updated_at` 直读）。 */
   updatedAt: number;
   readySince: number | null;
-  /** M2 尾：截止时刻（epoch ms；NULL＝未设）。 */
+  /**  尾：截止时刻（epoch ms；NULL＝未设）。 */
   deadline: number | null;
   acceptance: unknown[];
-  /** BRK13（挂载 3）：预算/已耗/余额（未设 ⇒ null；「任务头显示预算」的数据面）。 */
+  /** （挂载 3）：预算/已耗/余额（未设 ⇒ null；「任务头显示预算」的数据面）。 */
   budgetTokens: number | null;
   costTokens: number;
   budgetLeftTokens: number | null;
   /** 009（N5 余账）：任务级模型（指派链最高档）；NULL = 未指派。 */
   model: string | null;
-  /** `tasks.archived`（0/1）：归档＝**筛选开关**（非 state；M2-A 归档口径）。 */
+  /** `tasks.archived`（0/1）：归档＝**筛选开关**（非 state； 归档口径）。 */
   archived: number;
-  /** 所属项目名（`task:list` join 出来；M2-A 项目分组）。 */
+  /** 所属项目名（`task:list` join 出来； 项目分组）。 */
   projectName: string | null;
   projectAlias: string | null;
-  /** 所属项目接入模式（`projects.access_mode`；M2-A 变更区块用）。 */
+  /** 所属项目接入模式（`projects.access_mode`； 变更区块用）。 */
   projectAccessMode: string | null;
-  /** M1-3：当前等待原因（空 = 不等待）。数据来自引擎 hold，**渲染层不得自行推断**。 */
+  /** 当前等待原因（空 = 不等待）。数据来自引擎 hold，**渲染层不得自行推断**。 */
   waits?: WaitDTO[];
 }
 
@@ -384,9 +384,9 @@ function toTaskDTO(task: StoredTask): TaskDTO {
   };
 }
 
-/** M1-3：**当前在等什么**（`UI §7`；枚举 = `src/core/types.ts` 的 `WaitingReason`，唯一权威）。 */
+/** **当前在等什么**（`UI §7`；枚举 = `src/core/types.ts` 的 `WaitingReason`，唯一权威）。 */
 export interface WaitDTO {
-  /** WI 级等待＝该件；**任务级等待**（`no_slot`/`budget`/`employee_busy`，BRK14）＝`null`。 */
+  /** WI 级等待＝该件；**任务级等待**（`no_slot`/`budget`/`employee_busy`）＝`null`。 */
   workItemId: number | null;
   reason: WaitingReason;
   detail?: string;
@@ -433,7 +433,7 @@ export function handleSchedulerSlots(deps: IpcDeps): { running: number; total: n
   }
 }
 
-// ── T0.7 任务详情（DEV §8 T0.7）────────────────────────────────────────
+// ── 任务详情────────────────────────────────────────
 
 export interface AcceptanceItemDTO {
   text: string;
@@ -442,39 +442,39 @@ export interface AcceptanceItemDTO {
 }
 
 /**
- * `task:get` 返回体（T0.7 三 tab 的数据源）。
- * - `planSteps`  = `plan_steps`（按 idx）
- * - `timeline`   = `task_events` 全量（按 id 升序）
+ * `task:get` 返回体（三 tab 的数据源）。
+ * - `planSteps` = `plan_steps`（按 idx）
+ * - `timeline` = `task_events` 全量（按 id 升序）
  * - `behaviorLog`= `timeline` 中 `kind='tool_call'` 子集（保证是子集，审计层）
- * - `counts`     = **查询返回条数**，DOM 条数断言的依据（与上方数组同源）
+ * - `counts` = **查询返回条数**，DOM 条数断言的依据（与上方数组同源）
  */
 export interface TaskDetailDTO {
   task: Omit<TaskDTO, 'acceptance'> & { goal: string; updatedAt: number; acceptance: AcceptanceItemDTO[] };
-  /** UG-01：负责人（建单/编制；null＝未设置）。 */
+  /** 负责人（建单/编制；null＝未设置）。 */
   owner: { id: number; name: string } | null;
-  /** UG-01：前置任务（短号/标题/状态；空数组＝无依赖）。 */
+  /** 前置任务（短号/标题/状态；空数组＝无依赖）。 */
   dependsOn: Array<{ id: number; shortId: string | null; title: string; state: string }>;
-  /** D-22：任务头「预计模型＋来源」（执行员工视角）；读面沿用 task:get，零新通道。 */
+  /** 任务头「预计模型＋来源」（执行员工视角）；读面沿用 task:get，零新通道。 */
   modelResolution: StoredTaskModelResolution;
   progress: { done: number; total: number };
   planSteps: Array<{ idx: number; text: string; state: string; workItemId: number | null; evidenceRef: string | null }>;
-  /** GAP12：critic/verifier 结论（reports.verdict 优先；空数组＝无评审结论）。 */
+  /** critic/verifier 结论（reports.verdict 优先；空数组＝无评审结论）。 */
   reviews: StoredReview[];
-  /** GAP12：验证中被打回的最近 submitted 件；手动打回未带 id 时服务端补全。 */
+  /** 验证中被打回的最近 submitted 件；手动打回未带 id 时服务端补全。 */
   verificationWorkItemId: number | null;
   timeline: Array<{ id: number; ts: number; kind: string; actor: string; workItemId: number | null; payload: unknown }>;
   behaviorLog: Array<{ id: number; ts: number; actor: string; workItemId: number | null; payload: unknown }>;
-  /** M1-3：当前等待原因（空数组 = 不等待；渲染层不得按 state 推断）。 */
+  /** 当前等待原因（空数组 = 不等待；渲染层不得按 state 推断）。 */
   waits?: WaitDTO[];
-  /** OPT-M8-1：任务产物元信息（只读、按 id 升序；空数组 = 本任务无产物）。`path` 仅展示（D1）。 */
+  /** OPT-：任务产物元信息（只读、按 id 升序；空数组 = 本任务无产物）。`path` 仅展示。 */
   artifacts?: StoredArtifact[];
-  /** OPT-M6-1：差异台账读数（由 `timeline` 的 `deviation_recorded` 派生；收尾 `openWithoutOwner` 必须为空）。 */
+  /** OPT-：差异清单读数（由 `timeline` 的 `deviation_recorded` 派生；收尾 `openWithoutOwner` 必须为空）。 */
   deviations?: DeviationSummary;
-  /** OPT-AI-1：原始交流派生投影（只读；由 `human_messages`/`agent_message`/`tool_call` 派生；空数组 = 无）。 */
+  /** 原始交流派生投影（只读；由 `human_messages`/`agent_message`/`tool_call` 派生；空数组 = 无）。 */
   rawConversation?: import('../agent/raw-conversation.js').RawItem[];
-  /** M2-A：本任务变更集（含文件明细；`staging` 才有；空数组 = 无）。 */
+  /** 本任务变更集（含文件明细；`staging` 才有；空数组 = 无）。 */
   changesets?: StoredChangeset[];
-  /** BRK17（挂载 3 余·取消小步）：工作项按状态计数——UI 危险动作（取消）确认文案的真读数。 */
+  /** （挂载 3 余·取消小步）：工作项按状态计数——UI 危险动作（取消）确认文案的真读数。 */
   workItemCounts?: Record<string, number>;
   /** CTX1-2：最近 20 轮上下文遥测（新的在前；空数组 = 本任务还没有任何会话遥测）。 */
   contextMetrics?: ContextMetricRow[];
@@ -536,13 +536,13 @@ export interface ChatSendResult {
   resolution: Resolution;
   /** 命令/入站处理的回执文本（IM 发回手机；桌面忽略）。 */
   reply?: string | null;
-  /** UG-03：命令被拒绝时的人话原因（回执已落频道；渲染层据此就地显示，不当成功）。 */
+  /** 命令被拒绝时的人话原因（回执已落频道；渲染层据此就地显示，不当成功）。 */
   rejected?: string | null;
-  /** D0：本条消息自动建出的任务（自由文本 new_task 裁定；B2-2 起 assistant 模式恒 null）。 */
+  /** 本条消息自动建出的任务（自由文本 new_task 裁定； 起 assistant 模式恒 null）。 */
   createdTaskId?: number | null;
 }
 
-/** BRK9（挂载 2）：`#T-1001 要说的话` / `#T1042 要说的话` 解析（FLOWS §6 命令表；简写归一为 `T-<n>`）；不匹配 → null。 */
+/** （挂载 2）：`#T-1001 要说的话` / `#T1042 要说的话` 解析（命令表；简写归一为 `T-<n>`）；不匹配 → null。 */
 export function parseSteerCommand(text: string): { shortId: string; body: string } | null {
   const m = /^#(T-?\d+)\s+([\s\S]+)$/.exec(text.trim());
   if (!m) return null;
@@ -553,7 +553,7 @@ export function parseSteerCommand(text: string): { shortId: string; body: string
 }
 
 /**
- * BRK9：插话直通（`#T1042 要说的话`）。
+ * 插话直通（`#T1042 要说的话`）。
  * - 任务**在跑**（有 running 工作项）⇒ `steerEmployee(sessionKey, body)` 到**进行中的员工会话**（下一个工具调用前生效）；
  *   未送达（运行时会话不在飞/未接线）⇒ **如实回执**（绝不假装送出、绝不丢输入）；
  * - 任务不在跑 / 短号查无 ⇒ **不拦截**，落回常规裁定（`task_message` 寻址：消息挂任务、原语义不变）。
@@ -583,7 +583,7 @@ export function handleSteerCommand(
   return { ok: true, messageId: stored.id, resolution: { kind: 'chat' } };
 }
 
-/** BRK13（挂载 3）：`加预算 T1042 500000` 解析（FLOWS §6）；不匹配 → null。 */
+/** （挂载 3）：`加预算 T1042 500000` 解析；不匹配 → null。 */
 export function parseBudgetCommand(text: string): { shortId: string; tokens: number } | null {
   const m = /^(?:加预算|调预算|set-budget)\s+(T-?\d+)\s+(\d+)$/.exec(text.trim());
   if (!m) return null;
@@ -593,7 +593,7 @@ export function parseBudgetCommand(text: string): { shortId: string; tokens: num
   return Number.isSafeInteger(tokens) ? { shortId, tokens } : null;
 }
 
-/** BRK13：加预算直通——写预算；**因超预算暂停的任务同时继续**（FLOWS §3.1.4）；短号查无 → null 落回。 */
+/** 加预算直通——写预算；**因超预算暂停的任务同时继续**；短号查无 → null 落回。 */
 export async function handleBudgetCommand(
   deps: IpcDeps,
   cmd: { shortId: string; tokens: number },
@@ -697,7 +697,7 @@ export async function handleModelCommand(
 }
 
 /**
- * B6（M3-N-3）：`用技能 <name> T1042` / `取消技能 T1042` 直通解析（对应底座 `/skill:<name>` 的强制加载）。
+ * `用技能 <name> T1042` / `取消技能 T1042` 直通解析（对应底座 `/skill:<name>` 的强制加载）。
  * 技能名按 Agent Skills 规范（小写字母/数字/连字符）。
  */
 export function parseSkillCommand(text: string): { shortId: string; skill: string | null } | null {
@@ -717,7 +717,7 @@ export function parseSkillCommand(text: string): { shortId: string; skill: strin
 }
 
 /**
- * B6：任务级强制技能（写 `task_skill_forced` 事件；最后一条为准）。
+ * 任务级强制技能（写 `task_skill_forced` 事件；最后一条为准）。
  * 只影响**之后的会话装配**（当前在跑的会话不打断）；技能须已登记且启用；短号查无 → null 落回。
  */
 export function handleSkillCommand(
@@ -763,7 +763,7 @@ export function handleSkillCommand(
 }
 
 /**
- * M2 尾（D4）：`依赖 T1042 T1000[,T1001]` / `移除依赖 T1042 T1000` 直通——
+ *  尾：`依赖 T1042 T1000[,T1001]` / `移除依赖 T1042 T1000` 直通——
  * **唯一带守卫的写入口**（存在性＋判环＋审计；拒绝不落库、回执点名）。
  * 短号查无目标 → `null`（落回常规路径，不吞消息）。
  */
@@ -827,8 +827,8 @@ export function handleDependencyCommand(
 }
 
 /**
- * GAP1（M3-N-1）触发命令（FLOWS §6 同风格）：
- *  - `定时 每30分钟 <目标>` / `定时 每天 09:00 <目标>`
+ * 触发命令（同风格）：
+ *  - `定时每30分钟 <目标>` / `定时每天 09:00 <目标>`
  *  - `当 T1042 完成 <目标>`（源任务完成后建新任务）
  *  - `触发列表` / `取消触发 <id>`
  * 解析纯函数；不命中 → null（落回普通聊天）。
@@ -872,7 +872,7 @@ export function parseTriggerCommand(text: string): TriggerCommand | null {
   return null;
 }
 
-/** GAP1：触发命令直通（默认项目 + 风险 L1；事件触发只支持“任务完成”）。 */
+/** 触发命令直通（默认项目 + 风险 L1；事件触发只支持“任务完成”）。 */
 export async function handleTriggerCommand(
   deps: IpcDeps,
   cmd: TriggerCommand,
@@ -975,10 +975,10 @@ export async function handleTriggerCommand(
 }
 
 /**
- * B-6（M4）记忆命令（老板显式写；不烧模型，桌面/IM 同源）：
+ * B-6记忆命令（老板显式写；不烧模型，桌面/IM 同源）：
  *  - `记住 <内容>` / `记住全局 <内容>`
- *  - `记忆列表` / `记忆列表 全局`
- *  - `搜索记忆 <词>` / `搜索记忆 全局 <词>`
+ *  - `记忆列表` / `记忆列表全局`
+ *  - `搜索记忆 <词>` / `搜索记忆全局 <词>`
  *  - `忘记记忆 <id>` / `提升记忆 <id>`（项目 → 全局；老板命令即显式确认）
  */
 export type MemoryCommand =
@@ -1115,13 +1115,13 @@ async function runDirectCommand(
   at: number,
   contextProjectId: number | null = null,
 ): Promise<ChatSendResult | null> {
-  // BRK9（挂载 2）：插话直通先于语义裁定（高置信命令，不烧 token）——命中即返。
+  // （挂载 2）：插话直通先于语义裁定（高置信命令，不烧 token）——命中即返。
   const steerCmd = parseSteerCommand(text);
   if (steerCmd) {
     const steerResult = handleSteerCommand(deps, steerCmd, text, attachments, at);
     if (steerResult) return steerResult;
   }
-  // BRK13（挂载 3）：`加预算 T1042 500000` 直通（写预算；超预算暂停的任务同时继续）。
+  // （挂载 3）：`加预算 T1042 500000` 直通（写预算；超预算暂停的任务同时继续）。
   const budgetCmd = parseBudgetCommand(text);
   if (budgetCmd) {
     const budgetResult = await handleBudgetCommand(deps, budgetCmd, text, attachments, at);
@@ -1133,13 +1133,13 @@ async function runDirectCommand(
     const modelResult = await handleModelCommand(deps, modelCmd, text, attachments, at);
     if (modelResult) return modelResult;
   }
-  // B6（M3-N-3）：`用技能 <名> T1042` / `取消技能 T1042` 直通（任务级强制加载；不烧模型）。
+  // `用技能 <名> T1042` / `取消技能 T1042` 直通（任务级强制加载；不烧模型）。
   const skillCmd = parseSkillCommand(text);
   if (skillCmd) {
     const skillResult = handleSkillCommand(deps, skillCmd, text, attachments, at);
     if (skillResult) return skillResult;
   }
-  // T8b/RW-48：显式「建任务：/派任务：」直通（确定性兜底，桌面/IM 同路）。
+  // 显式「建任务：/派任务：」直通（确定性兜底，桌面/IM 同路）。
   // 归属三级：#别名 → 上下文项目（频道范围）→ 默认项目；#别名不存在 → 返 null 走下方既有报错分支。
   const directive = parseCreateTaskDirective(text);
   if (directive) {
@@ -1186,13 +1186,13 @@ async function runDirectCommand(
       };
     }
   }
-  // M2 尾（D4）：`依赖 T1042 T1000` / `移除依赖 T1042 T1000` 直通（判环＋审计；拒绝不落库）。
+  //  尾：`依赖 T1042 T1000` / `移除依赖 T1042 T1000` 直通（判环＋审计；拒绝不落库）。
   const depCmd = parseDependencyCommand(text);
   if (depCmd) {
     const depResult = handleDependencyCommand(deps, depCmd, text, attachments, at);
     if (depResult) return depResult;
   }
-  // GAP1：定时/事件触发命令（优先当前项目，否则默认项目；风险 L1；不烧模型）。
+  // 定时/事件触发命令（优先当前项目，否则默认项目；风险 L1；不烧模型）。
   const triggerCmd = parseTriggerCommand(text);
   if (triggerCmd) return handleTriggerCommand(deps, triggerCmd, text, attachments, at, contextProjectId);
   // B-6：记忆命令（老板显式写；优先当前项目，否则默认项目/全局；不烧模型）。
@@ -1245,7 +1245,7 @@ export async function handleChatSend(
 export interface InboundChatOptions {
   /** IM 需要拿到幕僚长回复文本再发回平台；桌面保持 fire-and-forget（不阻塞 IPC）。 */
   awaitAssistant?: boolean;
-  /** D-19：桌面当前选中项目（任务消息仍以任务的 project_id 优先）。 */
+  /** 桌面当前选中项目（任务消息仍以任务的 project_id 优先）。 */
   projectId?: number | null;
 }
 
@@ -1257,7 +1257,7 @@ export interface InboundChatResult {
   createdTaskId: number | null;
   /** `awaitAssistant:true` 时的幕僚长回复；否则 null。 */
   reply: string | null;
-  /** UG-03：命令被拒绝时的人话原因（回执已落频道；渲染层据此就地显示，不当成功）。 */
+  /** 命令被拒绝时的人话原因（回执已落频道；渲染层据此就地显示，不当成功）。 */
   rejected?: string | null;
 }
 
@@ -1388,7 +1388,7 @@ export async function handleInboundChat(
   options: InboundChatOptions = {},
 ): Promise<InboundChatResult> {
   const text = inbound.text;
-  // B2-2（D-30①）：分诊模式开关——assistant（缺省）用零 LLM 的恒 chat 信号（自由文本全交
+  // 分诊模式开关——assistant（缺省）用零 LLM 的恒 chat 信号（自由文本全交
   // 幕僚长分诊，不再调用语义分诊器）；classifier 保持 v0.2.1 旧链路（可回退面）。
   const triageMode = deps.triageMode ?? readTriageMode(process.env['AICO_TRIAGE']);
   const classify =
@@ -1431,7 +1431,7 @@ export async function handleInboundChat(
     resolution = { kind: 'chat' };
   }
 
-  // B2-2（D-30①）：assistant 模式下，自由文本的 new_task 裁定（semantic/address）
+  // assistant 模式下，自由文本的 new_task 裁定（semantic/address）
   // **不执行建任务**——唯一指挥脑是幕僚长（create_task 工具自行分诊）。确定性路径
   // （命令/#引用/回复链/序号确认/「建任务：」直通）不经此转换、双模式一致。
   if (triageMode === 'assistant' && resolution.kind === 'new_task' && (resolution.via === 'semantic' || resolution.via === 'address')) {
@@ -1445,7 +1445,7 @@ export async function handleInboundChat(
     return executeResolvedCommand(deps, resolution, text, attachments, at);
   }
 
-  // BRK17 深件（挂载 3 余）：`confirm` 裁定**落编排器**——登记「只问一次」候选清单（`pending_lists`）
+  //  深件（挂载 3 余）：`confirm` 裁定**落编排器**——登记「只问一次」候选清单（`pending_lists`）
   // ＋问题落 out 消息上屏（编号选项；回序号走 resolver 第 2 步精确解析）。
   // 此前该裁定零执行方：归属拿不准的消息被静默当常规消息处理（「只问一次」的承诺没兑现）。
   if (resolution.kind === 'confirm' && text.trim().length > 0) {
@@ -1476,7 +1476,7 @@ export async function handleInboundChat(
     });
   }
 
-  // BRK17 深件：**回复链打到已归档终态任务** → `reopen_reply`（FLOWS §3.1.1：提议续办，口头一次确认）。
+  //  深件：**回复链打到已归档终态任务** → `reopen_reply`（：提议续办，口头一次确认）。
   // 卡文案给现成指令（`续办 T-xxxx`）；只对终态+已归档派发——已在 needs_decision 的既有提议不重复。
   if (resolution.kind === 'task_message' && resolution.via === 'reply' && deps.engine) {
     const target = deps.repo.getTask(resolution.taskId);
@@ -1502,7 +1502,7 @@ export async function handleInboundChat(
   }
 
   // D0（链路审计）：**执行 `new_task` 裁定**——此前只落消息、裁定没人执行 ⇒「在频道里说一句话不会变成任务」
-  // （楔子的入口断在第一环）。现在：建任务（`handleTaskCreate` 内含 D1 自动分诊 → 进 planning）
+  // （楔子的入口断在第一环）。现在：建任务（`handleTaskCreate` 内含自动分诊 → 进 planning）
   // ＋ **本条消息挂到新任务上**（老板原话＝任务的第一个输入）。
   // 建任务失败**不静默**（响亮报错），消息照落（绝不丢用户输入）。
   let createdTaskId: number | null = null;
@@ -1538,7 +1538,7 @@ export async function handleInboundChat(
   // IM 入站消息也要实时上屏（evt:inbox → loadChannel）；桌面同样无害。
   deps.onInboxChanged?.();
 
-  // UG-04：建任务消息的附件 → 任务输入资产（复制 + 登记 artifacts.kind='input'）。
+  // 建任务消息的附件 → 任务输入资产（复制 + 登记 artifacts.kind='input'）。
   const inputAttachments =
     createdTaskId != null
       ? registerTaskInputArtifacts(deps, createdTaskId, stored.id, attachments, at)
@@ -1568,15 +1568,15 @@ export async function handleInboundChat(
     return { ok: true, messageId: stored.id, resolution, createdTaskId, reply: `${receipt}${attachmentNote}${attachmentError}` };
   }
 
-  // 幕僚长真实会话：桌面 **fire-and-forget**（DEV §7.6：长任务不阻塞 IPC）；
+  // 幕僚长真实会话：桌面 **fire-and-forget**（：长任务不阻塞 IPC）；
   // IM 需要回复文本发回手机，`awaitAssistant:true` 时等这一轮（同一会话已串行，不会乱序）。
   // 缺 key 时 `assistant` 为 null（启动时已明确报错，不 mock）。
   let reply: string | null = null;
   const assistantTaskId = resolutionTaskId(resolution);
-  // B2-2：assistant 模式下别名寻址（#记账 …）解析出的项目作为本轮助手范围（老板显式点名）。
+  // assistant 模式下别名寻址（#记账 …）解析出的项目作为本轮助手范围（老板显式点名）。
   const assistantProjectId =
     options.projectId ?? (resolution.kind === 'chat' ? (resolution.projectId ?? null) : null);
-  // P0/F-N02（S13-E 对抗审查）：幕僚长不可用/失败不得只进控制台——写一条频道回执，
+  // P0/F-N02（对抗审查）：幕僚长不可用/失败不得只进控制台——写一条频道回执，
   // 让老板知道「没回复是因为缺 Key/模型」，而不是对着转圈干等。
   const reportAssistantFailure = (detail: string): void => {
     try {
@@ -1631,8 +1631,8 @@ export function handleInboxList(deps: IpcDeps, raw: unknown): ReportDTO[] {
 }
 
 /**
- * M2 尾（G-D）：跨项目全局搜索（只读；任务/消息/产物各 ≤6）。
- * 空查询 → 空结果（不主动罗列全库）；D1：只接受关键词，不接受任何路径。
+ *  尾（G-D）：跨项目全局搜索（只读；任务/消息/产物各 ≤6）。
+ * 空查询 → 空结果（不主动罗列全库）；：只接受关键词，不接受任何路径。
  */
 export function handleGlobalSearch(deps: IpcDeps, raw: unknown): ReturnType<ChatRepo['globalSearch']> & { notes?: Array<{ name: string; preview: string; type: string; projectId: number | null; projectName: string | null }> } {
   const input = (raw ?? {}) as { query?: unknown };
@@ -1657,7 +1657,7 @@ export function handleGlobalSearch(deps: IpcDeps, raw: unknown): ReturnType<Chat
 }
 
 /**
- * OPT-AI-9：技能库列表（只读；`includeDisabled` 缺省 false）。
+ * 技能库列表（只读；`includeDisabled` 缺省 false）。
  */
 export function handleSkillsList(deps: IpcDeps, raw: unknown): ReturnType<ChatRepo['listSkills']> {
   const input = (raw ?? {}) as { includeDisabled?: unknown };
@@ -1665,7 +1665,7 @@ export function handleSkillsList(deps: IpcDeps, raw: unknown): ReturnType<ChatRe
 }
 
 /**
- * OPT-AI-9：注册/更新技能（老板显式给名字与 `SKILL.md` 路径；**文件必须真实存在**，不登记幽灵技能）。
+ * 注册/更新技能（老板显式给名字与 `SKILL.md` 路径；**文件必须真实存在**，不登记幽灵技能）。
  * 员工勾选走 `employee:update.skills`（id 或名字）；项目默认走 `projects.default_skills`。
  */
 export function handleSkillsSet(
@@ -1703,14 +1703,14 @@ export function handleSkillsSet(
   return { ok: true, skill };
 }
 
-/** GAP7：`skills:set` 的安装/启停/删除动作（与旧 `{name,path}` 注册共存；同通道，不新增 IPC）。 */
+/** `skills:set` 的安装/启停/删除动作（与旧 `{name,path}` 注册共存；同通道，不新增 IPC）。 */
 export function isSkillAction(raw: unknown): boolean {
   const action = (raw as { action?: unknown } | null)?.action;
   return typeof action === 'string' && ['install-local', 'install-url', 'toggle', 'remove'].includes(action);
 }
 
 /**
- * GAP7 动作面：
+ *  动作面：
  *  - `install-local`：`{path?}`；无 path → 主进程目录选择器（renderer 不传路径）；
  *  - `install-url`：`{url}`（直接 .md 或 Git 仓库；只允许 http(s)）；
  *  - `toggle`：`{id, enabled}`（内置可停用）；
@@ -1797,7 +1797,7 @@ export async function handleSkillAction(
 }
 
 /**
- * OPT-AI-10：MCP server 列表（只读；`includeDisabled` 缺省 false）。
+ * MCP server 列表（只读；`includeDisabled` 缺省 false）。
  */
 export function handleMcpList(deps: IpcDeps, raw: unknown): ReturnType<ChatRepo['listMcpServers']> {
   const input = (raw ?? {}) as { includeDisabled?: unknown };
@@ -1805,7 +1805,7 @@ export function handleMcpList(deps: IpcDeps, raw: unknown): ReturnType<ChatRepo[
 }
 
 /**
- * OPT-AI-10：注册/更新 MCP server（老板显式给 transport/command|url；凭据在 env，不打印）。
+ * 注册/更新 MCP server（老板显式给 transport/command|url；凭据在 env，不打印）。
  * stdio 必须有 command；http 必须有 url；enabled 缺省 true。连不上不在注册时判断（调用时如实报错）。
  */
 export function handleMcpSet(
@@ -1899,7 +1899,7 @@ export function handleMcpSet(
   return { ok: true, server };
 }
 
-/** GAP6：`mcp:set` 的启停/删除动作（同通道，不新增 IPC）。 */
+/** `mcp:set` 的启停/删除动作（同通道，不新增 IPC）。 */
 export function isMcpAction(raw: unknown): boolean {
   const action = (raw as { action?: unknown } | null)?.action;
   return action === 'toggle' || action === 'remove';
@@ -1930,7 +1930,7 @@ export function handleMcpAction(
 }
 
 /**
- * OPT-M4-1 产品化：接缝矩阵（边界枚举 × 本项目登记行；未登记边界显式列入 `missing`）。
+ * OPT- 产品化：接缝矩阵（边界枚举 × 本项目登记行；未登记边界显式列入 `missing`）。
  * 只读；不替项目自动造行（不臆造覆盖证据）。
  */
 export function handleSeamsList(deps: IpcDeps, raw: unknown): {
@@ -1976,7 +1976,7 @@ export async function handleMailboxAnswer(
   const ask = deps.repo.listOpenAsks().find((a) => a.askDedupeKey === askDedupeKey);
   try {
     const res = deps.repo.answerAskAsBoss({ askDedupeKey, answer: input.answer.trim(), now });
-    // 阻塞式 mailbox（M2 尾）：答复真落地后，把停在 `blocked` 的件放回队列（幂等：重复作答
+    // 阻塞式 mailbox（尾）：答复真落地后，把停在 `blocked` 的件放回队列（幂等：重复作答
     // `delivered=false` 不再派发；答复本身已通过未读回灌进下一轮简报）。
     if (res.delivered && ask?.blocking === true && ask.workItemId != null && deps.engine) {
       try {
@@ -2002,7 +2002,7 @@ export async function handleMailboxAnswer(
 }
 
 /**
- * M2 尾：员工招募 / 改档（**写入口**）。
+ *  尾：员工招募 / 改档（**写入口**）。
  *
  * 口径：
  *  - 招募/改档是**人**的动作（老板在设置/频道触发），不是员工自主行为；
@@ -2135,7 +2135,7 @@ export function handleEmployeeUpdate(
 }
 
 /**
- * `OPT-EXT-13` 用量可视：`cost:summary`。
+ * `` 用量可视：`cost:summary`。
  * - 给 `taskId` → **任务级成本**（含 `byModel`，供成本 tab）；
  * - 否则给 `since` → 只算窗口内（今日成本）；
  * **空表 → `costRows:0`，由渲染层显 `—`/「暂无成本」**（**不写假 0**）。
@@ -2153,7 +2153,7 @@ export function handleCostSummary(
   cacheWriteTokens: number;
   cacheHitRate: number | null;
   usdPerHour: number;
-  /** GAP10（挂载 3）：按员工归因（null=公司级/无归属；"这次为什么贵"）。 */
+  /** （挂载 3）：按员工归因（null=公司级/无归属；"这次为什么贵"）。 */
   byEmployee?: Array<{ employeeId: number | null; name: string | null; usd: number; tokensIn: number; tokensOut: number }>;
   byModel?: Array<{ model: string; tokensIn: number; tokensOut: number; usd: number }>;
 } {
@@ -2181,10 +2181,10 @@ export function handleInboxAnswer(
  * D2（链路审计）：**批准/决策作答 → 引擎事件**的唯一映射点（纯函数，可测；UI/IM 两侧都走它，不许各自猜）。
  *
  * - `awaiting_approval`：`approve` → `plan_approved`；`revise`/`reject` → `revise`（带意见重规划）；
- *   **其它选项 → `null`（不猜、不推状态机；作答已落台账）**。
+ *   **其它选项 → `null`（不猜、不推状态机；作答已落清单）**。
  * - `needs_decision`：作答 → `decision_made`（payload 带 chosen；回 `resume_state` 继续）；
  *   **`cancel` → 真 `cancel` 事件**（needs_decision+cancel→cancelled 是机器真边——此前一律
- *   decision_made＝想取消的任务又回规划）；**`proceed` → `decision_proceed_latest`**（RW-21 收尾：
+ *   decision_made＝想取消的任务又回规划）；**`proceed` → `decision_proceed_latest`**（收尾：
  *   最新稿视同批准，不重规划——机器边仅规划期升级有效，验证期由 guard 拦下）。
  * - 其它任务态（如执行中工具权限审批）→ `null`（权限由 `answerApproval` 的授权路径处理，不动任务机）。
  */
@@ -2205,27 +2205,27 @@ export async function handleTaskApprove(
     decidedBy: 'boss',
     now: at,
   });
-  // D2：作答后**推状态机**（此前只写台账/授权 ⇒ 老板点了批准任务也不动）。未知选项 → 不猜（不推）。
+  // 作答后**推状态机**（此前只写清单/授权 ⇒ 老板点了批准任务也不动）。未知选项 → 不猜（不推）。
   const taskId = (approval as { taskId?: number | null } | null)?.taskId ?? null;
   let refire: { ok: boolean; reason: string; workItemId: number | null } | null = null;
   if (taskId != null && deps.engine) {
     const task = deps.repo.getTask(taskId);
-    // B4b 独立验收 P2-6（2026-11-09）：**先判权限审批，再看任务态映射**——顺序反了的话，
+    //  独立验收 P2-6（2026-11-09）：**先判权限审批，再看任务态映射**——顺序反了的话，
     // 一张陈旧的权限卡在 needs_decision/awaiting_approval 时被批准，会误推 decision_made/
     // plan_approved（把权限批准当成决策/计划批准）。权限审批与任务态无关，必须优先分流。
     const isPermission = isPermissionApproval((approval as { question?: string } | null)?.question ?? '');
-    // S3（2026-11-09 安全复核 P2）：只在**本次调用真的把这张审批从未决变已决**、且落库结果就是
+    // S3（2026-11-09 安全复核）：只在**本次调用真的把这张审批从未决变已决**、且落库结果就是
     // approve 时才补跑。否则重复点同一张卡（或先 deny 再重放 approve）会每次都重开任务/多建返工件
     // ——那是纯粹的重复花费通道。判据＝decided_at 恰为本轮时间且 chosen==='approve'。
     const decidedAt = (approval as { decidedAt?: number | null } | null)?.decidedAt ?? null;
     const chosenInDb = (approval as { chosen?: string | null } | null)?.chosen ?? null;
     const decidedByThisCall = decidedAt === at && chosenInDb === 'approve';
     if (isPermission) {
-      // 换方向复核 P2-1（2026-11-09）：**权限审批永不驱动任务状态机**——连重放/先 deny 后 approve
+      // 换方向复核-1（2026-11-09）：**权限审批永不驱动任务状态机**——连重放/先 deny 后 approve
       // 也不能（此前只在「本次作答」时短路，重放会落进 else 把权限批准推成 decision_made/
       // plan_approved）。权限只影响 grant 与补跑。
       if (decidedByThisCall) {
-        // 裁决 8（老板 2026-11-09 批「批准后补跑」）：G1 是「批准后员工**重试**才放行」——员工按纪律
+        // 决定 8（2026-11-09 批「批准后补跑」）：G1 是「批准后员工**重试**才放行」——员工按纪律
         // 不等、任务已结束时，批准了也没人再去调工具（真机实测：批了不补图）。这里在「件已不在跑」时
         // 把该件重开/重派；件还在跑则 no-op（返回 already_active）。
         const workItemId = deps.repo.permissionRequestWorkItem?.(input.approvalId) ?? null;
@@ -2259,7 +2259,7 @@ export async function handleTaskApprove(
 }
 
 /**
- * GAP8：**批准前编辑计划**（`awaiting_approval` 专用）。
+ * **批准前编辑计划**（`awaiting_approval` 专用）。
  *
  * - `plan_edited` 是任务机正式迁移（`awaiting_approval → KEEP`，kind=`plan_edited`）——计划仍是事件投影，
  *   **不是**直接改 `plan_steps` 表；批准/派工链路完全不变，`spawnPlanWorkItems` 读到的是改后计划。
@@ -2391,7 +2391,7 @@ export function handleProjectGet(deps: IpcDeps, raw: unknown): ProjectDTO | null
   if (typeof input.projectId !== 'number') return null;
   const project = deps.repo.getProject(input.projectId);
   if (!project || !deps.db) return project;
-  // S13-G / C3：项目级「变更历史」——跨任务聚合变更集（只读；不新增 IPC 通道）。
+  //  / C3：项目级「变更历史」——跨任务聚合变更集（只读；不新增 IPC 通道）。
   const changesets = deps.db
     .prepare(
       `SELECT c.id, c.task_id, t.short_id, c.branch, c.head_sha, c.state, c.files_changed,
@@ -2475,7 +2475,7 @@ export function handleProjectArchive(
         // 坏 payload 不阻塞归档
       }
     }
-    // P0/C1（S13-E 对抗审查）：归档前由老板选「全部结束」或「保留暂停」——
+    // P0/C1（对抗审查）：归档前由老板选「全部结束」或「保留暂停」——
     //   finish_all：所有未终态任务发 cancel（明确结束，收尾卡如实）；
     //   keep_paused（缺省，兼容旧调用）：只把 ready/executing 暂停。
     const finishAll = input.mode === 'finish_all';
@@ -2500,7 +2500,7 @@ export function handleProjectArchive(
 }
 
 /**
- * `project:docs-check-set`（M3-DOC-4）：项目级文档检查开关。
+ * `project:docs-check-set`：项目级文档检查开关。
  * 只影响**新建任务**是否自动挂 `aico:docs-check`；已有任务的该检查在运行时按项目当前开关记 `skip`（未检查）。
  */
 export function handleProjectDocsCheckSet(
@@ -2520,7 +2520,7 @@ export function handleProjectDocsCheckSet(
 }
 
 /**
- * `project:skills-set`（B3 · M3-N-3）：项目默认技能集（refs 为技能名/id；必须先全部解析为启用中的技能）。
+ * `project:skills-set`（·）：项目默认技能集（refs 为技能名/id；必须先全部解析为启用中的技能）。
  * 只影响该项目下新会话装配（员工勾选 ∪ 项目默认），不改员工档案。
  */
 export function handleProjectSkillsSet(
@@ -2541,7 +2541,7 @@ export function handleProjectSkillsSet(
 }
 
 /**
- * `project:staffing-set`（编制 v1 · 裁决 `D-11`）：写项目三项缺省——默认负责人 / 默认执行员工 / 默认档。
+ * `project:staffing-set`（编制 v1 · 决定 ``）：写项目三项缺省——默认负责人 / 默认执行员工 / 默认档。
  * 口径：字段**缺省＝不改动**、显式 `null`＝清空（回落未设置——不臆造）；**员工存在且在职**、档位 0/1/2
  * 为硬校验（同判据在 `db/projects.ts#setProjectStaffing`——非法**拒且不落库**）。返回更新后的 `ProjectDTO`
  * （与 `project:get` 同形；读面无新通道）。**只影响之后派发的工作项**（owner/tier 建任务时快照；默认执行员工在派发缺省链②读取）；已派发工作项不回改。
@@ -2585,7 +2585,7 @@ export function handleProjectStaffingSet(
 }
 
 /**
- * `project:model-policy-set`（D-22）：项目模型策略——策略 / 默认模型 / 模型级允许清单整体写。
+ * `project:model-policy-set`：项目模型策略——策略 / 默认模型 / 模型级允许清单整体写。
  * 校验与落库在 `db/projects.ts#setProjectModelPolicy`（非法拒且不落库）；返回更新后的 `ProjectDTO`。
  */
 export function handleProjectModelPolicySet(
@@ -2625,7 +2625,7 @@ export function handleProjectDefaultBudgetSet(
 }
 
 /**
- * `project:target-branch-set`（S13-G/D-N06）：合并目标分支。
+ * `project:target-branch-set`：合并目标分支。
  * 空串/null ⇒ 清空（回到 main/master 口径）；分支名做最小 git 合法性校验，非法拒且不落库。
  */
 export function handleProjectTargetBranchSet(
@@ -2652,7 +2652,7 @@ export function handleProjectTargetBranchSet(
 }
 
 /**
- * `project:assistant-write-mode-set`（D-19 P1）：项目级频道助手写权限。
+ * `project:assistant-write-mode-set`（P1）：项目级频道助手写权限。
  * 只接受 `read-only | confirm | auto`（`full` v1 不做）；写入 `permission_policies` 的
  * `assistantWriteMode`，不改变员工任务会话的 tier/autonomy。项目不存在 → `not_found`。
  */
@@ -2715,7 +2715,7 @@ export function handleSettingsSet(
     return { ok: false, code: 'bad_value', message: `「${key}」${validation.reason}` };
   }
   deps.repo.setSetting({ key, value: input.value });
-  // M4-C：主题写入即生效（nativeTheme 由 main 注入；renderer 的 prefers-color-scheme 随之切换）。
+  // 主题写入即生效（nativeTheme 由 main 注入；renderer 的 prefers-color-scheme 随之切换）。
   if (key === 'ui.theme' && deps.setTheme) {
     deps.setTheme(input.value as 'light' | 'dark' | 'system');
   }
@@ -2735,7 +2735,7 @@ export function handleSettingsSet(
 }
 
 /**
- * `provider:custom`（D-22）：自定义供应商的 list/save/remove。
+ * `provider:custom`：自定义供应商的 list/save/remove。
  * 配置写 Pi 原生 `~/.aico/models.json`（不写 Key）；Key 仍走本机 secrets。
  */
 export async function handleProviderCustom(
@@ -2823,7 +2823,7 @@ export function handleProviderList(deps: IpcDeps):
   }
 }
 
-/** `provider:set-key`：写 `~/.aico/secrets/<provider>_api_key`（0600）＋ `provider_keys` 台账；不回明文。 */
+/** `provider:set-key`：写 `~/.aico/secrets/<provider>_api_key`（0600）＋ `provider_keys` 清单；不回明文。 */
 export function handleProviderSetKey(
   deps: IpcDeps,
   raw: unknown,
@@ -2854,7 +2854,7 @@ export function handleProviderSetKey(
 }
 
 /**
- * `model:catalog`（D-22 配套）：只读模型目录（chat 模型；已知供应商＋已配置 Key 的供应商）。
+ * `model:catalog`（配套）：只读模型目录（chat 模型；已知供应商＋已配置 Key 的供应商）。
  * 不联网刷新；价格是 Pi 目录的 USD/1M tokens。Key 状态只回来源，不回明文。
  */
 export async function handleModelCatalog(raw: unknown): Promise<{ models: Awaited<ReturnType<typeof loadModelCatalog>>['models'] }> {
@@ -2862,7 +2862,7 @@ export async function handleModelCatalog(raw: unknown): Promise<{ models: Awaite
   return loadModelCatalog({ refresh: input.refresh === true });
 }
 
-/** `provider:clear-key`：清本机文件（canonical＋旧文件名）＋台账行；环境变量仍在时状态如实显示 env。 */
+/** `provider:clear-key`：清本机文件（canonical＋旧文件名）＋清单行；环境变量仍在时状态如实显示 env。 */
 export function handleProviderClearKey(
   deps: IpcDeps,
   raw: unknown,
@@ -2905,7 +2905,7 @@ export function handleNotifyTest(
   }
 }
 
-/** `task:rework-merge-conflict`（D-N07）：合并冲突派回原员工修复（建续办任务）。 */
+/** `task:rework-merge-conflict`：合并冲突派回原员工修复（建续办任务）。 */
 export function handleTaskReworkMergeConflict(deps: IpcDeps, raw: unknown) {
   const input = (raw ?? {}) as { taskId?: unknown; changesetId?: unknown };
   if (typeof input.taskId !== 'number' || !Number.isInteger(input.taskId) || input.taskId <= 0) {
@@ -2939,7 +2939,7 @@ export async function handleAppOpenDataDir(deps: IpcDeps):
 
 /**
  * `project:open-dir`（2026-10-25）：在系统文件管理器中打开项目根目录。
- * renderer 只传 projectId；路径由主进程从 DB 解析（D1：不接受任意路径）。
+ * renderer 只传 projectId；路径由主进程从 DB 解析（：不接受任意路径）。
  * `openPath` 由 main 注入 electron `shell.openPath`；非桌面/失败如实返回。
  */
 export async function handleProjectOpenDir(
@@ -2966,7 +2966,7 @@ export async function handleProjectOpenDir(
 }
 
 /**
- * `project:attach`（R2-4）：**经主进程 dialog 选目录**（renderer 永远拿不到任意路径，D1 铁律）→
+ * `project:attach`（R2-4）：**经主进程 dialog 选目录**（renderer 永远拿不到任意路径， 铁律）→
  * 接入探测（真事实：`.git`/`package.json`/`pyproject.toml`）→ 建项目行（**只记录路径**）。
  * 取消 → `{ok:false, code:'cancelled'}`（不静默、不建行）。
  */
@@ -2985,7 +2985,7 @@ export async function handleProjectAttach(
   const probe = probeProject(rootDir);
   const name = basename(rootDir) || rootDir;
   const project = deps.repo.createProject({ name, rootDir, accessMode: probe.suggestedAccessMode, now: at });
-  // RW-1（M5 真机带回）：接入成功 ⇒ **把接入项目设为默认**——用户特意选的文件夹就是他要的项目，
+  // （真机带回）：接入成功 ⇒ **把接入项目设为默认**——用户特意选的文件夹就是他要的项目，
   // 此前不设指针 ⇒ 建任务默认仍落「默认项目」（其回退根此前还指向不存在的模板路径）＝新手第一个任务必然建错地方。
   // 写失败不阻断接入（指针只是默认值，建任务时仍可手选）。
   if (deps.db != null) {
@@ -2997,9 +2997,9 @@ export async function handleProjectAttach(
 }
 
 /**
- * `project:create`（2026-10-16，D 批余项；2026-10-18 M3-DOC-1 加文档模板）：**软件代建项目骨架**
- * （PLAN §616「在你指定的父目录下创建 `<项目名>/` 骨架（README）」）——**父目录经主进程 dialog 选**
- * （D1：renderer 只给 `{name, docsTemplate?}`）；**不覆盖同名目录**（已存在 → 显式拒，指引用「接入已有文件夹」）；
+ * `project:create`（2026-10-16，D 批余项；2026-10-18 加文档模板）：**软件代建项目骨架**
+ * （「在你指定的父目录下创建 `<项目名>/` 骨架（README）」）——**父目录经主进程 dialog 选**
+ * （：renderer 只给 `{name, docsTemplate?}`）；**不覆盖同名目录**（已存在 → 显式拒，指引用「接入已有文件夹」）；
  * 建 README 骨架 ＋（默认）`.aico/docs` 文档骨架 ＋ `probeProject` 探测 ＋ 建项目行（`accessMode` 取探测建议）。
  * `docsTemplate:false` ⇒ 只建 README（用户不要文档树）；模板对已存在文件逐个跳过，绝不覆盖。
  * 取消 → `{ok:false, code:'cancelled'}`（不静默、不建行）。
@@ -3059,7 +3059,7 @@ export async function handleProjectCreate(
   const parent = await deps.pickDirectory();
   if (!parent) return { ok: false, code: 'cancelled', message: '已取消（未选父目录）' };
   const target = join(parent, name);
-  // RW-7（M5 真机带回）：新项目根与现有项目根**互相包含**都拒——嵌套项目破坏隔离边界
+  // （真机带回）：新项目根与现有项目根**互相包含**都拒——嵌套项目破坏隔离边界
   // （工作区/检索/记忆互相可见；真机案例：父目录选到现有项目根里，建出了「项目里的项目」）。
   if (deps.db != null) {
     const roots = (deps.db.prepare('SELECT id, name, root_dir FROM projects WHERE archived = 0').all() as Array<{ id: number; name: string; root_dir: string }>).filter((p) => p.root_dir);
@@ -3109,7 +3109,7 @@ export async function handleProjectCreate(
       message: `建目录/骨架失败：${error instanceof Error ? error.message : String(error)}`,
     };
   }
-  // D-15：代建项目默认 staging。staging 的检查点/回滚/合并依赖 `git worktree`，
+  // 代建项目默认 staging。staging 的检查点/回滚/合并依赖 `git worktree`，
   // 而软件新建的目录没有仓库——先初始化仓库并落初始提交，再建项目行。
   // git 不可用/初始化失败 ⇒ 如实回落 inplace（不假装 staging），并返回原因。
   const probe = probeProject(target);
@@ -3137,13 +3137,13 @@ export async function handleProjectCreate(
 }
 
 /**
- * `docs:check`（**M2 §7 序 4 · 文档管理最小版**）：对本项目的文档树跑一次结构检查（**只读**，不改任何文件）。
+ * `docs:check`（** §7 序 4 · 文档管理最小版**）：对本项目的文档树跑一次结构检查（**只读**，不改任何文件）。
  *
  * 口径（`work/plan-doc-and-cost-product.md` §A.2/§A.3）：
  *  - 文档根＝`<项目根>/.aico/docs`；**不存在 ⇒ `hasDocsTree:false` ＋ 零计数**（检查不代建；
- *    新建项目时的模板由 M3-DOC-1 的 `project:create` 负责）；
+ *    新建项目时的模板由的 `project:create` 负责）；
  *  - 判据＝`src/main/docs/check.ts`（policy 驱动；默认策略只查通用纪律：入口/头注三行/区索引/悬空引用/
- *    目录链接/体量；仓库私有的命名规则等 M3 模板落地再开）；
+ *    目录链接/体量；仓库私有的命名规则等模板落地再开）；
  *  - 安全：只读项目根内；跳过依赖/产物目录（`node_modules`/`.git`/`dist`/`out` 等）与**符号链接**（防环）；
  *    文件数与单文件体量有上限，**超出如实标注**（`truncated`）。
  */
@@ -3188,7 +3188,7 @@ export function handleDocsCheck(
 }
 
 /**
- * `docs:organize-preview`（M3-DOC-3）——只读预览：只补区索引（README 追加/新建），
+ * `docs:organize-preview`——只读预览：只补区索引（README 追加/新建），
  * 返回 changes（before/after/added）＋ token＋检查读数；不写任何文件。
  */
 export function handleDocsOrganizePreview(
@@ -3248,7 +3248,7 @@ export function handleDocsOrganizePreview(
 }
 
 /**
- * `docs:organize-apply`（M3-DOC-3）——应用预览计划：
+ * `docs:organize-apply`——应用预览计划：
  * 重算计划并核对 token（预览后改了文件 ⇒ `stale_plan`）；只写区索引 README；
  * 任一路径越界/符号链接/写入失败 → 拒绝或按备份回滚（`rolled_back` 如实）。
  */
@@ -3301,7 +3301,7 @@ export function handleDocsOrganizeApply(
 }
 
 /**
- * `task:reference-artifact`（**G-A/G-B/C，M2 §7 序 3**）：把某任务的产物**引用到目标任务**——
+ * `task:reference-artifact`（**G-A/G-B/C， §7 序 3**）：把某任务的产物**引用到目标任务**——
  * 老板显式发起的 `copy`（快照 ＋ sha256；`copy` 是已裁的 v1 口径，`link` 后议不实现）。
  *
  * 硬规则（`work/plan-doc-and-cost-product.md` §4.1，落地为代码约束）：
@@ -3359,7 +3359,7 @@ export function handleArtifactReference(
     return { ok: true, artifactId: rec.artifactId, path: artifact.path, sha256: artifact.sha256 ?? null, duplicated: !rec.created };
   }
 
-  // ② 文件类产物：相对路径 ＋ 源根包含性校验（D1：renderer/文件系统不得越界）。
+  // ② 文件类产物：相对路径 ＋ 源根包含性校验（：renderer/文件系统不得越界）。
   const rel = artifact.path ?? '';
   if (rel.length === 0 || isAbsolute(rel) || /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(rel)) {
     return { ok: false, code: 'bad_request', message: `产物路径不可引用（需项目内相对路径）：${rel || '（空）'}` };
@@ -3386,7 +3386,7 @@ export function handleArtifactReference(
     ? `｜⚠️ 源记录指纹不一致（记录 ${String(artifact.sha256).slice(0, 12)}… ≠ 实读）`
     : '';
 
-  // M2 尾：link 模式——**不复制**（源随动）；读时按源项目根解析（`source='link:<projectId>'`）。
+  //  尾：link 模式——**不复制**（源随动）；读时按源项目根解析（`source='link:<projectId>'`）。
   if (mode === 'link') {
     const source = `link:${sourceProject.id}`;
     const rec = deps.repo.recordArtifactReference({
@@ -3441,10 +3441,10 @@ export function handleArtifactReference(
 }
 
 /**
- * `task:read-artifact`（**BRK16-a，挂载 3**）：产物**读预览 / 系统打开 / 在文件夹中显示**。
+ * `task:read-artifact`（**-a，挂载 3**）：产物**读预览 / 系统打开 / 在文件夹中显示**。
  *
  * 口径：
- *  - **D1 铁律**：renderer 只给 `artifactId`（**不接受任何路径**）；读取的绝对路径由主进程按
+ *  - ** 铁律**：renderer 只给 `artifactId`（**不接受任何路径**）；读取的绝对路径由主进程按
  *    「产物行 → 所属任务 → 项目根」推导，并做**项目根包含性校验**（越界显式拒，不静默）；
  *  - `mode='read'`（缺省）：文本预览——**二进制显式拒**（NUL 探测；不臆造乱码）、超 256 KiB
  *    **截断并如实标注** `truncated`；附**实读 sha256**（与记录不一致显式 `sha256Mismatch`）；
@@ -3470,7 +3470,7 @@ export type ArtifactReadResult =
       supersededBy?: { artifactId: number; createdAt: number } | null;
       text: string;
       truncated: boolean;
-      /** UG-05：图片/PDF 走受控协议预览（与聊天附件同一个 `aico-file://` 短票）。 */
+      /** 图片/PDF 走受控协议预览（与聊天附件同一个 `aico-file://` 短票）。 */
       previewKind?: 'image' | 'pdf';
       previewUrl?: string;
     }
@@ -3517,7 +3517,7 @@ export async function handleReadArtifact(deps: IpcDeps, raw: unknown): Promise<A
   if (!project || !project.rootDir) {
     return { ok: false, code: 'no_project_root', message: '项目没有根目录（无法定位产物文件）' };
   }
-  // M2 尾（G-A link）：链接产物**不复制**，读时按源项目根解析（来源列 `source='link:<projectId>'`）。
+  //  尾（G-A link）：链接产物**不复制**，读时按源项目根解析（来源列 `source='link:<projectId>'`）。
   const linked = typeof artifact.source === 'string' && artifact.source.startsWith('link:');
   const rootProject = linked
     ? artifact.originProjectId != null
@@ -3561,7 +3561,7 @@ export async function handleReadArtifact(deps: IpcDeps, raw: unknown): Promise<A
 
   const type = inferType(name, '');
   const previewKind = kindFor(name, type);
-  // UG-05：图片/PDF 走与聊天附件相同的受控短票预览（renderer 仍拿不到路径）。
+  // 图片/PDF 走与聊天附件相同的受控短票预览（renderer 仍拿不到路径）。
   if ((previewKind === 'image' || previewKind === 'pdf') && stat.size <= 50 * 1024 * 1024) {
     const bytes = readFileSync(abs);
     const sha256 = createHash('sha256').update(bytes).digest('hex');
@@ -3603,7 +3603,7 @@ export async function handleReadArtifact(deps: IpcDeps, raw: unknown): Promise<A
   };
 }
 
-/** UG-06：单文件只读 diff（变更集 base..head；renderer 只拿 diff 文本，不拿路径）。 */
+/** 单文件只读 diff（变更集 base..head；renderer 只拿 diff 文本，不拿路径）。 */
 export const CHANGESET_DIFF_CAP = 256 * 1024;
 
 export type ChangesetDiffResult =
@@ -3663,7 +3663,7 @@ export function handleReadChangesetDiff(deps: IpcDeps, raw: unknown): ChangesetD
   };
 }
 
-/** GAP11（审计导出）＋BRK16-a：任务档案单一文件包（schema 标记；**同名覆盖**＝同一任务始终一个档案文件）。 */
+/** （审计导出）＋-a：任务档案单一文件包（schema 标记；**同名覆盖**＝同一任务始终一个档案文件）。 */
 export const TASK_EXPORT_SCHEMA = 'aico.task-export/v1';
 
 export type TaskExportResult =
@@ -3671,7 +3671,7 @@ export type TaskExportResult =
   | { ok: false; code: string; message: string };
 
 /**
- * `task:export`（**GAP11 审计导出**）：把「任务 + 事件时间线 + 产物 + 成本」打成**单一 JSON 文件**
+ * `task:export`（** 审计导出**）：把「任务 + 事件时间线 + 产物 + 成本」打成**单一 JSON 文件**
  * （落在 main 注入的 `exportDir`，默认 `userData/exports`；renderer 不参与路径）。
  * `openAction='open'/'reveal'`（可选）在写出后调 `openPath`/`revealPath`；**打开失败不回滚导出**
  * （导出已成功是事实，`openError` 如实附带）。
@@ -3725,7 +3725,7 @@ export async function handleExportTask(deps: IpcDeps, raw: unknown, at: number):
   if (openAction === 'open') {
     if (!deps.openPath) openError = '系统打开不可用（非桌面环境）';
     else {
-      // UG-10：打开/定位失败**不回滚导出**——异常也转 openError，不炸整条 IPC。
+      // 打开/定位失败**不回滚导出**——异常也转 openError，不炸整条 IPC。
       try {
         const err = await deps.openPath(file);
         if (err) openError = `系统打开失败：${err}`;
@@ -3747,18 +3747,18 @@ export async function handleExportTask(deps: IpcDeps, raw: unknown, at: number):
 }
 
 
-// ── T0.6：手工建任务 + 状态机逐步推进 ─────────────────────────────────
+// ──：手工建任务 + 状态机逐步推进 ─────────────────────────────────
 
 /** `task:create`：建单（落 `inbox`，短号与 INSERT 同流程），返回 `TaskDTO`。 */
 /**
- * `task:create`：建单（落 `inbox`，短号与 INSERT 同流程）＋ **D1：建任务即分诊**。
+ * `task:create`：建单（落 `inbox`，短号与 INSERT 同流程）＋ **：建任务即分诊**。
  *
  * D1（链路审计）：左栏「＋建任务」＝**老板明确要建** ⇒ 建完直接 `triage` 进 `planning`
  * （不再停在 `inbox` 等人推——此前**无人发 `triage`**，任务永远不动）。
  * 无引擎（旧测试/未装配）→ 保持 `inbox` 并如实返回（不假装已分诊）。
  */
 export async function handleTaskCreate(deps: IpcDeps, raw: unknown): Promise<TaskDTO> {
-  // D-22 assistant 需要模型目录；D-2 已把启动预热延后到首帧后 10s，这里在首次建任务时
+  //  assistant 需要模型目录；D-2 已把启动预热延后到首帧后 10s，这里在首次建任务时
   // 再补一次（loadModelCatalog 有缓存，通常已就绪）——保证第一单的幕僚长选型不因启动延后而退化。
   await Promise.race([
     loadModelCatalog().catch((error: unknown) => {
@@ -3778,7 +3778,7 @@ export async function handleTaskCreate(deps: IpcDeps, raw: unknown): Promise<Tas
     model?: unknown;
     deadline?: unknown;
     dependsOn?: unknown;
-    /** GAP1：来源（`boss`/`trigger:cron`/`trigger:event`/`renew`…）；触发建任务必须显式传。 */
+    /** 来源（`boss`/`trigger:cron`/`trigger:event`/`renew`…）；触发建任务必须显式传。 */
     origin?: unknown;
     /** 分诊 payload 的来源标记（缺省 `manual_create`）。 */
     via?: unknown;
@@ -3799,18 +3799,18 @@ export async function handleTaskCreate(deps: IpcDeps, raw: unknown): Promise<Tas
       throw new Error(`[task:create] 项目 #${resolvedProjectId} 已归档——不能新建任务（先恢复项目）`);
     }
   }
-  // 编制 v1（D-11）：建任务缺省——**显式入参优先**；未显式 ⇒ 编制值（员工已过在职校验）；未设置 ⇒ 不写（回落）。
+  // 编制 v1：建任务缺省——**显式入参优先**；未显式 ⇒ 编制值（员工已过在职校验）；未设置 ⇒ 不写（回落）。
   const explicitOwnerId = typeof input.ownerId === 'number' && Number.isInteger(input.ownerId) ? input.ownerId : undefined;
   const staffing = resolvedProjectId != null ? deps.repo.projectStaffing(resolvedProjectId) : null;
   const ownerId = explicitOwnerId ?? staffing?.ownerEmployeeId ?? undefined;
   // R3-1：档位显式可选（仅接受整数 0/1/2；非法/缺省 → 不透传，db 缺省 1＝L1 审计划）。
-  // D-11：显式档缺省时用编制·默认档预填（任务级仍可改——UI 下拉直选）。
+  // 显式档缺省时用编制·默认档预填（任务级仍可改——UI 下拉直选）。
   const explicitRiskLevel =
     typeof input.riskLevel === 'number' && Number.isInteger(input.riskLevel) && input.riskLevel >= 0 && input.riskLevel <= 2
       ? input.riskLevel
       : undefined;
   const riskLevel = explicitRiskLevel ?? staffing?.defaultRiskTier ?? undefined;
-  // BRK13（挂载 3）：预算显式可选（正整数 token；非法/缺省 → 不透传 ⇒ 未设预算，不臆造）。
+  // （挂载 3）：预算显式可选（正整数 token；非法/缺省 → 不透传 ⇒ 未设预算，不臆造）。
   const explicitBudgetTokens =
     typeof input.budgetTokens === 'number' && Number.isInteger(input.budgetTokens) && input.budgetTokens > 0
       ? input.budgetTokens
@@ -3824,7 +3824,7 @@ export async function handleTaskCreate(deps: IpcDeps, raw: unknown): Promise<Tas
       ? (deps.repo.getProject(resolvedProjectId)?.defaultBudgetTokens ?? null)
       : null;
   const budgetTokens = explicitBudgetTokens ?? projectDefaultBudget ?? undefined;
-  // M2 尾：截止时刻（正整数 epoch ms；显式给非法值 → 响亮拒，不静默丢）。
+  //  尾：截止时刻（正整数 epoch ms；显式给非法值 → 响亮拒，不静默丢）。
   const deadline =
     typeof input.deadline === 'number' && Number.isFinite(input.deadline) && input.deadline > 0
       ? Math.trunc(input.deadline)
@@ -3832,7 +3832,7 @@ export async function handleTaskCreate(deps: IpcDeps, raw: unknown): Promise<Tas
   if (input.deadline !== undefined && deadline === undefined) {
     throw new Error('[task:create] deadline 需为正整数 epoch ms');
   }
-  // M2 尾（D4）：依赖任务 id 数组（正整数；去重；非法 → 响亮拒）。
+  //  尾：依赖任务 id 数组（正整数；去重；非法 → 响亮拒）。
   const dependsOnRaw = Array.isArray(input.dependsOn) ? input.dependsOn : [];
   const dependsOn = [
     ...new Set(
@@ -3842,7 +3842,7 @@ export async function handleTaskCreate(deps: IpcDeps, raw: unknown): Promise<Tas
   if (input.dependsOn !== undefined && dependsOn.length !== dependsOnRaw.length) {
     throw new Error('[task:create] dependsOn 需为正整数数组');
   }
-  // 009（N5 余账）：任务级模型显式可选（**项目白名单拦点**——EMPLOYEES §10.3；违例响亮拒，不静默落库）。
+  // 009（N5 余账）：任务级模型显式可选（**项目白名单拦点**——；违例响亮拒，不静默落库）。
   const model = typeof input.model === 'string' && input.model.trim().length > 0 ? input.model.trim() : undefined;
   if (model) {
     const project = resolvedProjectId != null ? deps.repo.getProject(resolvedProjectId) : null;
@@ -3852,7 +3852,7 @@ export async function handleTaskCreate(deps: IpcDeps, raw: unknown): Promise<Tas
       projectLabel: project?.name ?? null,
     });
     if (error) throw new Error(`[task:create] ${error}`);
-    // D-22：项目模型级允许清单在建任务时前置拒绝（运行时也会拒；这里不让坏配置先落库）。
+    // 项目模型级允许清单在建任务时前置拒绝（运行时也会拒；这里不让坏配置先落库）。
     const allowedModels = project?.allowedModels ?? [];
     if (allowedModels.length > 0 && !allowedModels.includes(model)) {
       throw new Error(
@@ -3860,7 +3860,7 @@ export async function handleTaskCreate(deps: IpcDeps, raw: unknown): Promise<Tas
       );
     }
   }
-  // BRK17 深件（挂载 3 余）：**归属拿不准 → 问一次归属**（PLAN §「任务必须归属一个项目…无法判断时
+  //  深件（挂载 3 余）：**归属拿不准 → 问一次归属**（§「任务必须归属一个项目…无法判断时
   // 落默认项目或问你一次」；`db/projects.ts`「空 = 未设置 → null，由 resolver 走'模糊时问你一次'」）。
   // 判据（先于建行取数）：未显式给项目 && 默认项目未设置 && 已有多个项目可选 ⇒ 不猜。
   const ambiguousOwnership =
@@ -3894,7 +3894,7 @@ export async function handleTaskCreate(deps: IpcDeps, raw: unknown): Promise<Tas
     }
     return toTaskDTO(deps.repo.getTask(task.id) ?? task);
   }
-  // F-05（2026-10-24）：建任务只负责“落行＋回执”，**不 await 规划/critic**。
+  // （2026-10-24）：建任务只负责“落行＋回执”，**不 await 规划/critic**。
   // 规划会话可能跑几分钟；同步 await 会让建任务对话框一直卡“创建中”。
   // dispatch 本身会先同步应用 triage/ask_owner，状态迁移仍立即可见；后续失败落 action_failed。
   const reportCreateDispatchFailure = (action: 'ask_owner' | 'triage', error: unknown): void => {
@@ -3967,7 +3967,7 @@ export function handleTaskList(deps: IpcDeps, raw: unknown): TaskDTO[] {
     }));
 }
 
-/** `task:get`：单任务详情（T0.7 三 tab 用）。返回 `null` 表示任务不存在 / 入参非法。 */
+/** `task:get`：单任务详情（三 tab 用）。返回 `null` 表示任务不存在 / 入参非法。 */
 export function handleTaskGet(deps: IpcDeps, raw: unknown): TaskDetailDTO | null {
   const input = (raw ?? {}) as { taskId?: number };
   if (typeof input.taskId !== 'number') return null;
@@ -4021,7 +4021,7 @@ export function handleTaskGet(deps: IpcDeps, raw: unknown): TaskDetailDTO | null
 }
 
 /**
- * `chat:card-action`：GenUI 卡片意图（M1，`UI §4.7`）。
+ * `chat:card-action`：GenUI 卡片意图（，`UI §4.7`）。
  * **卡片只发意图**：`{schemaId,componentId,action,payload}`；本入口校验 action 白名单后交给 repo（落库 + 路由）。
  * （危险动作的 `permissionGate` 统一入口在后续里程碑接入；本层**不接受任何直接执行语义**。）
  */
@@ -4049,7 +4049,7 @@ export function handleCardAction(
 }
 
 /**
- * `task:transition`：手工推进（T0.6）。入队即返，结果走 `evt:batch`（不阻塞）。
+ * `task:transition`：手工推进。入队即返，结果走 `evt:batch`（不阻塞）。
  * 事件形状 = 引擎 `EngineEvent`（`{scope:'task', id, event, actor, payload}`）。
  */
 export async function handleTaskTransition(
@@ -4067,7 +4067,7 @@ export async function handleTaskTransition(
     input.payload && typeof input.payload === 'object'
       ? (input.payload as Record<string, unknown>)
       : undefined;
-  // GAP12：手动打回（老板在详情点 [打回]）必须带批注；服务端补「最近 submitted 件」。
+  // 手动打回（老板在详情点 [打回]）必须带批注；服务端补「最近 submitted 件」。
   // 批注只在 UI 必填是不够的——IM/直接 IPC 也不能无批注打回或落到“无返工件 executing”。
   if (input.event === 'verification_completed' && payload != null && (payload.verdict ?? 'pass') !== 'pass') {
     const notes = typeof payload.notes === 'string' ? payload.notes.trim() : '';
@@ -4088,14 +4088,14 @@ export async function handleTaskTransition(
   }
   try {
     await deps.engine.dispatch({ scope: 'task', id: input.taskId, event: input.event, actor: 'boss', payload });
-    // GAP3：详情操作条直接推进（批准/打回/取消）时，把该任务待决审批卡一并作答。
+    // 详情操作条直接推进（批准/打回/取消）时，把该任务待决审批卡一并作答。
     // 否则卡一直 pending → 「待我处理」与托盘橙点悬挂（与 `task:approve` 入口不一致）。
     const decision =
       input.event === 'plan_approved' ? 'approve' : input.event === 'revise' ? 'revise' : input.event === 'cancel' ? 'cancel' : null;
     if (decision != null) deps.repo.resolvePendingApprovalForTask(input.taskId, decision, Date.now());
     deps.onInboxChanged?.();
   } catch (error) {
-    // 挂载 3（BRK17）：引擎拒绝（未知迁移/守卫不过，如「撤销结束」超 7 天窗口/已归档）→ **人话回执**，
+    // 挂载 3：引擎拒绝（未知迁移/守卫不过，如「撤销结束」超 7 天窗口/已归档）→ **人话回执**，
     // 不再让异常一路抛到 renderer 变成静默 reject（此前点这类按钮失败会「什么都没有发生」）。
     return {
       ok: false,
@@ -4107,7 +4107,7 @@ export async function handleTaskTransition(
 }
 
 /**
- * M3-P-4 / BRK16-b：`task:merge {taskId, changesetId}`。
+ *  / -b：`task:merge {taskId, changesetId}`。
  * 真值表/幂等/冲突可见由 `src/main/git/merge.ts` 承担；本层只做入参校验。
  */
 export function handleTaskMerge(
@@ -4123,7 +4123,7 @@ export function handleTaskMerge(
 }
 
 /**
- * M3-N-2 / GAP4：`task:rollback {taskId, changesetId, scope?}`。
+ *  /：`task:rollback {taskId, changesetId, scope?}`。
  * v1 只回代码（`scope='code'` 缺省）；检查点/分支/脏路径/后续提交守卫在 `git/checkpoint.ts`。
  */
 export function handleTaskRollback(
@@ -4142,7 +4142,7 @@ export function handleTaskRollback(
 }
 
 /**
- * B-2（M4）：`task:discard {taskId, changesetId}`。
+ * B-2：`task:discard {taskId, changesetId}`。
  * 只把变更集标记为 `discarded`（不跑 git；主分支/其他工作项不动）；二次调用幂等。
  */
 export function handleTaskDiscard(
@@ -4160,8 +4160,8 @@ export function handleTaskDiscard(
 // ── 注册 ────────────────────────────────────────────────────────────────
 
 /**
- * M0 未实现的契约通道（`DEV §7.3`）的显式回执：`{ok:false, code:'not_implemented', channel}`。
- * 目的：避免 `invoke` **静默 reject**（隐藏分叉）；preload 继续暴露，M1 逐个补齐。
+ *  未实现的契约通道（``）的显式回执：`{ok:false, code:'not_implemented', channel}`。
+ * 目的：避免 `invoke` **静默 reject**（隐藏分叉）；preload 继续暴露， 逐个补齐。
  * 注：逐条用**字面量** channel 注册，便于静态契约守卫（`test/ipc-contract.test.ts` AU1）解析。
  */
 const notImplemented =
@@ -4254,22 +4254,22 @@ export function registerAppIpc(ipcMain: IpcMain, deps: IpcDeps): void {
   ipcMain.handle('task:get', async (_event, raw) => handleTaskGet(deps, raw));
   ipcMain.handle('task:transition', async (_event, raw) => handleTaskTransition(deps, raw));
 
-  // M3-P-4 / BRK16-b：真合并（合并真值表/幂等/冲突可见）。
+  //  / -b：真合并（合并真值表/幂等/冲突可见）。
   ipcMain.handle('task:merge', async (_event, raw) => handleTaskMerge(deps, raw, now()));
-  // M3-N-2 / GAP4：工作项级回滚（只动该次提交改过的文件；检查点/守卫见 git/checkpoint.ts）。
+  //  /：工作项级回滚（只动该次提交改过的文件；检查点/守卫见 git/checkpoint.ts）。
   ipcMain.handle('task:rollback', async (_event, raw) => handleTaskRollback(deps, raw, now()));
   ipcMain.handle('task:discard', async (_event, raw) => handleTaskDiscard(deps, raw, now()));
-  // BRK16-a（挂载 3）：产物读/打开/文件夹 + GAP11 审计导出 —— 由 NI 转真处理器（通道名不变，冻结计数不动）。
+  // -a（挂载 3）：产物读/打开/文件夹 + 审计导出 —— 由 NI 转真处理器（通道名不变，冻结计数不动）。
   ipcMain.handle('task:read-artifact', async (_event, raw) => handleReadArtifact(deps, raw));
-  // UG-06：变更集单文件只读 diff（base..head；不返回仓库绝对路径）。
+  // 变更集单文件只读 diff（base..head；不返回仓库绝对路径）。
   ipcMain.handle('task:diff', async (_event, raw) => handleReadChangesetDiff(deps, raw));
-  // M4-D-1（P2）：按 ref 受控读取归档的工具大输出（时间线「展开输出」）。
+  // （P2）：按 ref 受控读取归档的工具大输出（时间线「展开输出」）。
   ipcMain.handle('task:read-tool-output', async (_event, raw) => handleReadToolOutput(deps, raw));
   ipcMain.handle('task:export', async (_event, raw) => handleExportTask(deps, raw, now()));
   ipcMain.handle('chat:resolve-attachment', async (_event, raw) =>
     handleResolveAttachment({ db: deps.db, stagedFilesDir: deps.stagedFilesDir }, raw),
   );
-  // UG-11：`{includeDisabled:true}` → 花名册含已停用（设置页重新启用入口）；缺省＝大厅口径（仅在职）。
+  // `{includeDisabled:true}` → 花名册含已停用（设置页重新启用入口）；缺省＝大厅口径（仅在职）。
   ipcMain.handle('employee:list', async (_event, raw) => {
     const input = (raw ?? {}) as { includeDisabled?: unknown };
     return input.includeDisabled === true ? deps.repo.listRosterEmployees() : deps.repo.listEmployees();
@@ -4279,12 +4279,12 @@ export function registerAppIpc(ipcMain: IpcMain, deps: IpcDeps): void {
   ipcMain.handle('employee:update', async (_event, raw) => handleEmployeeUpdate(deps, raw));
   ipcMain.handle('search:global', async (_event, raw) => handleGlobalSearch(deps, raw));
   ipcMain.handle('skills:list', async (_event, raw) => handleSkillsList(deps, raw));
-  // GAP7：同通道分派——旧 `{name,path}` 注册 / 新安装·启停·删除动作（不新增 IPC）。
+  // 同通道分派——旧 `{name,path}` 注册 / 新安装·启停·删除动作（不新增 IPC）。
   ipcMain.handle('skills:set', async (_event, raw) =>
     isSkillAction(raw) ? handleSkillAction(deps, raw, now()) : handleSkillsSet(deps, raw),
   );
   ipcMain.handle('mcp:list', async (_event, raw) => handleMcpList(deps, raw));
-  // GAP6：同通道分派——注册 `{name,transport,…}` / 启停·删除 `{action,…}`（不新增 IPC）。
+  // 同通道分派——注册 `{name,transport,…}` / 启停·删除 `{action,…}`（不新增 IPC）。
   ipcMain.handle('mcp:set', async (_event, raw) => (isMcpAction(raw) ? handleMcpAction(deps, raw) : handleMcpSet(deps, raw)));
   ipcMain.handle('seams:list', async (_event, raw) => handleSeamsList(deps, raw));
   ipcMain.handle('hall:subscribe', notImplemented('hall:subscribe'));
@@ -4317,24 +4317,24 @@ export function registerAppIpc(ipcMain: IpcMain, deps: IpcDeps): void {
   ipcMain.handle('project:delete', async (_event, raw) => handleProjectDelete(deps, raw));
   // B-3：项目档案导出（删除前的备份面；单文件 JSON，renderer 不传路径）。
   ipcMain.handle('project:export', async (_event, raw) => handleExportProject(deps, raw, now()));
-  // 编制 v1（D-11）：项目三项缺省（默认负责人/默认执行员工/默认档）——写校验在 db 层，非法拒且不落库。
+  // 编制 v1：项目三项缺省（默认负责人/默认执行员工/默认档）——写校验在 db 层，非法拒且不落库。
   ipcMain.handle('project:staffing-set', async (_event, raw) => handleProjectStaffingSet(deps, raw));
-  // D-22：项目模型策略（fixed / employee_first；assistant 待模型目录）——写校验在 core/db，非法拒且不落库。
+  // 项目模型策略（fixed / employee_first；assistant 待模型目录）——写校验在 core/db，非法拒且不落库。
   ipcMain.handle('project:model-policy-set', async (_event, raw) => handleProjectModelPolicySet(deps, raw));
   // v19：项目默认任务预算（NULL＝不限）。
   ipcMain.handle('project:default-budget-set', async (_event, raw) => handleProjectDefaultBudgetSet(deps, raw));
   ipcMain.handle('project:target-branch-set', async (_event, raw) => handleProjectTargetBranchSet(deps, raw));
-  // D-19 P1：项目级频道助手写权限（read-only/confirm/auto；full v1 不做）。
+  //  P1：项目级频道助手写权限（read-only/confirm/auto；full v1 不做）。
   ipcMain.handle('project:assistant-write-mode-set', async (_event, raw) =>
     handleProjectAssistantWriteModeSet(deps, raw),
   );
-  // B-1（M4）：触发管理 UI（列表/创建 cron/创建事件/取消；与频道命令同源 TriggerService）。
+  // B-1：触发管理 UI（列表/创建 cron/创建事件/取消；与频道命令同源 TriggerService）。
   ipcMain.handle('project:trigger-manage', async (_event, raw) => handleProjectTriggerManage(deps, raw, now()));
-  // B-6（M4）：记忆 P1b 写入口（老板显式 list/remember/update/pin/forget/promote/search/audit）。
+  // B-6：记忆 P1b 写入口（老板显式 list/remember/update/pin/forget/promote/search/audit）。
   ipcMain.handle('memory:manage', async (_event, raw) => handleMemoryManage(deps, raw, now()));
-  // B3-5/D-31：抽取提议卡确认（老板在记忆页点「确认」→ provisional→confirmed→进 brief）
+  // /：抽取提议卡确认（老板在记忆页点「确认」→ provisional→confirmed→进 brief）
   ipcMain.handle('memory:confirm', async (_event, raw) => handleMemoryConfirm(deps, raw));
-  // B3-7/D-31⑤：git push P0（显式按钮触发；永不自动）＋产物导出（md/html）。
+  // /：git push P0（显式按钮触发；永不自动）＋产物导出（md/html）。
   ipcMain.handle('git:remotes', async (_event, raw) => {
     const input = (raw ?? {}) as { projectRoot?: unknown };
     const root = typeof input.projectRoot === 'string' ? input.projectRoot : null;
@@ -4348,7 +4348,7 @@ export function registerAppIpc(ipcMain: IpcMain, deps: IpcDeps): void {
     const remote = typeof input.remote === 'string' ? input.remote : 'origin';
     const branch = typeof input.branch === 'string' ? input.branch : null;
     if (!root || !branch) return { ok: false, code: 'bad_request', message: 'projectRoot + branch are required' };
-    // D-31⑤：永不自动 push——只有显式调用才走到这里。
+    // 永不自动 push——只有显式调用才走到这里。
     const { pushBranch } = await import('../git/push-export.js');
     return pushBranch(root, remote, branch);
   });
@@ -4361,17 +4361,17 @@ export function registerAppIpc(ipcMain: IpcMain, deps: IpcDeps): void {
     const { exportArtifact } = await import('../git/push-export.js');
     return exportArtifact(srcPath, outputDir, format);
   });
-  // M3-DOC-4：项目级文档检查开关（只影响新任务是否挂检查；已有任务按当前开关记未检查）。
+  // 项目级文档检查开关（只影响新任务是否挂检查；已有任务按当前开关记未检查）。
   ipcMain.handle('project:docs-check-set', async (_event, raw) => handleProjectDocsCheckSet(deps, raw));
-  // B3（M3-N-3）：项目默认技能集（只影响该项目新会话装配）。
+  // 项目默认技能集（只影响该项目新会话装配）。
   ipcMain.handle('project:skills-set', async (_event, raw) => handleProjectSkillsSet(deps, raw));
-  // GAP9（M3-N-5）：公司配置版本化（项目根 `.aico/company.json`；export/preview/apply/rollback）。
+  // 公司配置版本化（项目根 `.aico/company.json`；export/preview/apply/rollback）。
   ipcMain.handle('project:company-config', async (_event, raw) => handleCompanyConfig(deps, raw, now()));
-  // G-A/G-B/C（M2 §7 序 3）：产物引用（老板显式发起；copy 快照＋sha256＋来源两列＋审计事件）。
+  // G-A/G-B/C（§7 序 3）：产物引用（老板显式发起；copy 快照＋sha256＋来源两列＋审计事件）。
   ipcMain.handle('task:reference-artifact', async (_event, raw) => handleArtifactReference(deps, raw, now()));
-  // M2 §7 序 4（文档管理最小版）：文档结构检查（只读；结果上屏＝项目概览一行读数）。
+  //  §7 序 4（文档管理最小版）：文档结构检查（只读；结果上屏＝项目概览一行读数）。
   ipcMain.handle('docs:check', async (_event, raw) => handleDocsCheck(deps, raw));
-  // M3-DOC-3：一键整理（只补区索引；预览→应用，失败回滚）。
+  // 一键整理（只补区索引；预览→应用，失败回滚）。
   ipcMain.handle('docs:organize-preview', async (_event, raw) => handleDocsOrganizePreview(deps, raw));
   ipcMain.handle('docs:organize-apply', async (_event, raw) => handleDocsOrganizeApply(deps, raw));
   ipcMain.handle('cost:summary', async (_event, raw) => handleCostSummary(deps, raw));
@@ -4380,7 +4380,7 @@ export function registerAppIpc(ipcMain: IpcMain, deps: IpcDeps): void {
   ipcMain.handle('settings:set', async (_event, raw) => handleSettingsSet(deps, raw));
   // B-4：数据保留/清理（preview 只数不删；run 只清四张临时表）。
   ipcMain.handle('settings:maintenance', async (_event, raw) => handleSettingsMaintenance(deps, raw, now()));
-  // UG-09：权限页只读审计 + 撤销（撤销只删 scope 策略；审批历史只读）。
+  // 权限页只读审计 + 撤销（撤销只删 scope 策略；审批历史只读）。
   ipcMain.handle('settings:permission-list', async () =>
     deps.db
       ? { ok: true, ...listPermissionOverview(deps.db) }
@@ -4390,7 +4390,7 @@ export function registerAppIpc(ipcMain: IpcMain, deps: IpcDeps): void {
     deps.db ? revokePermissionPolicy(deps.db, raw) : { ok: false, code: 'not_ready', message: '数据库未装配' },
   );
   ipcMain.handle('provider:list', async () => handleProviderList(deps));
-  // D-22 配套：只读模型目录（chat；已知供应商＋已配置 Key；不联网刷新）。
+  //  配套：只读模型目录（chat；已知供应商＋已配置 Key；不联网刷新）。
   ipcMain.handle('model:catalog', async (_event, raw) => handleModelCatalog(raw));
   ipcMain.handle('provider:custom', async (_event, raw) => handleProviderCustom(deps, raw));
   ipcMain.handle('provider:set-key', async (_event, raw) => handleProviderSetKey(deps, raw));
@@ -4414,7 +4414,7 @@ function projectsFromDb(db: NonNullable<IpcDeps['db']>): ProjectRef[] {
 import { globalNotesDirForDb } from '../db/retrieval.js';
 
 /**
- * B3-5/D-31：`memory:confirm`——老板确认抽取的提议卡（confidence provisional→confirmed）。
+ * /：`memory:confirm`——要求抽取的提议卡（confidence provisional→confirmed）。
  * 确认后该条进 brief（08-记忆设计 §7 闸门的确认侧）。
  */
 export function handleMemoryConfirm(deps: IpcDeps, raw: unknown): { ok: true; id: number } | { ok: false; code: string; message: string } {
@@ -4434,7 +4434,7 @@ export function handleMemoryConfirm(deps: IpcDeps, raw: unknown): { ok: true; id
 }
 
 function globalNotesDir(deps: IpcDeps): string {
-  // B3-5/D-31：口径抽公共件（retrieval.ts 同源；员工检索与 UI 列表不再两套）
+  // /：口径抽公共件（retrieval.ts 同源；员工检索与 UI 列表不再两套）
   return globalNotesDirForDb(deps.db?.name ?? ':memory:');
 }
 

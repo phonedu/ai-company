@@ -1,5 +1,5 @@
 /**
- * UG-09 · 权限页只读审计 + 撤销。
+ *  · 权限页只读审计 + 撤销。
  *
  * 口径：
  *  - 只列 `permission_policies`（global/project/task）与 `[权限] ` 前缀的 approvals；

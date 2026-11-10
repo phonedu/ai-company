@@ -1,6 +1,6 @@
 /**
- * S13-F 修项守卫（2026-10-28）：F1 浅色 panel-2≠bg、F2 深色 panel 提亮、F4 文字用 warn-text、
- * F6 文件图标浅色加深（token 化）。
+ *  修项守卫（2026-10-28）： 浅色 panel-2≠bg、 深色 panel 提亮、 文字用 warn-text、
+ *  文件图标浅色加深（token 化）。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

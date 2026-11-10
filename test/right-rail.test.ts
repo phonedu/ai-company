@@ -1,5 +1,5 @@
 /**
- * B2 右栏上下文化（2026-10-17）——判据：
+ *  右栏上下文化（2026-10-17）——判据：
  *   ① 全局：槽位/成本真读数 + 「谁在忙」（有大厅数据才列；无数据显式空态）；不再有"待做"开发备注；
  *   ② 任务：产物 / 证据 / 成本三块；空数据显式空态；加载/错误不伪装；
  *   ③ 壳层：`AppChrome` 接受 `rightRail` 注入；`AppShell` 传入 `RightRail`；源码不得再出现旧备注。
@@ -78,7 +78,7 @@ test('B2 任务右栏：产物/证据/成本三块；空数据显式空态', () 
   assert.match(html, /data-testid="right-rail-task-evidence"[\s\S]*pytest -q/);
   assert.match(html, /data-testid="right-rail-task-cost"[^>]*>成本 \$0\.4200/);
 
-  // UG-05：有 handler 时产物名变成可点入口（复用任务详情的统一抽屉）。
+  // 有 handler 时产物名变成可点入口（复用任务详情的统一抽屉）。
   const clickable = renderTask({
     detail: fixture(),
     cost: COST,

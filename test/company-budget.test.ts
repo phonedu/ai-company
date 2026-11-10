@@ -1,5 +1,5 @@
 /**
- * M3-C4-1：公司级日预算（可选，默认关）——达线暂停 executing 任务、提示去重、
+ * 公司级日预算（可选，默认关）——达线暂停 executing 任务、提示去重、
  * 重启后按真库支出继续生效、未设预算不产生假读数；新派发在超线时 hold。
  */
 import assert from 'node:assert/strict';

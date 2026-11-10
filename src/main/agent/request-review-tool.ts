@@ -1,7 +1,7 @@
 /**
- * `request_review` customTool（EMPLOYEES §2 五工具之一；OPT-M3-1 接通）。
+ * `request_review` customTool（五工具之一；OPT- 接通）。
  *
- * 语义：员工请求**独立验证**（`FLOWS` verify；强制度按 `tasks.risk_level` L0 免 / L1 抽验 / L2 强制，
+ * 语义：员工请求**独立验证**（`` verify；强制度按 `tasks.risk_level` L0 免 / L1 抽验 / L2 强制，
  * 验证者由宿主指派且 **≠实现者** —— 见 `engine/verification.ts` 与 `Engine.requestReview`）。
  *
  * ⚠️ 本工具**只做信号**：真正的指派/落库由宿主（

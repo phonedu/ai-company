@@ -1,5 +1,5 @@
 /**
- * OPT-AI-9 · 技能库 DAO（`skills` 表；此前表在、零写入者）。
+ *  · 技能库 DAO（`skills` 表；此前表在、零写入者）。
  *
  * 口径：
  *  - 技能条目＝`{name, description, source, path, version, enabled}`；`path` 指向 `SKILL.md`（本机文件）；
@@ -67,13 +67,13 @@ export function upsertSkill(db: SqliteDb, input: UpsertSkillInput): SkillRow {
   return row;
 }
 
-/** GAP7：启停（内置也可停用；不可删由删除口拦）。 */
+/** 启停（内置也可停用；不可删由删除口拦）。 */
 export function setSkillEnabled(db: SqliteDb, id: number, enabled: boolean): SkillRow | undefined {
   db.prepare('UPDATE skills SET enabled = ? WHERE id = ?').run(enabled ? 1 : 0, id);
   return getSkillById(db, id);
 }
 
-/** GAP7：被员工/项目引用次数（删除前提示；引用为 id 或名字两种写法都算）。 */
+/** 被员工/项目引用次数（删除前提示；引用为 id 或名字两种写法都算）。 */
 export function countSkillReferences(db: SqliteDb, name: string, id: number): number {
   const employees = db.prepare('SELECT skills FROM employees').all() as Array<{ skills: string | null }>;
   let n = 0;
@@ -97,7 +97,7 @@ export function countSkillReferences(db: SqliteDb, name: string, id: number): nu
   return n;
 }
 
-/** GAP7：删除登记行（文件清理由 IPC 层按受管根判断；builtin 在 IPC 层先拒）。 */
+/** 删除登记行（文件清理由 IPC 层按受管根判断；builtin 在 IPC 层先拒）。 */
 export function deleteSkill(db: SqliteDb, id: number): SkillRow | undefined {
   const row = getSkillById(db, id);
   if (!row) return undefined;

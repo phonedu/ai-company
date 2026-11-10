@@ -1,5 +1,5 @@
 /**
- * OPT-AI-1 · 员工会话生命周期（RC-4：会话池 + **落盘持久化**）。
+ *  · 员工会话生命周期（RC-4：会话池 + **落盘持久化**）。
  *
  * 职责（2278 划定）：
  *  - 会话键解析：`employee:<id>:task:<taskId>:wi:<workItemId>`（员工×任务/工作项隔离，重试复用同键）；
@@ -14,7 +14,7 @@ import type { SessionToolGate } from './session-tool-gate.js';
 /**
  * 会话 id 的**兜底**归一化（fake/旧运行时没有 `sessionIdFor` 时用）。
  * 真实 Pi 运行时用 `sessionIdForCacheKey(sessionKey@cwd)`；工具闸门必须使用后者，
- * 否则 cwd 分区后的真实 id 查不到上下文（D4：曾按 unmanaged 放行）。
+ * 否则 cwd 分区后的真实 id 查不到上下文（：曾按 unmanaged 放行）。
  */
 export function deriveSessionId(sessionKey: string): string {
   return sessionKey.replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -64,9 +64,9 @@ export interface EmployeeRunInput {
   model?: string;
   /** N5：逐轮思考强度（缺省＝不动会话档位）。 */
   thinkingLevel?: 'off' | 'low' | 'medium' | 'high';
-  /** GAP7：本会话技能白名单（load_skill 只读这些；缺省＝无）。 */
+  /** 本会话技能白名单（load_skill 只读这些；缺省＝无）。 */
   skills?: readonly import('./types.js').SkillRef[];
-  /** GAP6：本会话 MCP server 白名单（缺省＝无）。 */
+  /** 本会话 MCP server 白名单（缺省＝无）。 */
   mcps?: readonly string[];
 }
 
@@ -76,7 +76,7 @@ export const ROLE_SESSION_TIMEOUT_MS = 10 * 60_000;
 export const EMPLOYEE_SESSION_TIMEOUT_MS = 30 * 60_000;
 
 /**
- * B0-3（ADV-1 G3）：员工会话帽——可配（`AICO_EMPLOYEE_SESSION_TIMEOUT_MS`，0=关闭），
+ * （ADV-1 G3）：员工会话帽——可配（`AICO_EMPLOYEE_SESSION_TIMEOUT_MS`，0=关闭），
  * 且运行时**有活动就续期**（见 `run()`）：只有静默无进展才判超时。
  * 角色会话（critic/verifier）保持独立安全阀（10 分钟），不吃员工 env。
  */
@@ -114,7 +114,7 @@ export class EmployeeSessionRuntime {
   async run(input: EmployeeRunInput, onEvent: (event: AgentEvent) => void): Promise<AgentRunResult> {
     const sessionKey = input.sessionKey ?? this.sessionKeyFor(input);
     // G1：登记本次运行的归属上下文（门钩子按 sessionId 反查）；无论成败都清除。
-    // 2026-10-19 D4：必须用运行时**实际**的 Pi session id（含 cwd 分区）；此前只用 sessionKey 归一化，
+    // 2026-10-19：必须用运行时**实际**的 Pi session id（含 cwd 分区）；此前只用 sessionKey 归一化，
     // 落盘会话的真实 id 带 `@cwd` 后缀 ⇒ gate 查不到 ⇒ 全部按 unmanaged 放行。
     const sessionId =
       this.runtime.sessionIdFor?.({ sessionKey, cwd: input.cwd }) ?? deriveSessionId(sessionKey);
@@ -150,7 +150,7 @@ export class EmployeeSessionRuntime {
           reject(new Error(`[agent] 会话超时（${timeoutMs}ms，${sessionKey}）——静默无进展，已中止`));
         };
       });
-      // B0-3：**活动即续期**——每次 agent 事件重挂计时器；长工具调用/长思考不再被挂钟一刀切，
+      // **活动即续期**——每次 agent 事件重挂计时器；长工具调用/长思考不再被挂钟一刀切，
       // 真正卡死（无任何事件）才会触发。
       const arm = (): void => {
         if (timeoutTimer) clearTimeout(timeoutTimer);
@@ -180,13 +180,13 @@ export class EmployeeSessionRuntime {
     }
   }
 
-  /** BRK9（挂载 2，2026-10-15）：老板插话 → steer 进行中的员工会话（透传到运行时；返回是否已投递）。 */
+  /** （挂载 2，2026-10-15）：老板插话 → steer 进行中的员工会话（透传到运行时；返回是否已投递）。 */
   steer(sessionKey: string, text: string): boolean {
     return this.runtime.steer(sessionKey, text);
   }
 
   /**
-   * BRK17（挂载 3 余·取消小步）：**真中止**该会话键下的运行（透传到运行时 `abortSession`；
+   * （挂载 3 余·取消小步）：**真中止**该会话键下的运行（透传到运行时 `abortSession`；
    * 运行时未实现 ⇒ false——如实，不假装已停）。
    */
   abort(sessionKey: string): boolean {

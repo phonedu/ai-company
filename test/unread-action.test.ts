@@ -1,5 +1,5 @@
 /**
- * M3-CR P0-2：老板实际处理卡片（批准/标已阅）必须推进 `channel:cards` 游标，
+ *  P0-2：老板实际处理卡片（批准/标已阅）必须推进 `channel:cards` 游标，
  * 且 `read_cursors.source='action'`（不是只刷新 UI）。
  */
 import assert from 'node:assert/strict';

@@ -25,7 +25,7 @@ export function isActionable(state: string): boolean {
 }
 
 /**
- * GAP12：评审/验证结论的人话（`reports.verdict` 或事件 payload.verdict）。
+ * 评审/验证结论的人话（`reports.verdict` 或事件 payload.verdict）。
  * 未知值如实回显原文（不猜、不吞）。
  */
 export function verdictText(verdict: string | null | undefined): string | null {

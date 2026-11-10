@@ -1,14 +1,14 @@
 /**
- * B3-1/D-31① · BYO 执行体——ACP（Agent Client Protocol）客户端 PoC。
+ * / · BYO 执行体——ACP（Agent Client Protocol）客户端 PoC。
  *
- * 口径（D-31①＋research-byo-executor §2）：
+ * 口径（research-byo-executor §2）：
  *  - **单候选 opencode**（MIT＋原生 ACP；Claude 不碰 OAuth——合规红线）；
  *  - ACP ＝ JSON-RPC 2.0 over stdio；核心方法 `initialize` / `session/new` / `session/prompt` /
  *    `session/cancel` / `session/request_permission`；
  *  - **四验收**：①同一员工接口（submit_work_item 流程不变）②审批门外挂（request_permission
  *    → 我们的权限闸门）③成本落账（usage_update → costs 表）④会话恢复（session/load）；
  *  - PoC 范围：ACP client 基础设施（JSON-RPC stdio 子进程管理）＋员工接口适配层＋
- *    mock server 测试。**真 opencode 安装/联调随 B3b 真机批**。
+ *    mock server 测试。**真 opencode 安装/联调随真机批**。
  *
  * 不做：多候选适配器矩阵；Claude/Codex（JSON 兜底后置）；产品内候选市场。
  */
@@ -87,7 +87,7 @@ export class AcpClient extends EventEmitter {
     proc.stderr!.on('data', (chunk: Buffer) => {
       console.error('[acp] stderr:', chunk.toString().slice(0, 200));
     });
-    // B3-1 终验 P2 修正：exit 回调加进程身份判断——旧进程退出不拒新进程的 pending 请求。
+    //  终验 P2 修正：exit 回调加进程身份判断——旧进程退出不拒新进程的 pending 请求。
     proc.on('exit', (code) => {
       if (this.process !== proc) return; // 已被新进程替换，旧 exit 事件不处理
       this.emit('exit', code);
@@ -154,7 +154,7 @@ export class AcpClient extends EventEmitter {
 
   private send(msg: AcpMessage): void {
     if (!this.process?.stdin) {
-      // B3-1 PoC：无真子进程时静默（测试通过 feedStdout 注入响应）；生产必须有 process。
+      //  PoC：无真子进程时静默（测试通过 feedStdout 注入响应）；生产必须有 process。
       return;
     }
     const line = JSON.stringify(msg) + '\n';
@@ -196,7 +196,7 @@ export class AcpClient extends EventEmitter {
       this.emit('permission_request', { requestId: msg.id, params: msg.params as unknown as AcpPermissionRequest });
       return;
     }
-    // B3-1 终验 P1 修正：session/update（agent 流式输出＋用量——ACP 规范用量在此）
+    //  终验 P1 修正：session/update（agent 流式输出＋用量——ACP 规范用量在此）
     if (msg.method === 'session/update') {
       const params = msg.params as Record<string, unknown>;
       const update = params?.['update'] as Record<string, unknown> | undefined;
@@ -230,7 +230,7 @@ export class AcpClient extends EventEmitter {
     this.pending.clear();
   }
 
-  /** B3-1 PoC 测试辅助：直接喂 stdout 数据（不走真子进程）。 */
+  /**  PoC 测试辅助：直接喂 stdout 数据（不走真子进程）。 */
   feedStdout(data: string): void {
     this.onData(data);
   }

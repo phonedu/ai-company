@@ -12,8 +12,8 @@ import {
   type IpcDeps,
 } from '../src/main/ipc/ipc.js';
 
-// ───────────── T0.6：手工建任务 + 状态机全走（经 IPC 处理器） ─────────────
-// 验收：① 每步 tasks.state 终值 + task_events 新增对应 kind（逐条对照 05 §3.1）；
+// ─────────────：手工建任务 + 状态机全走（经 IPC 处理器） ─────────────
+// 验收：① 每步 tasks.state 终值 + task_events 新增对应 kind（逐条对照）；
 //       ③ 进入 ready 时 ready_since 被写入；④ 主链 + paused 往返。
 
 const AT = 1_800_000_000_000;
@@ -47,13 +47,13 @@ test('R3-1: 建任务档位透传 —— riskLevel 0/2 显式入档；缺省/非
 
 test('D2 批准即推进：awaiting_approval 批准 → plan_approved（真推状态机）；打回 → revise；未知选项 → 不猜（有牙）', async () => {
   const { db, deps } = setup();
-  const created = await handleTaskCreate(deps, { goal: 'D2 用例' }); // D1：建完已进 planning
+  const created = await handleTaskCreate(deps, { goal: 'D2 用例' }); // 建完已进 planning
   for (const event of ['plan_drafted', 'plan_reviewed']) {
     assert.equal((await handleTaskTransition(deps, { taskId: created.id, event })).ok, true, `${event} 应成功`);
   }
   assert.equal(deps.repo.getTask(created.id)?.state, 'awaiting_approval');
 
-  // 未知选项：作答落台账，但**不推状态机**（不猜）
+  // 未知选项：作答落清单，但**不推状态机**（不猜）
   const a1 = insertApproval(db, {
     taskId: created.id,
     question: '批准计划？',
@@ -68,7 +68,7 @@ test('D2 批准即推进：awaiting_approval 批准 → plan_approved（真推�
   await handleTaskApprove(deps, { approvalId: a2.id, chosen: 'revise' }, AT + 1);
   assert.equal(deps.repo.getTask(created.id)?.state, 'planning', 'revise → 重规划');
 
-  // 再走回 awaiting_approval，批准 → ready（D2 前：点批准任务不动）
+  // 再走回 awaiting_approval，批准 → ready（前：点批准任务不动）
   for (const event of ['plan_drafted', 'plan_reviewed']) {
     assert.equal((await handleTaskTransition(deps, { taskId: created.id, event })).ok, true, `${event} 应成功`);
   }
@@ -81,7 +81,7 @@ test('D2 批准即推进：awaiting_approval 批准 → plan_approved（真推�
 test('T0.6: 建任务 → 主链全走 + paused 往返（逐步对照 05 §3.1）', async () => {
   const { db, deps } = setup();
 
-  // 受理建任务：**D1 建任务即分诊**（老板明确要建 ⇒ 直接 triage 进 planning）＋ 短号 T-1001
+  // 受理建任务：** 建任务即分诊**（老板明确要建 ⇒ 直接 triage 进 planning）＋ 短号 T-1001
   const created = await handleTaskCreate(deps, { goal: '把对账脚本跑通', acceptance: [{ text: 'a' }] });
   assert.equal(created.state, 'planning', 'D1：建完即分诊（不再停在 inbox）');
   assert.equal(created.shortId, 'T-1001');
@@ -112,14 +112,14 @@ test('T0.6: 建任务 → 主链全走 + paused 往返（逐步对照 05 §3.1�
   await step('start_task');
   await step('all_work_items_done');
   await step('verification_completed', { verdict: 'pass' });
-  // B2-6/D-30③：L1+ pass 不再直通 done——迁 needs_decision 出签收卡；老板签 → done
+  // /：L1+ pass 不再直通 done——迁 needs_decision 出签收卡；老板签 → done
   await step('signoff');
 
-  // ① 逐条对照 05 §3.1 主链（state 终值 + 新增 kind）
+  // ① 逐条对照主链（state 终值 + 新增 kind）
   assert.deepEqual(steps, [
     { event: 'plan_drafted', state: 'planning', kinds: 'plan_drafted' },
     { event: 'plan_reviewed', state: 'awaiting_approval', kinds: 'plan_reviewed' },
-    // C2：`plan_approved` 当刻建工作项（`05 §3.1.2`「规划产出 work item」）→ 同批落 `work_item_created`
+    // C2：`plan_approved` 当刻建工作项（``「规划产出 work item」）→ 同批落 `work_item_created`
     { event: 'plan_approved', state: 'ready', kinds: "plan_approved+work_item_created" },
     { event: 'start_task', state: 'executing', kinds: 'task_started' },
     { event: 'pause', state: 'paused', kinds: 'task_paused' },

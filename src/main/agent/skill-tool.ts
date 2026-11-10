@@ -1,5 +1,5 @@
 /**
- * GAP7（M3-N-3）· `load_skill` customTool —— 技能**按需披露**的加载口。
+ * · `load_skill` customTool —— 技能**按需披露**的加载口。
  *
  * 口径：
  *  - system prompt 只放「技能索引」（name + description）；

@@ -130,7 +130,7 @@ export class ImOutbox {
   }
 
   /** 入站后/登录后唤醒：先把 blocked 放回 pending，再发一轮（调用方可 void）。
-   *  RW-23：过期不补＋单次限量——老板首次回复不收到历史卡批量刷屏。 */
+   *  过期不补＋单次限量——老板首次回复不收到历史卡批量刷屏。 */
   async wake(): Promise<void> {
     const conversationRef = this.conversationRef();
     if (conversationRef) {

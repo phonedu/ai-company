@@ -1,4 +1,4 @@
-// UI-2 S1 真机配方：项目页「行下原地展开」＋待办深链落到项目页并展开目标行。
+//   真机配方：项目页「行下原地展开」＋待办深链落到项目页并展开目标行。
 //
 // 断言三层：
 //   ① 真 DOM：项目页任务行 → 点行出现行内详情（同一时间只一张）→ Esc 收起且焦点回原行；
@@ -88,7 +88,7 @@ try {
     `INSERT INTO reports(task_id, kind, payload, state, dedupe_key, created_at)
      VALUES(2,'report',?,'pending',?,?)`,
   ).run(JSON.stringify(payload), `ui2-recipe:${AT}`, AT + 2);
-  // B0-5 的 UI 呈现：引擎毒事件写的 alert 卡（引擎测试证明会写；这里验渲染路径）。
+  //  的 UI 呈现：引擎毒事件写的 alert 卡（引擎测试证明会写；这里验渲染路径）。
   db.prepare(
     `INSERT INTO reports(task_id, kind, payload, state, dedupe_key, created_at)
      VALUES(1,'alert',?,'pending',?,?)`,
@@ -97,7 +97,7 @@ try {
     `ui2-recipe-alert:${AT}`,
     AT + 3,
   );
-  // B0-9 外发闸门的用户面：会话工具权限请求卡（真实 gate 会落这种卡；这里验渲染与按钮）。
+  //  外发闸门的用户面：会话工具权限请求卡（真实 gate 会落这种卡；这里验渲染与按钮）。
   const permissionPayload = {
     title: '权限请求：bash',
     card: 'permission',
@@ -257,7 +257,7 @@ try {
     tabs: Array.from(document.querySelectorAll('[data-testid^=inbox-tab-]')).map((el) => el.dataset.testid),
   }))()`);
   console.log('[ui2-project] inbox=' + JSON.stringify(inbox));
-  // B0-5 UI 呈现：引擎毒事件的 alert 卡在「异常」页签（默认页签是决策，不混排）。
+  //  UI 呈现：引擎毒事件的 alert 卡在「异常」页签（默认页签是决策，不混排）。
   const alertTab = await evalIn("(function(){var b=document.querySelector('[data-testid=inbox-tab-alert]'); if(b){b.click(); return true;} return false;})()");
   if (!alertTab) problems.push('待我处理缺「异常」页签（B0-5 alert 卡无处呈现）');
   const alertShown = await waitFor(
@@ -399,7 +399,7 @@ try {
   await send('Emulation.clearDeviceMetricsOverride');
   await send('Emulation.setEmulatedMedia', { features: [] });
 
-  // ⑩ 技能 URL 安装确认（B0-10）：输入 URL → 点安装 → 必须出现确认块（不静默安装）→ 取消即收起
+  // ⑩ 技能 URL 安装确认：输入 URL → 点安装 → 必须出现确认块（不静默安装）→ 取消即收起
   await evalIn("(function(){var b=document.querySelector('[data-testid=leftrail-settings]'); if(b) b.click(); return !!b;})()");
   await waitFor("!!document.querySelector('[data-testid=settings-group-integrations]')", '设置导航（通道与技能）');
   await evalIn("(function(){var b=document.querySelector('[data-testid=settings-group-integrations]'); if(b) b.click(); return !!b;})()");

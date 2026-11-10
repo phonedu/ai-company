@@ -1,11 +1,11 @@
 /**
  * 供应商 API Key 的**本机凭据面**（设置页「模型与供应商」写入）。
  *
- * 口径（EMPLOYEES §10 / `pi-runtime` 既有解析顺序）：
+ * 口径（/ `pi-runtime` 既有解析顺序）：
  *  - 落盘：装了系统密钥环（Electron `safeStorage`＝Windows DPAPI / macOS Keychain）时写
  *    `<provider>_api_key.enc`（`v1:` + 密文 base64）；编码器不可用才回落明文文件（诚实降级）。
- *    旧明文文件在首次读取时**迁移**为密文并删除（B0-9，对照 IM 凭据口径）。
- *  - 读取顺序：`env <PROVIDER>_API_KEY` →  canonical 密文 → 旧明文文件名（`<provider>-api-key.txt`
+ *    旧明文文件在首次读取时**迁移**为密文并删除（，对照 IM 凭据口径）。
+ *  - 读取顺序：`env <PROVIDER>_API_KEY` → canonical 密文 → 旧明文文件名（`<provider>-api-key.txt`
  *    / `<provider>_api_key.txt` / `<provider>_api_key`）。
  *  - 对外只回「是否配置 / 来源 / 尾号掩码」；**绝不回明文**。
  *  - 环境变量存在时优先生效；界面保存的文件不会覆盖它（状态里同时给出 env/file 两面）。
@@ -19,7 +19,7 @@ export const PROVIDERS = [
   { id: 'xiaomi', label: 'Xiaomi MiMo', envVar: 'XIAOMI_API_KEY' },
   { id: 'anthropic', label: 'Anthropic', envVar: 'ANTHROPIC_API_KEY' },
   { id: 'openai', label: 'OpenAI', envVar: 'OPENAI_API_KEY' },
-  // B4b/裁决5（2026-11-09 老板拍板走 qwen-image API）：阿里云百炼——出图（qwen-image）用。
+  // B4b/决定5（2026-11-09 要求走 qwen-image API）：阿里云百炼——出图（qwen-image）用。
   // 槽位先行：Key 落密文/环境变量同其它四家；image_generate 的 qwen 通道随后接。
   { id: 'dashscope', label: '阿里云百炼（Qwen 出图）', envVar: 'DASHSCOPE_API_KEY' },
 ] as const;
@@ -28,7 +28,7 @@ export const PROVIDERS = [
 export interface SecretCodec {
   available(): boolean;
   /**
-   * B0-9 事故修复：密钥材料是否绑定在**稳定 profile**（默认 userData）。
+   *  事故修复：密钥材料是否绑定在**稳定 profile**（默认 userData）。
    * `AICO_USER_DATA_DIR` 等临时/可删除 profile 下 OSCrypt 密钥会随目录消失
    * ⇒ 密文永久不可解（2026-11-07 真机事故）。此类 profile 必须禁用加密/迁移。
    */
@@ -53,7 +53,7 @@ export function providerKeyCodecAvailable(): boolean {
   }
 }
 
-/** B0-9：**可安全读写密文**＝编码器可用 且 密钥材料绑定在稳定 profile。 */
+/** **可安全读写密文**＝编码器可用且密钥材料绑定在稳定 profile。 */
 export function providerKeyCodecUsable(): boolean {
   try {
     return keyCodec?.available() === true && keyCodec.stable !== false;
@@ -147,7 +147,7 @@ export function resolveProviderKey(provider: string, options: ProviderKeyOptions
   const fromEnv = envKeyFor(provider, env);
   if (fromEnv) return { provider, key: fromEnv, source: 'env' };
   const base = secretsDir(options);
-  // ① canonical 密文（B0-9）：安全存储可用且 profile 稳定才解得开。
+  // ① canonical 密文：安全存储可用且 profile 稳定才解得开。
   const enc = join(base, `${provider}_api_key.enc`);
   if (existsSync(enc)) {
     const raw = readFileSync(enc, 'utf8').trim();
@@ -169,7 +169,7 @@ export function resolveProviderKey(provider: string, options: ProviderKeyOptions
       );
     }
   }
-  // ② 旧明文：**读操作只读**（B0-9 事故：此前「首读即迁移」会在临时 profile 下把真实明文
+  // ② 旧明文：**读操作只读**（事故：此前「首读即迁移」会在临时 profile 下把真实明文
   // 加密成一把随后被删掉的密钥 ⇒ 永久不可解）。加密迁移只在显式保存时发生。
   for (const name of keyFileNames(provider)) {
     const path = join(base, name);

@@ -1,5 +1,5 @@
 /**
- * M3 联动修复 P1：`paused` 来源落库（manual / task_budget / company_budget）。
+ *  联动修复 P1：`paused` 来源落库（manual / task_budget / company_budget）。
  * 加预算只自动恢复 task_budget；手动/公司预算必须显式「继续」。
  */
 import assert from 'node:assert/strict';

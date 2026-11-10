@@ -1,9 +1,9 @@
 /**
- * OPT-M4-1 · 接缝边界（boundary）**单一真源**（`PLAN §10` 第二批 / `docs/work/ledger-opt-total.md` OPT-M4-1）。
+ * OPT- · 接缝边界（boundary）**单一真源**（`` 第二批 / `docs/work/ledger-opt-total.md` OPT-）。
  *
  * 「接缝矩阵」= **边界 × 覆盖**：每个 `boundary` 必须有一格，标明覆盖它的 `test`/`accept`；
  * **空格（未覆盖）必须登记 owner + 里程碑**（缺项即门禁红）。`schema.sql` 的 `seams.boundary` 只存文本，
- * 枚举真源在代码（本文件）→ 建议在 `DEV` 同步一行指针。
+ * 枚举真源在代码（本文件）→ 建议在 `` 同步一行指针。
  */
 export const SEAM_BOUNDARIES = [
   'ui-engine',

@@ -1,8 +1,8 @@
 /**
- * UG-01/UG-03 · 任务详情上下文与任务级设置的**纯函数**（无 React / IPC / 存储依赖）。
+ * / · 任务详情上下文与任务级设置的**纯函数**（无 React / IPC / 存储依赖）。
  *
  * 口径：
- *  - 截止时间只做展示（UG-02 的提醒/逾期由引擎负责；这里不发明行为）。
+ *  - 截止时间只做展示（的提醒/逾期由引擎负责；这里不发明行为）。
  *  - 负责人与执行员工分开：负责人是建单/编制给的，执行员工是当前工作项的人；两者不同都显示。
  *  - 依赖只显示短号 + 完成态；不展开标题（标题进 title 悬停）。
  *  - 强制技能取**最后一条** `task_skill_forced`（与 `handleSkillCommand` 的“最后一条为准”一致）。
@@ -56,7 +56,7 @@ export function formatDeadline(deadline: number | null | undefined, now: number 
   return { date, relative: `剩 ${days} 天`, tone: days <= 3 ? 'warn' : 'normal', overdue: false };
 }
 
-/** 负责人显示：负责人在场显负责人；**未设置显「未指定」**（执行员工另在 meta 注明——UG-01：空值不冒充）。 */
+/** 负责人显示：负责人在场显负责人；**未设置显「未指定」**（执行员工另在 meta 注明——：空值不冒充）。 */
 export function ownerDisplay(
   owner: TaskOwnerRef | null | undefined,
   executor: { id: number; name: string | null } | null | undefined,

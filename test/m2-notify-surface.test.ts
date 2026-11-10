@@ -1,10 +1,10 @@
 /**
- * 挂载 2「通知与待办面」测试（2026-10-15，C4 工单 `BRK9/BRK10/BRK14/BRK15`）——每条可弄红。
+ * 挂载 2「通知与待办面」测试（2026-10-15，C4 工单 `///`）——每条可弄红。
  *
- * - `BRK10`：引擎闸门 `ask` → 审批行＋`escalate` 升级事件（可见化）；重复 drain 不重建（幂等）；deny 不变；
- * - `BRK14`：三类任务级等待（no_slot / budget / employee_busy）经 `listDispatchHolds` → `task:get.waits` 上屏；
- * - `BRK15`：卡片落库回调 `onCard`（`evt:notify`/`evt:inbox` 的接线点）；
- * - `BRK9`：`#T-1001 要说的话` 插话直通 → steer 进行中员工会话；不在跑/未接线如实回执；查无落回常规。
+ * - ``：引擎闸门 `ask` → 审批行＋`escalate` 升级事件（可见化）；重复 drain 不重建（幂等）；deny 不变；
+ * - ``：三类任务级等待（no_slot / budget / employee_busy）经 `listDispatchHolds` → `task:get.waits` 上屏；
+ * - ``：卡片落库回调 `onCard`（`evt:notify`/`evt:inbox` 的接线点）；
+ * - ``：`#T-1001 要说的话` 插话直通 → steer 进行中员工会话；不在跑/未接线如实回执；查无落回常规。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -39,7 +39,7 @@ const noopExecutor = { execute: async (): Promise<void> => undefined };
 const newTask = (db: SqliteDb, projectId: number, title: string) =>
   createTask(db, new SqliteCounterStore(db), { projectId, title, goal: 'g', riskLevel: 0, ownerId: 7 });
 
-// ── BRK10：闸门 ask → 权限卡可见 ＋ 任务升级；幂等 ──────────────────────────────
+// ──：闸门 ask → 权限卡可见 ＋ 任务升级；幂等 ──────────────────────────────
 
 test('BRK10：闸门 ask → 审批行＋`escalate` 升级事件（approvalId 回挂/按行分卡）；重复 drain 不重建（幂等）；deny 路径不变', async () => {
   const { db, projectId } = setup();
@@ -84,7 +84,7 @@ test('BRK10：闸门 ask → 审批行＋`escalate` 升级事件（approvalId �
   }
 });
 
-// ── BRK14：三类任务级等待上屏 ─────────────────────────────────────────────────
+// ──：三类任务级等待上屏 ─────────────────────────────────────────────────
 
 test('BRK14：三类任务级等待原因上屏 —— `task:get.waits` 带 {workItemId:null, detail}（no_slot / budget / employee_busy）', async () => {
   const { db, projectId } = setup();
@@ -143,7 +143,7 @@ test('BRK14：三类任务级等待原因上屏 —— `task:get.waits` 带 {wor
   }
 });
 
-// ── BRK15：卡片回调 ───────────────────────────────────────────────────────────
+// ──：卡片回调 ───────────────────────────────────────────────────────────
 
 test('BRK15：卡片回调 `onCard` —— 每次落卡恰回调一次（`evt:notify`/`evt:inbox` 的接线点）', async () => {
   const { db, projectId } = setup();
@@ -176,7 +176,7 @@ test('BRK15：卡片回调 `onCard` —— 每次落卡恰回调一次（`evt:no
   }
 });
 
-// ── BRK9：插话直通 ────────────────────────────────────────────────────────────
+// ──：插话直通 ────────────────────────────────────────────────────────────
 
 test('BRK9：`#T-1001 要说的话` 插话直通 —— steer 到进行中员工会话（`#T1042` 简写归一）；不在跑/查无 如实处置', async () => {
   const { db, projectId } = setup();

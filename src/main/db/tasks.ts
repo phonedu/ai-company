@@ -1,8 +1,8 @@
 /**
- * tasks 表最小 DAO（T0.2 范围：**只做建任务**需要的插入 / 查询 + 短号同流程分配）。
+ * tasks 表最小 DAO（范围：**只做建任务**需要的插入 / 查询 + 短号同流程分配）。
  *
- * 边界（DEV §8 T0.2）：不提前实现 M1 —— 不写 task_events / inbox_items / 状态机；
- * 那些属编排器（T0.3）。短号分配与任务 INSERT 的关系见 counters.ts 顶部说明。
+ * 边界：不提前实现—— 不写 task_events / inbox_items / 状态机；
+ * 那些属编排器。短号分配与任务 INSERT 的关系见 counters.ts 顶部说明。
  */
 import { allocateTaskShortId, type CounterStore } from '../../core/short-id.js';
 import type { TaskSnapshot } from '../../core/types.js';
@@ -50,7 +50,7 @@ export interface CreateTaskInput {
   projectId: number;
   title: string;
   goal: string;
-  /** 验收项 JSON（默认 []）；M0 阶段可先为空。 */
+  /** 验收项 JSON（默认 []）； 阶段可先为空。 */
   acceptance?: unknown[];
   /** 初始状态（默认 inbox，与 schema 默认一致）。 */
   state?: string;
@@ -58,15 +58,15 @@ export interface CreateTaskInput {
   riskLevel?: number;
   ownerId?: number | null;
   origin?: string;
-  /** 截止时刻（epoch ms；调度次级排序键；C6·D5）。 */
+  /** 截止时刻（epoch ms；调度次级排序键；C6·）。 */
   deadline?: number | null;
-  /** 预算 token（NULL = 不限；B3）。 */
+  /** 预算 token（NULL = 不限；）。 */
   budgetTokens?: number | null;
   /** 009（N5 余账）：任务级模型（指派链最高档）；NULL/缺省 = 未指派（回落到既有链）。 */
   model?: string | null;
-  /** B8 续办：父任务 id（列已存在，非新增列）。 */
+  /**  续办：父任务 id（列已存在，非新增列）。 */
   parentTaskId?: number | null;
-  /** B8 续办：来源任务 id（`tasks.renewed_from`，列已存在）。 */
+  /**  续办：来源任务 id（`tasks.renewed_from`，列已存在）。 */
   renewedFrom?: number | null;
   /**
    * D4（依赖写入面）：本任务依赖的既有任务 id（全部 done → 自动 ready）。
@@ -102,7 +102,7 @@ function assertDepthAllowsChild(db: SqliteDb, parentTaskId: number): void {
 /**
  * 建任务：**先分配短号（独立提交），再在同一事务内插入 tasks 行**。
  *
- * - 短号先于 INSERT 事务提交，保证「事务回滚后序号不回收」（T0.2 断言③）；
+ * - 短号先于 INSERT 事务提交，保证「事务回滚后序号不回收」（断言③）；
  *   若 INSERT 失败，则形成一次跳号（空洞），该短号永不复用。
  * - 调用方不要把这个函数嵌进更大的事务里，否则短号分配会随之回滚。
  * - 带 `parentTaskId` 时先过 **拆分深度上限**（`MAX_TASK_DEPTH`）。
@@ -110,7 +110,7 @@ function assertDepthAllowsChild(db: SqliteDb, parentTaskId: number): void {
 export function createTask(db: SqliteDb, counters: CounterStore, input: CreateTaskInput): TaskRow {
   const now = input.now ?? Date.now();
   if (input.parentTaskId != null) assertDepthAllowsChild(db, input.parentTaskId);
-  // D4：依赖先校验存在性（**先于短号分配**，拒绝不烧号）；新任务尚无入边，不可能成环。
+  // 依赖先校验存在性（**先于短号分配**，拒绝不烧号）；新任务尚无入边，不可能成环。
   const dependsOn = [...new Set(input.dependsOn ?? [])];
   for (const dependsOnId of dependsOn) {
     if (!Number.isInteger(dependsOnId) || dependsOnId <= 0) {
@@ -119,7 +119,7 @@ export function createTask(db: SqliteDb, counters: CounterStore, input: CreateTa
     const exists = db.prepare('SELECT 1 AS ok FROM tasks WHERE id = ?').get(dependsOnId);
     if (!exists) throw new Error(`依赖任务不存在：#${dependsOnId}`);
   }
-  // D5 复核崩溃修复（2026-10-26）：种子/历史行直接插 tasks 而未推进 counters 时，首次分配会撞
+  //  复核崩溃修复（2026-10-26）：种子/历史行直接插 tasks 而未推进 counters 时，首次分配会撞
   // 已占用短号（UNIQUE constraint failed: tasks.short_id 曾裸抛到 IPC）。计数器只进不回，
   // 撞号＝计数器落后——有界重试到下一个空闲短号（空洞允许，永不回收不变式不变）。
   const insert = db.prepare(`INSERT INTO tasks
@@ -152,7 +152,7 @@ export function createTask(db: SqliteDb, counters: CounterStore, input: CreateTa
         now,
       );
       id = Number(info.lastInsertRowid);
-      // FLOWS §3.1.1 首行：建任务在同一事务内写 task_created（DEV §4.2 一个状态变更=一个事务）
+      //  首行：建任务在同一事务内写 task_created（一个状态变更=一个事务）
       insertTaskEvent(db, {
         taskId: id,
         ts: now,
@@ -160,7 +160,7 @@ export function createTask(db: SqliteDb, counters: CounterStore, input: CreateTa
         actor: input.origin === 'boss' ? 'boss' : 'system',
         payload: { shortId, origin: input.origin ?? 'boss' },
       });
-      // D4：依赖边与任务同事务落库（重放/失败整体回滚；审计事件逐条记）。
+      // 依赖边与任务同事务落库（重放/失败整体回滚；审计事件逐条记）。
       for (const dependsOnId of dependsOn) {
         if (!addTaskDependency(db, id, dependsOnId)) continue;
         insertTaskEvent(db, {
@@ -194,7 +194,7 @@ export function getTaskById(db: SqliteDb, id: number): TaskRow | undefined {
   return db.prepare(`SELECT ${TASK_COLUMNS} FROM tasks WHERE id = ?`).get(id) as TaskRow | undefined;
 }
 
-/** 更新截止时刻（C6·D5：调度次级排序键的写入点）。 */
+/** 更新截止时刻（C6·：调度次级排序键的写入点）。 */
 export function setTaskDeadline(db: SqliteDb, id: number, deadline: number | null, now: number = Date.now()): void {
   updateTask(db, id, { deadline }, now);
 }

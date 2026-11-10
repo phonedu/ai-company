@@ -1,7 +1,7 @@
 /**
- * M2-D · 数据生命周期（器）—— WAL checkpoint ＋ 一致性备份。
+ *  · 数据生命周期（器）—— WAL checkpoint ＋ 一致性备份。
  *
- * 口径（`PLAN §929`「staging 沙盒清理策略、备份一致性（WAL checkpoint）、schema 迁移机制」）：
+ * 口径（``「staging 沙盒清理策略、备份一致性（WAL checkpoint）、schema 迁移机制」）：
  *  - **checkpoint**：`PRAGMA wal_checkpoint(TRUNCATE)`——把 WAL 并回主库并截断（防 `-wal` 无限增长）；
  *    **选取可控时点**调用（启动装配完成后；不在热路径里）。
  *  - **backup**：`VACUUM INTO ?`——**一致性快照**（WAL 模式下亦安全：写事务与外读互不干扰），
@@ -40,7 +40,7 @@ function retentionCutoff(now: number, retentionDays: number): number {
 }
 
 /**
- * B-4（M4）：**预览**保留清理将删除的行数（与 `runRetention` 同一判据；不删任何数据）。
+ * B-4：**预览**保留清理将删除的行数（与 `runRetention` 同一判据；不删任何数据）。
  * 只覆盖四张临时表；tasks/reports/artifacts/changesets 永不在清理面。
  */
 export function previewRetention(

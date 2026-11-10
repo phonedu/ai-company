@@ -1,5 +1,5 @@
 /**
- * 调度器：两层资源模型（PLAN §13.3）
+ * 调度器：两层资源模型
  *
  *   第一层 · 全局活跃槽位：同时处于 executing 的任务数 ≤ maxActiveTasks；
  *   第二层 · 员工占用队列：每员工并发 1，queued 的 work item 按【任务优先级 → 创建时间】派发。
@@ -39,7 +39,7 @@ export interface SchedulerInput {
   workItems: WorkItemSnapshot[];
   /** taskId -> 它依赖的 task id 列表（task_deps） */
   deps: Map<number, number[]>;
-  /** B2-3/D-30②：workItemId -> 前置 work item id 列表（work_item_deps；同任务内）。缺省空 → 无门控（旧调用兼容）。 */
+  /** /：workItemId -> 前置 work item id 列表（work_item_deps；同任务内）。缺省空 → 无门控（旧调用兼容）。 */
   workItemDeps?: Map<number, number[]>;
   /** employeeId -> 正在执行的 work item id（员工并发 = 1） */
   runningByEmployee: Map<number, number>;
@@ -82,7 +82,7 @@ export function effectivePriority(task: TaskSnapshot, now: number, cfg: Schedule
 }
 
 function overBudget(t: TaskSnapshot): boolean {
-  // 超预算只暂停该任务自己，不影响其他任务（PLAN §13.3）
+  // 超预算只暂停该任务自己，不影响其他任务
   return t.budgetLeftTokens != null && t.budgetLeftTokens <= 0;
 }
 
@@ -135,7 +135,7 @@ export function planScheduling(input: SchedulerInput): SchedulerAction[] {
   const ready = input.tasks.filter((t) => t.state === 'ready').sort(priorityOrder);
   const startedThisTick: TaskSnapshot[] = [];
   for (const t of ready) {
-    // D4：依赖未满足 → 先阻塞（ready --block--> blocked），不占槽位、不派工；依赖完成后下一拍激活。
+    // 依赖未满足 → 先阻塞（ready --block--> blocked），不占槽位、不派工；依赖完成后下一拍激活。
     if (!dependenciesSatisfied(t.id, input.deps, byId)) {
       actions.push({ type: 'block_task', taskId: t.id, reason: 'deps_unsatisfied' });
       continue;
@@ -179,12 +179,12 @@ export function planScheduling(input: SchedulerInput): SchedulerAction[] {
     let heldEmployeeBusy = false;
     let heldOccupiedBy: number | undefined;
     for (const wi of items) {
-      // B2-3/D-30②：工作项依赖门控——前置件未全部 done → hold（不占员工、任务不被 block）；
+      // /：工作项依赖门控——前置件未全部 done → hold（不占员工、任务不被 block）；
       // 前置件幻影按满足处理（fail-open，与任务级 dependenciesSatisfied 同哲学）。
       const wiDepsList = wiDeps.get(wi.id) ?? [];
-      // B2a 出口 B 实测修正：前置件 `submitted`（已提交、等任务级验证）也算满足——
+      //  出口 B 实测修正：前置件 `submitted`（已提交、等任务级验证）也算满足——
       // 产物已落盘、内容可用；否则带机器验收的任务（件停在 submitted 等验证）会让
-      // 依赖件死等 ⇒ 任务永卡 executing（本批真机出口 B 实抓）。
+      // 依赖件死等 ⇒ 任务永卡 executing（本次真机出口 B 发现）。
       const depsSatisfied = wiDepsList.every((d) => {
         const dep = wiById.get(d);
         return dep == null || dep.state === 'done' || dep.state === 'submitted';

@@ -1,5 +1,5 @@
 /**
- * RW-20 回归守卫（M5 真实项目测试 S9 批，2026-10-28）：频道范围唯一真源＝settings。
+ *  回归守卫（真实项目测试批，2026-10-28）：频道范围唯一真源＝settings。
  *
  * 缺陷：范围选择器只走「UI→settings」单程写（setChannelScope/showProject 落库
  * `channel.scope_project_id`），启动装载（restoreSession）不回读——启动期默认 null 的

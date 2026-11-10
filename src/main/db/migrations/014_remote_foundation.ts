@@ -2,7 +2,7 @@
  * 014_remote_foundation.ts — 迁移内联常量（**打包安全**；运行时零文件系统依赖）。
  * 与同目录 `014_remote_foundation.sql` 逐字一致（`test/migrations-packaging.test.ts` 校验漂移）。
  */
-export const SQL_014_REMOTE_FOUNDATION = `-- 014_remote_foundation.sql — v14（M3-REM-1a：远程地基）
+export const SQL_014_REMOTE_FOUNDATION = `-- 014_remote_foundation.sql — v14（1a：远程地基）
 --
 -- 两张表都只是本机 SQLite 的投影/日志，不改变任何业务事实：
 --   ① read_cursors：老板频道/IM/mailbox 的未读高水位（principal + surface）；

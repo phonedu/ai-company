@@ -1,5 +1,5 @@
 /**
- * B-1（M4）· 触发管理 UI 的后端入口（`project:trigger-manage`）。
+ * B-1· 触发管理 UI 的后端入口（`project:trigger-manage`）。
  *
  * 口径：
  *  - **与频道命令同源**：都调 `TriggerService`（`timers` 表；不新表/不新调度器）；

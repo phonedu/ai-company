@@ -1,5 +1,5 @@
 /**
- * RW-12（M5 真机带回，2026-10-27）· critic/verifier 选人必须**优先专职评审角色**。
+ * （真机带回，2026-10-27）· critic/verifier 选人必须**优先专职评审角色**。
  *
  * 真机事实：公司里专职评审员工苏芮(#2, role=review)在册，但历次 plan_reviewed 的 critic 都是
  * 林川(#1, role=dev)——选人 `ORDER BY id` 纯按 id 顺序，role 被无视；专职评审员工被闲置，
@@ -33,7 +33,7 @@ test('RW-12①: critic 选人优先 role=review（不再按 id 顺序拿 dev 同
     db.prepare("INSERT INTO employees(id,name,role,capability_tier,created_at) VALUES(7,'实现者','dev','standard',1)").run();
     db.prepare("INSERT INTO employees(id,name,role,capability_tier,created_at) VALUES(8,'dev同事','dev','standard',1)").run();
     db.prepare("INSERT INTO employees(id,name,role,capability_tier,created_at) VALUES(9,'专职评审','review','standard',1)").run();
-    const task = createTask(db, new SqliteCounterStore(db), { projectId, title: 'T', goal: 'g', riskLevel: 2 }); // B3-6：critic 选人依赖 critic 真开（L2）
+    const task = createTask(db, new SqliteCounterStore(db), { projectId, title: 'T', goal: 'g', riskLevel: 2 }); // critic 选人依赖 critic 真开（L2）
     insertWorkItem(db, { taskId: task.id, employeeId: 7, title: 'w', brief: 'b', now: 1 });
 
     const events: EngineEvent[] = [];

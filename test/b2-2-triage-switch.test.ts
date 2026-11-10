@@ -1,12 +1,12 @@
 /**
- * B2-2（58 §1.6 P1；D-30①）：废 semantic-classifier 并入幕僚长——特性开关可回退。
+ * 废 semantic-classifier 并入幕僚长——特性开关可回退。
  *
  * 口径：`AICO_TRIAGE=assistant|classifier`，**默认 assistant**（唯一指挥脑）。
  *  - assistant 模式：自由文本**不再调用 LLM 分诊器**（零成本、无双答案），一律交幕僚长
- *    会话（由 create_task/steer 工具自行分诊——B2-1 已落）；确定性路径（文本命令/#任务
+ *    会话（由 create_task/steer 工具自行分诊—— 已落）；确定性路径（文本命令/#任务
  *    引用/回复链/序号确认/「建任务：」直通）双模式保留；
  *  - classifier 模式：与 v0.2.1 完全一致（旧链路可回退，验收出口 A 的回归面）；
- *  - 分诊器文件保留至 B2 验收后另批删除（本件只做开关与消费端转换）。
+ *  - 分诊器文件保留至验收后另批删除（本件只做开关与消费端转换）。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

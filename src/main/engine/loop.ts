@@ -1,10 +1,10 @@
 /**
- * `loop.ts` —— 串行事件循环 + 事务边界 + fixpoint + 启动恢复（DEV §5、PLAN §19、DEV §4.5）。
+ * `loop.ts` —— 串行事件循环 + 事务边界 + fixpoint + 启动恢复。
  *
  * 每 tick：取一批事件 → **一个事务**里 `applyEvent`（写 task_events + 更新状态 + 登记 action_log）
  * → 反复跑 `planScheduling` 直到无新决议（fixpoint）→ 提交；事务外执行副作用（`executePendingActions`）。
  *
- * 引擎从不 `await` 一个会话：派发只是登记动作，由执行器（M0 桩 / M1 真会话）异步完成。
+ * 引擎从不 `await` 一个会话：派发只是登记动作，由执行器（桩 / 真会话）异步完成。
  */
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
@@ -111,7 +111,7 @@ function hasMachineAcceptance(raw: unknown): boolean {
 }
 
 /**
- * RW-27（S11 真机，老板裁 A）：规划派发前的**最小预算额度**——剩余低于它就不开会话。
+ * （真机，决定 A）：规划派发前的**最小预算额度**——剩余低于它就不开会话。
  * 真机依据：500 token 预算的任务规划/评审烧到 10138 token（20×）才停；一次真规划会话
  * 的实测成本在数千 token 级，1000 是"还不够起步"的保守下限（不随模型价格浮动，只挡明显不足）。
  */
@@ -119,7 +119,7 @@ export const MIN_DISPATCH_BUDGET_TOKENS = 1000;
 
 export interface RecoveryReport {
   interrupted: number;
-  /** BRK8：重启后自动重派的 interrupted 件数（仅任务仍 executing；其余留人工/恢复）。 */
+  /** 重启后自动重派的 interrupted 件数（仅任务仍 executing；其余留人工/恢复）。 */
   redispatched: number;
   replayed: ExecuteResult;
   timersRebuilt: number;
@@ -146,22 +146,22 @@ export class Engine {
   /** N2：本轮档位是否发生切换（用于「首次拦截才留痕」，避免刷屏）。 */
   private rateTierChanged = false;
   private readonly autoSchedule: boolean;
-  /** B0-3：运行时错误自动重试次数上限（0=关）。 */
+  /** 运行时错误自动重试次数上限（0=关）。 */
   private readonly autoRetryLimit: number;
   private readonly tickMs: number;
   private readonly clock: () => number;
   private running = false;
   private stopping = false;
   private handle: ReturnType<typeof setTimeout> | null = null;
-  /** M1-2：因路径相交被 hold 的派发（work item id → 原因/冲突对象）。R3-2：`detail`＝给 UI 的数字补充。 */
+  /** 因路径相交被 hold 的派发（work item id → 原因/冲突对象）。R3-2：`detail`＝给 UI 的数字补充。 */
   private readonly pathHolds = new Map<number, { reason: WaitingReason; conflictsWith: number[]; detail?: string }>();
   /**
-   * BRK14：调度器产出的**任务级** hold（`no_slot`/`budget`/`employee_busy`）——等待原因必须能上屏
+   * 调度器产出的**任务级** hold（`no_slot`/`budget`/`employee_busy`）——等待原因必须能上屏
    * （此前只有 WI 级三条〔速率/并发/路径〕进 `pathHolds`，三类排队原因被 fixpoint 的 `filter(hold)` 丢掉）。
    * 每轮 fixpoint 开头重建（与调度器同拍），不残留。
    */
   private readonly taskHolds = new Map<number, { reason: WaitingReason; detail?: string; occupiedBy?: number }>();
-  /** M1-4 接缝（仅当提供 `git` 时启用）。 */
+  /**  接缝（仅当提供 `git` 时启用）。 */
   private readonly git?: import('../git/index.js').GitRunner;
   private readonly worktreesBaseDir?: string;
   private readonly effectScopes?: import('./effect-scope.js').EffectScopeManager;
@@ -179,7 +179,7 @@ export class Engine {
       baselineClean: boolean;
     }
   >();
-  /** OPT-M9-1：默认路径的权限闸门（`config.permission === false` 时为空）。 */
+  /** OPT-：默认路径的权限闸门（`config.permission === false` 时为空）。 */
   private readonly gate?: (action: PersistedAction) => GateResult;
   /**
    * B8/B10：包一层执行器 —— 先把内置 spawn（建续办任务 / 建返工工作项）处理掉，
@@ -189,7 +189,7 @@ export class Engine {
    */
   private readonly actionExecutor: EffectExecutor;
 
-  /** D3 会话实测抓到的真 bug 修复：**执行中动作的认领集合**（防重入执行；见 `actionExecutor` 注释）。 */
+  /**  会话实测抓到的真 bug 修复：**执行中动作的认领集合**（防重入执行；见 `actionExecutor` 注释）。 */
   private readonly inFlightActions = new Set<string>();
 
   constructor(
@@ -216,7 +216,7 @@ export class Engine {
     this.effectScopes = config.effectScopes;
     this.actionExecutor = {
       execute: async (action: PersistedAction) => {
-        // **重入守卫（D3 会话实测抓到的真 bug）**：执行器内部会 `dispatch` 事件 → 该事件 drain 时会
+        // **重入守卫（会话实测抓到的真 bug）**：执行器内部会 `dispatch` 事件 → 该事件 drain 时会
         // 再列 pending 动作——而**正在执行的这条仍是 `pending`**（执行完才标 done）⇒ 同一动作被**重入执行**
         // （planner/critic/verifier/员工会话各跑两遍、第二遍还因状态已前进而失败 → 动作被误标 `failed`）。
         // 进程内 `inFlight` 集合认领：重入时跳过（崩溃后仍是 `pending` ⇒ 恢复重放语义不变）。
@@ -226,9 +226,9 @@ export class Engine {
         }
         this.inFlightActions.add(action.actionKey);
         try {
-          // OPT-M3-1/G4 接线（链路审计第 6 处断线：`requestReview` 全仓无调用方）：**派工时指派验证者**——
+          // OPT-/G4 接线（链路审计第 6 处断线：`requestReview` 全仓无调用方）：**派工时指派验证者**——
           // 强度：L0/未命中抽验→不指派；L1 命中抽验 / L2 强制→指派 verifier ≠ 实现者；L2 无人可用→抛
-          //（`FLOWS §204` 口径）⇒ 动作响亮失败（`action_failed`），不静默。放这里＝**事务外**
+          //（`` 口径）⇒ 动作响亮失败（`action_failed`），不静默。放这里＝**事务外**
           //（`requestReview` 自开事务；fixpoint 在事务内，不能在那里调）。
           if (action.kind === 'dispatch') {
             const wiId = Number(action.actionKey.split(':')[2] ?? 0);
@@ -241,7 +241,7 @@ export class Engine {
           if (action.kind === 'renew') return this.spawnRenewedTask(action);
           if (action.kind === 'spawn_work_item') return this.spawnReworkItem(action);
           if (action.kind === 'plan_work_items') return this.spawnPlanWorkItems(action);
-          // RW-27（S11 真机，老板裁 A）：规划派发**前**预算预检——剩余低于最小规划额度就不开会话
+          // （真机，决定 A）：规划派发**前**预算预检——剩余低于最小规划额度就不开会话
           // （此前 500 token 预算的任务规划期已烧 10138 token 才停在「等预算」）。
           if (action.kind === 'dispatch_planning' && action.taskId != null) {
             const insufficient = this.budgetPrecheckInsufficient(action.taskId);
@@ -250,7 +250,7 @@ export class Engine {
               return;
             }
           }
-          // B0-11：预算预检扩展到**执行派发**（此前只在规划前拦——预算见底后仍会开新会话烧钱）。
+          // 预算预检扩展到**执行派发**（此前只在规划前拦——预算见底后仍会开新会话烧钱）。
           if (action.kind === 'dispatch' && action.taskId != null) {
             const task = getTaskById(this.db, action.taskId) as { state?: string } | undefined;
             if (task?.state === 'executing') {
@@ -261,7 +261,7 @@ export class Engine {
               }
             }
           }
-          // BRK17（挂载 3 余·取消小步）：任务级取消 → 真中断在跑的件（见方法头注）。
+          // （挂载 3 余·取消小步）：任务级取消 → 真中断在跑的件（见方法头注）。
           if (action.kind === 'interrupt_work_items') return this.interruptWorkItems(action);
           return await this.executor.execute(action);
         } finally {
@@ -273,7 +273,7 @@ export class Engine {
   }
 
   /**
-   * OPT-M9-1：构造默认权限闸门。
+   * OPT-：构造默认权限闸门。
    * 有效权限 = **员工能力档**（`employees.capability_tier`，缺省 standard）∩ **放行档**（`resolvePermissionPolicy` 三级覆盖 global←project←task，缺省 standard）；
    * L2 → 放行档自动收紧一档；项目根 = 项目 `root_dir`（缺省 `config.permission.projectRoot` / cwd）。
    * 映射：动作 `kind` 直接作为工具名交给 `permissionGate`（`external/spend/install` 类永不自动放行）。
@@ -313,13 +313,13 @@ export class Engine {
     this.bus.emit(event);
   }
 
-  /** 便捷：入队并同步排空（手工驱动 T0.6 / 脚本化验收）。**严格**：非法事件向调用方抛。 */
+  /** 便捷：入队并同步排空（手工驱动/ 脚本化验收）。**严格**：非法事件向调用方抛。 */
   async dispatch(event: EngineEvent): Promise<void> {
     this.enqueue(event);
     await this.drain(false);
   }
 
-  /** 手动调度 tick（无事件，仅跑调度 fixpoint）—— 用于状态驱动的推进（如 D4 依赖激活）。 */
+  /** 手动调度 tick（无事件，仅跑调度 fixpoint）—— 用于状态驱动的推进（如依赖激活）。 */
   async tick(): Promise<void> {
     await this.enforceCompanyDailyBudget();
     const keys = this.processBatch([]);
@@ -328,7 +328,7 @@ export class Engine {
     }
   }
 
-  /** B3：记录一笔成本（写 `costs` + `cost_recorded` 事件 + 回写 `cost_tokens`）；超预算则发 `budget_exceeded`。 */
+  /** 记录一笔成本（写 `costs` + `cost_recorded` 事件 + 回写 `cost_tokens`）；超预算则发 `budget_exceeded`。 */
   async recordCost(input: RecordCostInput): Promise<{ costTotal: number | null; budgetExceeded: boolean }> {
     const { costTotal } = recordCost(this.db, input);
     // C4：公司级日预算（所有 costs，含 task_id NULL 的共享开销）
@@ -399,7 +399,7 @@ export class Engine {
     return `公司日预算已用尽：今日 $${state.spentUsd.toFixed(4)} / $${state.budgetUsd.toFixed(2)}（${state.day}）`;
   }
 
-  // ───────────────── OPT-M3-1：独立验证（强制度分级 + verifier≠实现者） ─────────────────
+  // ───────────────── OPT-：独立验证（强制度分级 + verifier≠实现者） ─────────────────
 
   /** 该 work item 的验证强度（按所属任务 `risk_level`：L0 免 / L1 抽验 / L2 强制）。 */
   verificationStrengthFor(workItemId: number, sampleEvery: number = DEFAULT_SAMPLE_EVERY): VerificationStrength {
@@ -413,7 +413,7 @@ export class Engine {
   private pickVerifier(implementerEmployeeId: number): number | null {
     // 角色边界：幕僚长（is_assistant=1）只协调/汇总，**不参与验收**；L2 无合格验者时
     // 留空交给验证阶段 `no_verifier` 升级，绝不回退到幕僚长。
-    // RW-12（M5 真机带回）：与 critic 同口径——优先专职评审角色（review/critic/评审），无专职回退按 id。
+    // （真机带回）：与 critic 同口径——优先专职评审角色（review/critic/评审），无专职回退按 id。
     const row = this.db
       .prepare(
         `SELECT id FROM employees WHERE active = 1 AND is_assistant = 0 AND id <> ?
@@ -488,7 +488,7 @@ export class Engine {
     });
   }
 
-  // ───────────────────────── 启动恢复（DEV §4.5 / PLAN §19.3） ─────────────────────────
+  // ───────────────────────── 启动恢复（/） ─────────────────────────
 
   /** ② running→interrupted ③ 重放 pending ④ 重建 timers。迁移（①）由调用方在 open 后先跑。 */
   async recover(): Promise<RecoveryReport> {
@@ -514,10 +514,10 @@ export class Engine {
       throw error;
     }
 
-    // RW-3②（M5 真机带回）：verifying 态的**唯一待办是验收**——verifier 会话不随重启存活，而
+    // （真机带回）：verifying 态的**唯一待办是验收**——verifier 会话不随重启存活，而
     // 旧键已消费（action_log 同键 OR IGNORE）⇒ 不补派就永久挂死。逐个 verifying 任务查
     // `dispatch_verifier` 已用最大轮次，登记 **max+1** 的新键（在下方 replay 统一执行）。
-    // 安全性：不动工作项队列（与 BRK8「验证中不擅自重派」不冲突——补的是验收会话，不是生产会话）；
+    // 安全性：不动工作项队列（与 「验证中不擅自重派」不冲突——补的是验收会话，不是生产会话）；
     // 幂等：action_log 唯一键 ⇒ 重复 recover 不会叠加；verifier 完成会写 verification_completed，
     // 若仍 verifying（又挂）再 recover 会再 +1，形成阶梯。
     let verifierRefiled = 0;
@@ -563,7 +563,7 @@ export class Engine {
       this.enqueue(e),
     );
 
-    // BRK8：崩溃恢复策略（v1）——任务仍在 executing 的 interrupted 件自动重派（queued，attempt+1）；
+    // 崩溃恢复策略（v1）——任务仍在 executing 的 interrupted 件自动重派（queued，attempt+1）；
     // 暂停/阻塞/验证中的任务不擅自重派（由 resume/人工恢复处理，避免把暂停态跑起来）。
     // 注意：这里**只改队列，不跑调度 fixpoint**——真正派发给引擎 start() 后的 schedulePass，
     // 避免恢复阶段在窗口/IPC 就绪前启动员工会话。
@@ -606,7 +606,7 @@ export class Engine {
 
   /**
    * 同步排空事件队列（每个批次一个事务），并执行产生的副作用。
-   * `isolate`（缺省 true）＝毒事件隔离（B0-5）：整批失败后逐事件重试，毒事件回滚自己并落痕上卡。
+   * `isolate`（缺省 true）＝毒事件隔离：整批失败后逐事件重试，毒事件回滚自己并落痕上卡。
    * `dispatch()` 传 false —— **直接调用语义保持严格**（UI/IPC 依赖非法迁移的 rejection 出回执）；
    * 隔离只针对队列里非直接调用的事件（定时器/引擎派生/恢复重放）。
    */
@@ -644,17 +644,17 @@ export class Engine {
    */
   async schedulePass(): Promise<void> {
     const keys = this.processBatch([]);
-    // MP1-F15：有挂起动作也排水（不只本拍新登记的）——员工会话一跑数分钟且无新事件时，
+    // 有挂起动作也排水（不只本拍新登记的）——员工会话一跑数分钟且无新事件时，
     // 其他任务的 pending 动作（如 plan_work_items）会一直躺着：任务 executing 无工作项、无等待原因
-    // （「不静默排队」被打破）。tick 每拍排水即可；重入由 inFlightActions 守卫兜底，ask 幂等由 BRK10 保证。
+    // （「不静默排队」被打破）。tick 每拍排水即可；重入由 inFlightActions 守卫兜底，ask 幂等由保证。
     if (keys.length > 0 || hasPendingActions(this.db)) {
       await executePendingActions(this.db, this.actionExecutor, this.now(), this.gate, this.inFlightActions);
     }
   }
 
   /**
-   * 处理一批事件：一个事务内 apply + fixpoint；返回本批新登记的动作键。
-   * **严格**（失败整体回滚并抛）——隔离策略在 `drain(isolate)` 里按事件来源决定（B0-5）。
+   * 处理一批事件：一个事务内 apply + fixpoint；返回本次新登记的动作键。
+   * **严格**（失败整体回滚并抛）——隔离策略在 `drain(isolate)` 里按事件来源决定。
    */
   processBatch(batch: EngineEvent[]): string[] {
     return this.applyBatchAtomically(batch);
@@ -707,7 +707,7 @@ export class Engine {
     return keys;
   }
 
-  /** 逐事件独立事务：毒事件只回滚自己，记录 `engine_error`＋异常卡后继续（B0-5）。 */
+  /** 逐事件独立事务：毒事件只回滚自己，记录 `engine_error`＋异常卡后继续。 */
   private applyBatchIsolated(batch: EngineEvent[]): string[] {
     const keys: string[] = [];
     for (const event of batch) {
@@ -767,7 +767,7 @@ export class Engine {
   // ───────────────────────── B8/B10 spawn（事务外建对象；幂等已由 action_log 键保证） ─────────────────────────
 
   /**
-   * B8 续办：新建续办任务（「继承语境、不继承承诺」，FLOWS §F6 / 裁定 (c)）。
+   *  续办：新建续办任务（「继承语境、不继承承诺」， § / 裁定 (c)）。
    * 继承：`project_id` / `title(+（续）)` / `goal` / `acceptance` / `risk_level` / `priority`；
    * 不继承：`task_deps` / `owner_id`（续办重走 triage/plan）→ 新行 `origin='renew'`。
    * 链路：新行 `renewed_from` = 旧任务 id（列已存在）；新任务上补一条 `task_renewed`
@@ -812,7 +812,7 @@ export class Engine {
    * 只对 `verdict!=='pass'` 生效（对应迁移行自带守卫）；同源工作项仅生成一个返工项（幂等键）。
    */
   /**
-   * 补跑时**不需要**再发 grant —— 第三轮复核 P2 实抓：上一版把 grant 绑到新返工件的会话键
+   * 补跑时**不需要**再发 grant —— 第三轮复核发现：上一版把 grant 绑到新返工件的会话键
    * （`wi:<新件>`），但返工件执行时**继承源件会话键**（`reworkInheritedSessionKey` ⇒ `wi:<源件>`），
    * 那条 grant 永远命中不到实际会话，是**死授权**；真正让返工放行的是批准入口
    * `applyApprovalAsGrant` 写在老会话键上的那条 grant（返工件正好继承它）。
@@ -824,7 +824,7 @@ export class Engine {
     const srcWiId = Number(payload.workItemId ?? 0);
     const src = srcWiId ? getWorkItem(this.db, srcWiId) : undefined;
     if (!src) throw new Error(`[engine] spawn_work_item 动作缺少有效 workItemId（actionKey=${action.actionKey}）`);
-    // B2-6：跨任务守卫——签收拒绝的件必须属于本任务（防越权返工别的任务的件）。
+    // 跨任务守卫——签收拒绝的件必须属于本任务（防越权返工别的任务的件）。
     if (action.taskId != null && src.task_id !== action.taskId) {
       throw new Error(`[engine] spawn_work_item 拒绝：件 ${srcWiId} 属任务 ${src.task_id}，动作属任务 ${action.taskId}`);
     }
@@ -836,7 +836,7 @@ export class Engine {
       title: `返工：${src.title}`,
       brief: notes ?? '验证未通过：按验证者批注返工（无批注文本）。',
       touchedPaths: parseTouchedPaths(src.brief) ?? undefined,
-      // B2-3/D-30②：血缘指向源件——同员工返工在派发时继承「员工×任务×源件」会话键
+      // /：血缘指向源件——同员工返工在派发时继承「员工×任务×源件」会话键
       // （前轮现场可见）；换员工改派不继承（执行器侧判 employee 一致才用）。
       retryOf: src.id,
       now: this.now(),
@@ -845,7 +845,7 @@ export class Engine {
   }
 
   /**
-   * 裁决 8（老板 2026-11-09 批「批准后补跑就补上」）：**会话权限批准后的补跑**。
+   * 决定 8（2026-11-09 批「批准后补跑就补上」）：**会话权限批准后的补跑**。
    *
    * 背景：G1 口径是「拦截→出卡→批准后工具**重试**才放行」——员工不等（按纪律不重试）任务照常
    * 结束时，那张卡完成后才批，就没有人再去调工具了（真机实测：批了也不会补生成封面）。
@@ -862,7 +862,7 @@ export class Engine {
     explicitWorkItemId?: number | null,
     /**
      * 老板**真批的那条规则**（由调用方按 approvalId 从审批问题解析后传入）。
-     * 第三轮复核 P2 结论：补跑**不再另发授权**（死授权，实际放行来自批准入口写的老会话 grant）——
+     * 第三轮复核结论：补跑**不再另发授权**（死授权，实际放行来自批准入口写的老会话 grant）——
      * 本参数保留为审计/上下文用（当前不参与判定），避免调用方接口再改一轮。
      */
     approvedRule?: { rule: string; toolName: string } | null,
@@ -887,7 +887,7 @@ export class Engine {
     }
 
     const notes = '老板已在任务结束后批准该权限：按原目标重试被拦的动作（不要重复已完成的部分）。';
-    // S5（2026-11-09 安全复核 P2）：补跑**不豁免预算/日预算闸门**——批准的是权限，不是预算。
+    // S5（2026-11-09 安全复核）：补跑**不豁免预算/日预算闸门**——批准的是权限，不是预算。
     // 公司日预算已超线时直接拒绝并给原因（任务级 token 预算由调度器 hold 管，这里只管公司级 USD）。
     const budgetHold = this.companyDailyBudgetHold();
     if (budgetHold != null) return { ok: false, reason: `budget_hold:${budgetHold}`, workItemId };
@@ -895,15 +895,15 @@ export class Engine {
     if (terminalTask) {
       // 先重开任务（失败就什么都不改——独立验收指出：先插返工件再 undo 会在守卫拒绝时
       // 在已结束任务下留孤儿返工件）。返工件在 undo 成功、start 之前建（见下）。
-      // cancelled 没有「回到可执行」的机器边（换方向复核 P3：原先写的 `restore` 是死边）——如实拒绝。
+      // cancelled 没有「回到可执行」的机器边（换方向复核：原先写的 `restore` 是死边）——如实拒绝。
       if (task.state === 'cancelled') return { ok: false, reason: 'task_state_cancelled（需先续办）', workItemId };
-      // 同向复核 P2-7（2026-11-09）：正常签收完成的任务 state_before_close 常是 needs_decision，
+      // 同向复核-7（2026-11-09）：正常签收完成的任务 state_before_close 常是 needs_decision，
       // undo 后只会落到 needs_decision 再被拒——那是「先改状态再拒绝」，任务被白白撤出 done 且无卡。
       // 先判、后动：这个态直接拒绝，任务保持原状。
       if (task.state === 'done' && (task as { state_before_close?: string | null }).state_before_close === 'needs_decision') {
         return { ok: false, reason: 'task_state_needs_decision（需先在任务上拍板）', workItemId };
       }
-      // 第三轮复核 P2-4（2026-11-09）：verifying 完成路径靠机器既有边 `verification_completed(fail)`
+      // 第三轮复核-4（2026-11-09）：verifying 完成路径靠机器既有边 `verification_completed(fail)`
       // 建返工件，而它的 spawn 动作键是**固定键** `spawn_work_item:work_item:<src>:0`——源件此前若已
       // B10 返工过一次，键被占用 ⇒ 这次不建件。必须**在 undo 之前**判：占了就直接拒绝（任务保持 done），
       // 否则会先把任务撤出 done、又没建件，留下悬挂态（实测 schedulePass 不自愈）。
@@ -929,7 +929,7 @@ export class Engine {
     // undo_finish 回到 `state_before_close`：**正常完成路径通常是 verifying**（L0 机器验）或
     // needs_decision（L1/L2 签收）。verifying 没有 start_task 边——机器上唯一「回执行」的边是
     // verification_completed(verdict≠pass)，它自己会 spawn 返工件（B10 口径）。就用它，不再自己插件
-    // （否则会多出一个件）。needs_decision 得老板先拍板，如实拒绝（S7）。
+    // （否则会多出一个件）。needs_decision 得老板先拍板，如实拒绝。
     if (after.state === 'verifying') {
       const before = this.db.prepare('SELECT COUNT(*) AS n FROM work_items WHERE task_id=?').get(taskId) as { n: number };
       try {
@@ -947,7 +947,7 @@ export class Engine {
       if (after.state !== 'executing' && after.state !== 'planning') {
         return { ok: false, reason: `task_state_${after.state}`, workItemId };
       }
-      // 同向复核 P2-4：verification_completed 的 spawn 动作键固定（源件已 B10 返工过一次会撞键被吞），
+      // 同向复核-4：verification_completed 的 spawn 动作键固定（源件已 B10 返工过一次会撞键被吞），
       // 结果就是「返回成功但没建件」的静默 no-op。这里核一次：没新件就如实报，不假装补跑了。
       const afterCount = this.db.prepare('SELECT COUNT(*) AS n FROM work_items WHERE task_id=?').get(taskId) as { n: number };
       if (afterCount.n <= before.n) {
@@ -967,7 +967,7 @@ export class Engine {
     // （2026-11-09 实测：先 start 后建 ⇒ 立刻 verification_completed→task_completed）。
     wi = getWorkItem(this.db, workItemId) ?? wi;
     if (wi.state === 'done' || wi.state === 'submitted') {
-      // 换方向复核 P3：同毫秒双击会连开两次 refire ⇒ 重复建件。已有「本件的返工件在跑/排队」就不再建。
+      // 换方向复核：同毫秒双击会连开两次 refire ⇒ 重复建件。已有「本件的返工件在跑/排队」就不再建。
       const existing = this.db
         .prepare("SELECT id, state FROM work_items WHERE task_id = ? AND retry_of = ? AND state IN ('queued','running') ORDER BY id DESC LIMIT 1")
         .get(taskId, wi.id) as { id: number; state: string } | undefined;
@@ -1003,14 +1003,14 @@ export class Engine {
   }
 
   /**
-   * C2（真拆派）：**规划产出工作项**（`FLOWS §3.1.2` 首行口径；D-6 缺省链）。
+   * C2（真拆派）：**规划产出工作项**（`` 首行口径；D-6 缺省链）。
    *
    * v1 口径：**1 任务 = 1 工作项**（整个任务一件；"拆多件/并行 DAG"留后续）；`brief` = 结构化工作简报
    * （目标 + 验收 + 计划步骤 + 预算）。
    * **选人＝缺省链**：① 规划者指定（v1 未接——`submit_plan` 不带走员工）→ ② **项目默认员工**
-   * （编制 `projects.default_employee_ids`，D-11 已落地：取**首个在职者**，离岗跳过错）→ ③ **任务负责人**
+   * （编制 `projects.default_employee_ids`， 已落地：取**首个在职者**，离岗跳过错）→ ③ **任务负责人**
    * （`tasks.owner_id`）→ ④ **首个可执行员工**（active 且 `is_assistant=0`）；没有则**自动招募执行员工**。
-   * **幕僚长不再兜底执行**（`D-20`，2026-10-20 老板令：没员工就自动找，不能全让老板确认）。
+   * **幕僚长不再兜底执行**（``，2026-10-20 要求：没员工就自动找，不能全让要求）。
    * L1/L2 需要独立评审时，若只有一名可执行员工，同步自动补一名评审员工。
    * 幂等：动作键 `plan_work_items:task:<id>:0`（`action_log` OR IGNORE ⇒ 一任务一次）；已有工作项
    * （重规划/重放）→ **跳过并响亮留痕**（v1 不重算工作项：不建第二份、不静默）。
@@ -1042,7 +1042,7 @@ export class Engine {
     );
   }
 
-  /** 无员工时自动招募执行员工（D-20）；L1/L2 同时保证有一名独立评审员工。 */
+  /** 无员工时自动招募执行员工；L1/L2 同时保证有一名独立评审员工。 */
   private autoRecruitWorker(taskId: number, riskLevel: number): number {
     const now = this.now();
     const employeeId = insertEmployee(this.db, {
@@ -1058,7 +1058,7 @@ export class Engine {
     return employeeId;
   }
 
-  /** D-20/B-5：自动招募必须**可见**（进「待我处理」通知；不靠 console 留痕）。E-16 升级：加招募卡。 */
+  /** /B-5：自动招募必须**可见**（进「待我处理」通知；不靠 console 留痕）。E-16 升级：加招募卡。 */
   private notifyAutoRecruit(taskId: number, role: 'execute' | 'review', employeeId: number): void {
     const label =
       (this.db.prepare('SELECT short_id FROM tasks WHERE id = ?').get(taskId) as { short_id?: string | null } | undefined)
@@ -1084,7 +1084,7 @@ export class Engine {
           tier: emp.capability_tier ?? 'standard',
           taskId,
           taskShortId: label,
-          blocking: false, // 默认自招模式（D-20）：通知+可改不阻塞
+          blocking: false, // 默认自招模式：通知+可改不阻塞
         });
       }
     } catch { /* 招募卡失败不阻断原有通知 */ }
@@ -1125,7 +1125,7 @@ export class Engine {
   }
 
   /**
-   * RW-27（S11 真机，老板裁 A）：规划派发前预算预检。
+   * （真机，决定 A）：规划派发前预算预检。
    * 剩余 = budget_tokens - cost_tokens；**低于最小规划额度**就视为不足（预算 500 时哪怕还没花，
    * 也远不够一次真规划会话——先拦下来问老板，而不是烧掉再停）。
    * 无预算（null）→ null（不受影响）。
@@ -1191,8 +1191,8 @@ export class Engine {
       console.warn(`[engine] plan_work_items 跳过：任务 ${taskId} 已有 ${existing.length} 个工作项（v1 不重算）`);
       return;
     }
-    // ② 项目默认员工（编制，D-11）→ ③ 负责人 → ④ 首个可执行员工；都没有 → 自动招募。
-    // 幕僚长（is_assistant=1）永不进入执行候选（D-20）。
+    // ② 项目默认员工（编制）→ ③ 负责人 → ④ 首个可执行员工；都没有 → 自动招募。
+    // 幕僚长（is_assistant=1）永不进入执行候选。
     const staffingDefault =
       typeof task.project_id === 'number' ? resolveDefaultEmployeeId(this.db, task.project_id) : null;
     const candidates = [staffingDefault, typeof task.owner_id === 'number' ? task.owner_id : null];
@@ -1209,21 +1209,21 @@ export class Engine {
     // 计划此时已批准（L0 直通 / L1·L2 plan_approved），必须写明「直接执行、不要等指令」。
     lines.push('执行要求：计划已批准（L0 为直通）；你是执行员工，直接按计划完成并把产出落盘/验证，不要复述计划、不要等指令；完成后必须调用 submit_work_item 提交。');
     if (typeof task.budget_tokens === 'number') lines.push(`预算：${task.budget_tokens} tokens`);
-    // B2-4/D-30：路径预言**退役为提示**——brief 不再写 `'.'` 整树认领（B0-7 的兜底，
+    // /：路径预言**退役为提示**——brief 不再写 `'.'` 整树认领（的兜底，
     // 正确但把 inplace 恒串行化）；认领改由执行期实测（touched-path-recorder 在工具调用
     // 执行前登记，`recordWorkItemTouchedPaths`）。brief 只留一句「路径按实测」提示。
     lines.push('预计改哪些文件：按你实际读写为准——路径保护按执行期实测判定（本行仅提示，不参与认领）。');
     const project = typeof task.project_id === 'number' ? getProjectById(this.db, task.project_id) : undefined;
     const briefText = lines.join('\n');
     const brief = briefText;
-    // B2-3/D-30②：结构化多件（plan_drafted payload 的 workItems）——2-N 件带依赖落库；
+    // /：结构化多件（plan_drafted payload 的 workItems）——2-N 件带依赖落库；
     // 校验失败/缺省 → 回落单件（现状）。依赖**只允许同任务内**（work_item_deps DAO 环检测）。
     const planItems = this.normalizePlanItems(action.payload);
     if (planItems != null) {
       const created: number[] = [];
       for (const item of planItems) {
         const itemBrief = `${item.brief ?? item.title}\n\n${briefText}`;
-        // B2a 出口 B 供件：件级 employeeId（规划者指定）——在职且非幕僚长才生效，否则回落缺省链。
+        //  出口 B 供件：件级 employeeId（规划者指定）——在职且非幕僚长才生效，否则回落缺省链。
         const itemEmployee =
           item.employeeId != null && this.isEligibleWorker(item.employeeId) ? item.employeeId : employeeId;
         const row = insertWorkItem(this.db, {
@@ -1255,7 +1255,7 @@ export class Engine {
   }
 
   /**
-   * B2-3：plan_drafted payload 的结构化 workItems 校验（规划会话已过一遍，这里再兜一道）。
+   * plan_drafted payload 的结构化 workItems 校验（规划会话已过一遍，这里再兜一道）。
    * 合法 → 归一化件列表；缺省/非法 → null（回落单件；非法时响亮留痕——不静默丢）。
    */
   private normalizePlanItems(payload: Record<string, unknown> | undefined): NormalizedPlanWorkItem[] | null {
@@ -1270,7 +1270,7 @@ export class Engine {
   }
 
   /**
-   * M2-C 第 5 项：`submit_work_item` 的 `result.artifacts`（路径列表）→ `artifacts` 行（同事务）。
+   *  第 5 项：`submit_work_item` 的 `result.artifacts`（路径列表）→ `artifacts` 行（同事务）。
    * `source` = `<accessMode>:<collapsePath(cwd)>`（**与 G2 的会话/cwd 归一化同源**）；`sha256` 尽力而为。
    */
   private async writeSubmittedArtifacts(wi: import('../db/index.js').WorkItemRow, event: EngineEvent, now: number): Promise<void> {
@@ -1305,7 +1305,7 @@ export class Engine {
           sha256: sha,
           now,
         });
-        // B3-3/D-31④：inplace 项目产物登记时**快照到 .aico/versions/**（staging 走 git 版本）。
+        // /：inplace 项目产物登记时**快照到 .aico/versions/**（staging 走 git 版本）。
         if (project?.access_mode === 'inplace' && artifactResult.created && ws && absPath && existsSync(absPath)) {
           try {
             const { snapshotArtifactFile } = await import('../git/artifact-versions.js');
@@ -1333,7 +1333,7 @@ export class Engine {
     const task = getTaskById(this.db, event.id);
     if (!task) throw new Error(`[engine] 任务不存在: ${event.id}`);
 
-    // B6：超时默认动作 —— 优先事件显式值，否则读**待决审批卡**的真实 `default_action`（不再硬编码 `approve`）。
+    // 超时默认动作 —— 优先事件显式值，否则读**待决审批卡**的真实 `default_action`（不再硬编码 `approve`）。
     const pendingApproval = latestPendingApproval(this.db, task.id);
     const explicitDefault = (event.payload?.defaultAction as string | undefined) ?? null;
     const defaultActionKey = explicitDefault ?? pendingApproval?.default_action ?? null;
@@ -1350,7 +1350,7 @@ export class Engine {
           .get(task.id) as { n: number }
       ).n ?? 0,
     );
-    // BRK4：续跑轮次（本次 task_resumed 写入前计数）——verifier 幂等键用它，避免恢复后被旧键吞掉。
+    // 续跑轮次（本次 task_resumed 写入前计数）——verifier 幂等键用它，避免恢复后被旧键吞掉。
     const resumeRevision = Number(
       (
         this.db
@@ -1358,7 +1358,7 @@ export class Engine {
           .get(task.id) as { n: number }
       ).n ?? 0,
     );
-    // BRK25：decision_made 次数（本次写入前）——答卡回 planning 的重派键用它，避免与首轮/打回键相撞。
+    // decision_made 次数（本次写入前）——答卡回 planning 的重派键用它，避免与首轮/打回键相撞。
     const decisionRevision = Number(
       (
         this.db
@@ -1366,7 +1366,7 @@ export class Engine {
           .get(task.id) as { n: number }
       ).n ?? 0,
     );
-    // RW-3（M5 真机带回）：验证轮次（本次 verification_started 写入前计数 ⇒ 首轮 0、返工/恢复轮递增）
+    // （真机带回）：验证轮次（本次 verification_started 写入前计数 ⇒ 首轮 0、返工/恢复轮递增）
     // ——verifier 幂等键用它；resumeRevision 只覆盖暂停恢复，返工轮键不变会被 OR IGNORE 吞掉（真机挂死）。
     const verifyRevision = Number(
       (
@@ -1375,7 +1375,7 @@ export class Engine {
           .get(task.id) as { n: number }
       ).n ?? 0,
     );
-    // B2-6/D-30③：L1+ verifier pass 的签收卡——事件 payload 填 question＋options
+    // /：L1+ verifier pass 的签收卡——事件 payload 填 question＋options
     // （sign＋逐件 rework；notifyAction 透传 → 决策卡＋approvals 行）。0 件可返工时只给 sign。
     if (event.event === 'verification_completed' && (event.payload as { verdict?: unknown } | undefined)?.verdict === 'pass' && (task.risk_level ?? 1) >= 1 && (event.payload as { options?: unknown }).options == null) {
       const signoffItems = listWorkItemsByTask(this.db, task.id).filter((w) => w.state === 'done' || w.state === 'submitted');
@@ -1417,9 +1417,9 @@ export class Engine {
         actor: ctx.actor,
         payload: event.payload ?? {},
       });
-      // 投影：plan_drafted / plan_edited / progress_reported → plan_steps（DEV §4 第 8 条；事务内、可重放）
+      // 投影：plan_drafted / plan_edited / progress_reported → plan_steps（第 8 条；事务内、可重放）
       projectPlanStepEvent(this.db, { taskId: task.id, kind, payload: event.payload ?? {}, now });
-      // GAP8：批准前编辑计划 → 待批卡同步新计划（卡是老板实际作答的界面；不能只刷详情）。
+      // 批准前编辑计划 → 待批卡同步新计划（卡是老板实际作答的界面；不能只刷详情）。
       if (kind === 'plan_edited') this.syncApprovalCardPlan(task.id);
     }
     // v15：暂停来源落库（同状态不同来源；加预算/继续只自动恢复 budget 来源）。
@@ -1443,15 +1443,15 @@ export class Engine {
     // G11：任务进终态 `done` → 参与者员工的项目记忆（确定性投影、同事务、幂等；见 db/memory.ts）
     if (outcome.to === 'done') {
       recordTaskMemory(this.db, task.id, now);
-      // B3-5/D-31：LLM 抽取提议卡（**异步、不阻塞事务**；fail-closed——无 Key/失败仅留痕，
-      // 候选写 provisional 待老板确认，见 agent/memory-extract.ts）
+      // /：LLM 抽取提议卡（**异步、不阻塞事务**；fail-closed——无 Key/失败仅留痕，
+      // 候选写 provisional 待要求，见 agent/memory-extract.ts）
       void this.extractMemoryCandidatesFor(task.id);
     }
 
     const registered = registerActions(this.db, outcome.actions, now);
     keys.push(...registered.registered);
 
-    // 看门狗 timer：离开不再适用的状态→清除残留；进入对应状态→登记（FLOWS §3.1.1）
+    // 看门狗 timer：离开不再适用的状态→清除残留；进入对应状态→登记
     if (ctx.from === 'awaiting_approval' && outcome.to !== 'awaiting_approval') {
       clearUnfiredTimers(this.db, 'askcard_timeout', task.id);
     }
@@ -1464,7 +1464,7 @@ export class Engine {
     if (outcome.to === 'awaiting_approval') {
       this.scheduleWatchdog('askcard_timeout', task.id, 'askcard', now);
     }
-    // B6：进 `needs_decision` 也排 AskCard 超时（原先只排 awaiting_approval ⇒ 那条迁移永远走不到）
+    // 进 `needs_decision` 也排 AskCard 超时（原先只排 awaiting_approval ⇒ 那条迁移永远走不到）
     if (outcome.to === 'needs_decision') {
       this.scheduleWatchdog('askcard_timeout', task.id, 'askcard', now);
     }
@@ -1473,7 +1473,7 @@ export class Engine {
     }
 
     // D3-B（链路审计）：**任务级验收通过 → 对已提交的工作项发 `review_accept`**
-    //（`FLOWS §3.1.2`「`submitted` --`review_accept`（verifier 验收项 pass）--> `done`」的落点；
+    //（``「`submitted` --`review_accept`（verifier 验收项 pass）--> `done`」的落点；
     // L1/L2 的工作项在 verifying 阶段被接受——v1：1 任务 1 件，任务级 pass ⇒ 全部 submitted 件接受）。
     const derived: EngineEvent[] = [];
     if (event.event === 'verification_completed' && (event.payload as { verdict?: unknown } | undefined)?.verdict === 'pass') {
@@ -1501,7 +1501,7 @@ export class Engine {
         payload: { verdict: 'pass', via: 'no_verification_required' },
       });
     }
-    // BRK4：任何路径进入 executing（含手工 start_task / 调度 start_task）都做一次恢复对账：
+    // 任何路径进入 executing（含手工 start_task / 调度 start_task）都做一次恢复对账：
     // 重派 interrupted 件；已全 settled ⇒ 立即聚合（暂停期间跑完的件不再等一个不存在的后续事件）。
     if (event.event === 'start_task' && outcome.to === 'executing') {
       this.reconcileExecutingTask(task.id, keys);
@@ -1512,11 +1512,11 @@ export class Engine {
   /**
    * D4（链路审计）：**`notify_*` 动作 → 真卡**（`reports` ＋ `notifications`；复用 `notify()`，不另造载体）。
    *
-   * 口径（`UI §4.1` 四类卡；`FLOWS §3.1.1` 动作列）：
+   * 口径（`UI §4.1` 四类卡；`` 动作列）：
    * - `notify_approval` → **决策卡**（`kind='ask'`；payload 带 `options`＝批准/打回）＋ **建审批行**
-   *   （`report_id` 回挂真卡；`default_action`：**L1='approve'**（超时按批准执行＝`FLOWS §3.1.1` L224）、
+   *   （`report_id` 回挂真卡；`default_action`：**L1='approve'**（超时按批准执行＝`` L224）、
    *   **L2=null**（永不自动））；
-   * - `notify_decision` → 决策卡＋审批行（`default_action=null`，B6 fail-closed）；
+   * - `notify_decision` → 决策卡＋审批行（`default_action=null`， fail-closed）；
    * - `notify_report` → 汇报卡（`kind='report'`）；`notify_alert` → 异常卡（`kind='alert'`，**urgent**＝静默期照推）。
    * **幂等**：去重键＝**动作键本身**（`notify()` 的 dedupe_key UNIQUE ⇒ 重放/重入安全）；审批行用
    * `latestPendingApproval` 同题去重（重放不叠第二张）。
@@ -1526,7 +1526,7 @@ export class Engine {
    * **实时推送**：本版只落库（渲染层下次拉取可见）；`evt:notify` 实时刷新留后续件（如实登记）。
    */
   /**
-   * BRK17（挂载 3 余·取消小步，2026-10-16 裁决 D-9；余两态扩展同批）：任务级「取消」→ **真中止**。
+   * （挂载 3 余·取消小步，2026-10-16 决定 D-9；余两态扩展同批）：任务级「取消」→ **真中止**。
    *
    * 语义：① 逐个把 `running` 件按真值表走 `pause_task`（`running → interrupted`；WI 机唯一中断词）——
    * 事件入队后由外层 drain 循环按机器规应用（不绕过真值表直写状态）；② 逐件回调
@@ -1536,7 +1536,7 @@ export class Engine {
    * **已 `submitted` 的件不动**（不再验证；收尾卡如实交代）；`queued` 件随任务终态不再派发。
    */
   /**
-   * BRK4（M3-R-1）：暂停恢复后的**执行态对账**——任务重新进入 executing 时：
+   * 暂停恢复后的**执行态对账**——任务重新进入 executing 时：
    *  ① 被暂停打断的件（`interrupted`）→ `redispatch`（回 queued，交给调度重派）；
    *  ② 失败任务重试带来的 `failed` 件 → `retry`（attempt+1，走既有 `failed --retry--> running` 重派）；
    *  ③ 若全部件已经 done/submitted（暂停时刚好跑完）→ 立即发 `all_work_items_done`，
@@ -1553,7 +1553,7 @@ export class Engine {
           keys,
         );
       } else if (wi.state === 'failed') {
-        // S1 修复（2026-10-24）：任务 `failed --retry--> ready` 只重开任务，failed 件不会自己动；
+        //  修复（2026-10-24）：任务 `failed --retry--> ready` 只重开任务，failed 件不会自己动；
         // 在任务真正进入 executing 后补一次件级 retry（attempt+1 ⇒ 新 dispatch 键），避免空转。
         this.applyDerivedInTx(
           [{ scope: 'work_item', id: wi.id, event: 'retry', actor: 'system', payload: { via: 'task_retry_reconcile' } }],
@@ -1610,12 +1610,12 @@ export class Engine {
       });
       this.config.onWorkItemInterrupted?.({ workItemId: wi.id, employeeId: wi.employee_id, taskId });
     }
-    // 不挂件的角色会话（planner/critic/verifier）也停——取消与暂停共用（BRK4/BRK17）。
+    // 不挂件的角色会话（planner/critic/verifier）也停——取消与暂停共用。
     this.config.onTaskCancelled?.({ taskId });
   }
 
   /**
-   * GAP8：把当前 `plan_steps` 合并进**待批卡的 payload.planSteps**。
+   * 把当前 `plan_steps` 合并进**待批卡的 payload.planSteps**。
    * 只在 `plan_edited` 后调用；卡或审批行缺失（重放/历史数据）→ 静默跳过（详情仍有新计划）。
    */
   private syncApprovalCardPlan(taskId: number): void {
@@ -1634,7 +1634,7 @@ export class Engine {
       | undefined;
     const shortId = task?.short_id ?? `#${taskId}`;
 
-    // BRK10/11：决策卡 extras（闸门权限卡/员工升级按白名单透传；不整包——防大载荷进 action_log）。
+    // /11：决策卡 extras（闸门权限卡/员工升级按白名单透传；不整包——防大载荷进 action_log）。
     const extras = action.payload ?? {};
     const extraQuestion =
       typeof extras.question === 'string' && extras.question.trim().length > 0 ? extras.question : null;
@@ -1646,8 +1646,8 @@ export class Engine {
     // 不得漏进决策卡/异常卡正文（独立审查 2026-10-18）。
     const alertSummary = card === 'alert' && reason?.startsWith('模型/凭据不可用：') ? reason : null;
 
-    // 决策类的选项：**同时**进卡 payload（UI 按钮的唯一来源）与审批行（作答/超时的台账）。
-    // RW-21（M5 真机 S9 批）：critic 打回达上限的升级此前不带 options——卡上没有可点按钮，
+    // 决策类的选项：**同时**进卡 payload（UI 按钮的唯一来源）与审批行（作答/超时的清单）。
+    // （真机批）：critic 打回达上限的升级此前不带 options——卡上没有可点按钮，
     // 老板文字回复只进幕僚长对话（它没有任务裁定工具）⇒ 任务永久 needs_decision（真机实锤 T-1015）。
     // 选项键全部对齐任务机真边：proceed＝decision_proceed_latest（最新稿视同批准，不重规划）；
     // revise＝decision_made（回规划带评审意见）；cancel＝cancel（真取消）。
@@ -1688,7 +1688,7 @@ export class Engine {
                         ? `员工会话不可用（${shortId}）：未配置凭据或模型服务连接失败。修好后到任务详情重试，或取消任务。`
                         : `任务需要你决策（${shortId}：${task?.title ?? ''}）。可去任务详情查看上下文，或取消任务。`))
           : null;
-    // RW-6（M5 真机带回）：critic 打回达上限的升级必须**把评审意见带上卡**——老板拿到卡要能决策。
+    // （真机带回）：critic 打回达上限的升级必须**把评审意见带上卡**——老板拿到卡要能决策。
     // 摘要进 payload.body（Card.tsx / InboxView 已渲染 body——E-16 批接的渲染面）；截断 360 字符防大载荷。
     const criticNotes =
       card === 'decision' && reason === 'critic_revise_limit' && typeof extras.notes === 'string' && extras.notes.trim().length > 0
@@ -1696,7 +1696,7 @@ export class Engine {
         : null;
 
     const kind = card === 'report' ? 'report' : card === 'alert' ? 'alert' : 'ask';
-    // GAP8：计划批准卡带**计划全文**（卡上就能审计划；编辑后由 syncApprovalCardPlan 合并刷新）。
+    // 计划批准卡带**计划全文**（卡上就能审计划；编辑后由 syncApprovalCardPlan 合并刷新）。
     const planSteps = card === 'approval' ? listPlanSteps(this.db, taskId).map((step) => step.text) : [];
     // 2026-10-29 P2（F-N06）：批准卡不只有命令细节——把目标/验收条数/风险放在 tldr（人话摘要）。
     let approvalTldr: string | null = null;
@@ -1712,14 +1712,14 @@ export class Engine {
       const risk = typeof task?.risk_level === 'number' ? ['低', '中', '高'][task.risk_level] ?? String(task.risk_level) : '—';
       approvalTldr = `${goal.length > 0 ? `目标：${goal.slice(0, 140)}` : '目标：—'} · 验收 ${acceptanceCount} 条 · 风险：${risk}`;
     }
-    // N5 余账（EMPLOYEES §10.3「汇报卡标注'本次由 X 模型降级完成'」）：收尾卡在**发生过运行时降级**时
+    // N5 余账（「汇报卡标注'本次由 X 模型降级完成'」）：收尾卡在**发生过运行时降级**时
     // 如实加注（读 `agent_model_fallback` 事件计数；无降级不加注——不臆造）。
     const fallbackCount =
       card === 'report'
         ? (this.db.prepare("SELECT COUNT(*) AS n FROM task_events WHERE task_id = ? AND kind = 'agent_model_fallback'").get(taskId) as { n: number }).n
         : 0;
     const fallbackNote = fallbackCount > 0 ? `（含模型降级 ×${fallbackCount}）` : '';
-    // GAP12：完成卡带上最近一次验证结论/批注（微信不能用“详情见桌面”替代结论本身）。
+    // 完成卡带上最近一次验证结论/批注（微信不能用“详情见桌面”替代结论本身）。
     let reviewVerdict: string | null = null;
     let reviewNotes: string | null = null;
     if (card === 'report') {
@@ -1747,7 +1747,7 @@ export class Engine {
               ? `已取消：${shortId}${fallbackNote}`
               : `完成：${shortId}${fallbackNote}`
             : `异常：${shortId}`;
-    // RW-10（M5 真机带回，改判后收窄的修法）：done 完成卡存在**未合并变更集**时提示
+    // （真机带回，改判后收窄的修法）：done 完成卡存在**未合并变更集**时提示
     // 「产物在暂存工作区、需到任务详情合并才落项目根」——自动 pass→done 的任务尤其实用
     // （合并入口在详情页「变更与产物→变更（本次提交）」行内，完成卡不提示老板会以为产物丢了）。
     const pendingMerge =
@@ -1788,12 +1788,12 @@ export class Engine {
         ...(modelRejected != null ? { modelRejected } : {}),
         ...(alertSummary != null ? { summary: alertSummary } : {}),
       },
-      // BRK10/11：员工升级＝紧急（payload.urgent，静默期照推）；异常卡恒紧急。
+      // /11：员工升级＝紧急（payload.urgent，静默期照推）；异常卡恒紧急。
       urgent: card === 'alert' || extras.urgent === true,
       now: this.now(),
     });
 
-    // BRK10：闸门权限卡的审批行**由闸门侧先建**（`approvalId` 透传）——本路只做真卡回挂，不叠第二行。
+    // 闸门权限卡的审批行**由闸门侧先建**（`approvalId` 透传）——本路只做真卡回挂，不叠第二行。
     if (approvalId != null) {
       if (delivered.reportId != null) linkApprovalReport(this.db, approvalId, delivered.reportId);
     } else if (question != null) {
@@ -1804,7 +1804,7 @@ export class Engine {
           reportId: delivered.reportId, // 挂真卡（重放短路时＝既有卡）
           question,
           options,
-          // 超时默认动作：仅 L1 计划批准＝'approve'（L2 永不自动；决策卡一律 null＝fail-closed，B6 口径）
+          // 超时默认动作：仅 L1 计划批准＝'approve'（L2 永不自动；决策卡一律 null＝fail-closed， 口径）
           defaultAction: card === 'approval' && task?.risk_level === 1 ? 'approve' : null,
         });
       } else if (existing.report_id == null && delivered.reportId != null) {
@@ -1812,7 +1812,7 @@ export class Engine {
       }
     }
 
-    // BRK15：卡片落库回调（`evt:notify`/`evt:inbox` 实时推送的接线点；缺省不推＝渲染层靠下一次拉取）。
+    // 卡片落库回调（`evt:notify`/`evt:inbox` 实时推送的接线点；缺省不推＝渲染层靠下一次拉取）。
     this.config.onCard?.({ taskId, kind, card });
   }
 
@@ -1822,7 +1822,7 @@ export class Engine {
     if (!wi) throw new Error(`[engine] 工作项不存在: ${event.id}`);
     const task = getTaskById(this.db, wi.task_id);
 
-    // OPT-M3-1：未验证不得 done —— L2（强制）/L1（抽验命中）且 verifier 缺失或 = 实现者 → 拒绝
+    // OPT-：未验证不得 done —— L2（强制）/L1（抽验命中）且 verifier 缺失或 = 实现者 → 拒绝
     if (event.event === 'review_accept' && verificationRequired(task?.risk_level ?? 1, wi.id)) {
       if (wi.verifier_employee_id == null || wi.verifier_employee_id === wi.employee_id) {
         throw new Error(
@@ -1845,7 +1845,7 @@ export class Engine {
     };
     const outcome = planWorkItemTransition(ctx, event.event);
 
-    // 员工并发=1 硬守卫（FLOWS §0 第 4 条 / §3.1.2）：任何 → running 的迁移前，若该员工
+    // 员工并发=1 硬守卫（第 4 条 / §3.1.2）：任何 → running 的迁移前，若该员工
     // 已有另一个 running work item，直接拒绝（旁路注入事件 / 恢复重放也会被拦，保持 queued）。
     // 正常路径由 core/scheduler 的占用队列在派发前剔除忙员工；本守卫是防绕过的第二道锁。
     if (outcome.to === 'running') {
@@ -1854,7 +1854,7 @@ export class Engine {
     }
 
     for (const kind of outcome.kinds) {
-      // OPT-M8-2①：失败/中断也留痕并带原因（= 触发事件名）
+      // OPT-：失败/中断也留痕并带原因（= 触发事件名）
       const failKind = kind === 'work_item_failed' || kind === 'work_item_interrupted';
       insertTaskEvent(this.db, {
         taskId: wi.task_id,
@@ -1873,7 +1873,7 @@ export class Engine {
     if (event.event === 'submit_work_item' && event.payload?.result !== undefined) {
       patch.result = JSON.stringify(event.payload.result);
     }
-    // B9：WI transition 的 `patch`（如 retry 的 `attempt+1`）→ 真写库（否则幂等键永远不变 = 静默 no-op）。
+    // WI transition 的 `patch`（如 retry 的 `attempt+1`）→ 真写库（否则幂等键永远不变 = 静默 no-op）。
     Object.assign(patch, outcome.patch);
     updateWorkItem(this.db, wi.id, patch);
 
@@ -1884,13 +1884,13 @@ export class Engine {
       clearWorkItemHeartbeat(this.db, wi.id);
     }
 
-    // M2-C 第 5 项：提交时把产物写进 `artifacts`（带 `source` 归属；同一事务）
+    //  第 5 项：提交时把产物写进 `artifacts`（带 `source` 归属；同一事务）
     if (event.event === 'submit_work_item') {
       this.writeSubmittedArtifacts(wi, event, now);
     }
 
-    // M1-4 接缝：工作项**提交即收尾工作区**（不是等任务 done）——否则 verifying 阶段
-    // 还没有 changeset，合并/回滚无对象可审（M3 联动审计 F2）。失败/中断也收尾，保留现场。
+    //  接缝：工作项**提交即收尾工作区**（不是等任务 done）——否则 verifying 阶段
+    // 还没有 changeset，合并/回滚无对象可审（联动审计）。失败/中断也收尾，保留现场。
     if (outcome.to === 'submitted' || outcome.to === 'done' || outcome.to === 'failed' || outcome.to === 'interrupted') {
       this.finishWorkspace(wi.id);
     }
@@ -1898,7 +1898,7 @@ export class Engine {
     // MF2（2026-10-19 复查）：retry / rejected→redispatch 直接进 running，不走调度器的
     // `beginWorkspace`；在登记 dispatch 动作前先确保工作区（worktree）存在并解析 cwd。
     if (outcome.to === 'running') this.ensureWorkspace(wi.id);
-    // G2：派发时把**任务工作区 cwd**（M1-4 worktree/staging）写进 action payload → 会话按该 cwd 分区。
+    // G2：派发时把**任务工作区 cwd**（worktree/staging）写进 action payload → 会话按该 cwd 分区。
     const wsCwd = this.workspaceByWorkItem.get(wi.id)?.cwd;
     const actionsToRegister = wsCwd
       ? outcome.actions.map((a) => (a.kind === 'dispatch' ? { ...a, payload: { ...(a.payload ?? {}), cwd: wsCwd } } : a))
@@ -1913,7 +1913,7 @@ export class Engine {
     if ((outcome.to === 'done' || outcome.to === 'submitted') && task && task.state === 'executing') {
       const items = listWorkItemsByTask(this.db, wi.task_id);
       if (items.length > 0 && items.every((it) => it.state === 'done' || it.state === 'submitted')) {
-        // D3：把"有没有件需要验证"随事件带给状态机（决定是否派 verifier 会话；见 statemachine 该行注释）
+        // 把"有没有件需要验证"随事件带给状态机（决定是否派 verifier 会话；见 statemachine 该行注释）
         const risk = (task.risk_level ?? 1) as number;
         // DOC-4：挂了机器检查的任务**必须**走 verifier（L1 未抽验也不能自动 pass）。
     const verificationNeeded = hasMachineAcceptance(task?.acceptance) || items.some((it) => verificationRequired(risk, it.id));
@@ -1935,15 +1935,15 @@ export class Engine {
     ) {
       derived.push({ scope: 'work_item', id: wi.id, event: 'review_accept', actor: 'system' });
     }
-    // BRK2（挂载 1 余）：**失败聚合**——件进 `failed`，任务不得永停 `executing`（无卡、无后续）。
-    // FLOWS §3.1.2 L298：「任务 `executing` 时，关键 work item `failed` 且无重试路径 → 任务 `executing → failed`
+    // （挂载 1 余）：**失败聚合**——件进 `failed`，任务不得永停 `executing`（无卡、无后续）。
+    //  L298：「任务 `executing` 时，关键 work item `failed` 且无重试路径 → 任务 `executing → failed`
     // 或经 `needs_decision` 问你」——v1 取前者（派生任务级 `fail` ⇒ 任务机 `executing --fail--> failed`
     // 出**异常卡**〔`notify_alert`〕）；多件部分失败/自动重试路径留后续件（v1＝1 任务 1 件）。
     if (outcome.to === 'failed' && task && task.state === 'executing') {
-      // B0-3（ADV-1 G3）：**运行时错误**（event=error：会话超时/连接失败等）自动重试，落盘会话可续跑；
+      // （ADV-1 G3）：**运行时错误**（event=error：会话超时/连接失败等）自动重试，落盘会话可续跑；
       // 业务失败（agent_settled 未提交）照旧判死——不掩盖员工没干活。重试用尽才任务 failed 出卡。
-      // B2-3/D-30②：失败粒度=单件——业务失败（agent_settled 未提交）与运行时错误同口径
-      // 单件 attempt+1 重派；重试耗尽才任务 failed（B0-3 的「业务失败照旧判死」被 D-30 推翻；
+      // /：失败粒度=单件——业务失败（agent_settled 未提交）与运行时错误同口径
+      // 单件 attempt+1 重派；重试耗尽才任务 failed（的「业务失败照旧判死」被推翻；
       // 重试全程 attempt/事件留痕，不掩盖员工没干活）。
       const canRetry = wi.attempt < this.autoRetryLimit;
       if (canRetry) {
@@ -1967,7 +1967,7 @@ export class Engine {
     return derived;
   }
 
-  // ───────────────────────── 调度 fixpoint（DEV §5） ─────────────────────────
+  // ───────────────────────── 调度 fixpoint ─────────────────────────
 
   private buildSchedulerInput(): SchedulerInput {
     const rows = listWorkItems(this.db);
@@ -1980,7 +1980,7 @@ export class Engine {
       list.push(r.depends_on);
       deps.set(r.task_id, list);
     }
-    // B2-3/D-30②：工作项依赖边（调度门控用；空表 → 空 Map，无门控）。
+    // /：工作项依赖边（调度门控用；空表 → 空 Map，无门控）。
     const workItemDeps = new Map<number, number[]>();
     for (const r of this.db.prepare('SELECT work_item_id, depends_on FROM work_item_deps').all() as Array<{
       work_item_id: number;
@@ -2003,14 +2003,14 @@ export class Engine {
 
   /** 反复 planScheduling 并应用决议，直到无新决议（fixpoint）。 */
   private runSchedulingFixpoint(keys: string[]): void {
-    // M1-2：本轮已派发（用于同轮内的路径相交去重）
+    // 本轮已派发（用于同轮内的路径相交去重）
     const dispatchedThisBatch: PathClaim[] = [];
     // N2：**每轮规划开头**评估速率档位（回落也在这里复位——**不粘滞**）
     this.rateTierChanged = false;
     this.lastRateTier = this.evaluateRateGate();
     for (let i = 0; i < 1000; i += 1) {
       const actions = planScheduling(this.buildSchedulerInput());
-      // BRK14：任务级 hold 入库（每拍重建——与调度器同拍；三类排队原因由此能上屏）
+      // 任务级 hold 入库（每拍重建——与调度器同拍；三类排队原因由此能上屏）
       this.taskHolds.clear();
       for (const h of actions) {
         if (h.type !== 'hold') continue;
@@ -2038,7 +2038,7 @@ export class Engine {
           this.applyTaskEventInTx({ scope: 'task', id: action.taskId, event: 'start_task', actor: 'system' }, keys);
           applied = true;
         } else if (action.type === 'block_task') {
-          // D4：ready 但依赖未满足 → 真进 blocked（不占槽位）；依赖完成后 activate_task 回 ready。
+          // ready 但依赖未满足 → 真进 blocked（不占槽位）；依赖完成后 activate_task 回 ready。
           this.applyTaskEventInTx(
             { scope: 'task', id: action.taskId, event: 'block', actor: 'system', payload: { reason: action.reason } },
             keys,
@@ -2060,7 +2060,7 @@ export class Engine {
             this.pathHolds.set(action.workItemId, { reason: 'budget', conflictsWith: [], detail: companyBudgetDetail });
             continue;
           }
-          // B0-11：任务预算不足 → **派发前 hold**（件保持 queued、等待原因可见）＋一次决策卡。
+          // 任务预算不足 → **派发前 hold**（件保持 queued、等待原因可见）＋一次决策卡。
           // 放在这里（fixpoint，事务内）而不是执行器里：先于 running 迁移，避免「件 running 但会话没开」挂死。
           const taskBudgetGap = this.budgetPrecheckInsufficient(
             getWorkItem(this.db, action.workItemId)?.task_id ?? 0,
@@ -2126,8 +2126,8 @@ export class Engine {
             this.pathHolds.set(action.workItemId, { reason: 'concurrency_limit', conflictsWith: [], detail: concurrencyDetail });
             continue;
           }
-          // M1-2：同一 root_dir 内路径相交 → 不并行派发（hold + 原因）
-          // B2-4：候选认领＝实测 ∪ 返工血缘（seedClaimPaths）；无实测不凭空拦。
+          // 同一 root_dir 内路径相交 → 不并行派发（hold + 原因）
+          // 候选认领＝实测 ∪ 返工血缘（seedClaimPaths）；无实测不凭空拦。
           const seededClaim = getWorkItemPathClaim(this.db, action.workItemId);
           const candidate = seededClaim ? { ...seededClaim, paths: this.seedClaimPaths(action.workItemId) } : null;
           const occupied = [...listRunningPathClaims(this.db), ...dispatchedThisBatch];
@@ -2143,7 +2143,7 @@ export class Engine {
           );
           if (candidate) dispatchedThisBatch.push(candidate);
           applied = true;
-      // M1-4 接缝：仅在提供 git 时解析工作目录（inplace 默认不建 worktree）
+      //  接缝：仅在提供 git 时解析工作目录（inplace 默认不建 worktree）
       if (this.git) this.ensureWorkspace(action.workItemId);
         }
       }
@@ -2153,7 +2153,7 @@ export class Engine {
 
   /**
    * N3(P20/P22)：并发闸门——返回 hold 理由（公司级优先，其次任务内），不超则 undefined。
-   * 计数口径＝**正在跑（running）的 work item 数**（本批已派发的在同一事务内可见，无需另记）。
+   * 计数口径＝**正在跑（running）的 work item 数**（本次已派发的在同一事务内可见，无需另记）。
    * **幕僚长不持 work item ⇒ 天然不受约束**（"同一任务内 agent ≤3、除幕僚长"即此）。
    */
   private concurrencyBlockReason(workItemId: number): string | undefined {
@@ -2173,8 +2173,8 @@ export class Engine {
    * 真读数：正在 `executing` 的任务数（空库＝0/3 也如实；引擎缺失时 ipc 层回 `null` → UI 显 `—`）。
    */
   /**
-   * B3-5/D-31：任务 done 后 LLM 抽取记忆候选（异步 fire-and-forget）。
-   * 材料＝任务目标＋参与者提交摘要；候选写 provisional（老板确认才进 brief）；
+   * /：任务 done 后 LLM 抽取记忆候选（异步 fire-and-forget）。
+   * 材料＝任务目标＋参与者提交摘要；候选写 provisional（要求才进 brief）；
    * 失败/无 Key → 落 `memory_extract_failed` 事件（有 Key 时）或不留痕（无 Key＝未配置，正常态）。
    */
   private async extractMemoryCandidatesFor(taskId: number): Promise<void> {
@@ -2238,7 +2238,7 @@ export class Engine {
   }
 
   /**
-   * B2-4/D-30：路径所有权**执行期实测**登记（采集器在工具调用执行前调用）。
+   * /：路径所有权**执行期实测**登记（采集器在工具调用执行前调用）。
    * 内存 ws.touched（本件提交白名单用）∪ DB brief（running 认领/崩溃恢复用）；不抛（采集不反噬会话）。
    */
   recordWorkItemTouchedPaths(workItemId: number, paths: string[]): void {
@@ -2263,7 +2263,7 @@ export class Engine {
     }
   }
 
-  /** B2-4：候选件的派发冲突判定（实测认领 ∩ 在跑认领；引擎动作同口径，供测试/UI 复用）。 */
+  /** 候选件的派发冲突判定（实测认领 ∩ 在跑认领；引擎动作同口径，供测试/UI 复用）。 */
   pathConflictsFor(workItemId: number): number[] {
     const candidate = getWorkItemPathClaim(this.db, workItemId);
     if (!candidate) return [];
@@ -2275,7 +2275,7 @@ export class Engine {
   }
 
   /**
-   * B2-4：派发认领构造——实测路径（brief JSON）∪ 返工血缘源件实测（retry_of；
+   * 派发认领构造——实测路径（brief JSON）∪ 返工血缘源件实测（retry_of；
    * 重启/重试不丢已测事实）。无认领 → 空（派发不凭空拦）。
    */
   seedClaimPaths(workItemId: number): string[] {
@@ -2318,12 +2318,12 @@ export class Engine {
     return tier;
   }
 
-  /** M1-2：因路径冲突被 hold 的派发（返回原因/冲突对象；R3-2 起带 `detail`；不存在则 undefined）。 */
+  /** 因路径冲突被 hold 的派发（返回原因/冲突对象；R3-2 起带 `detail`；不存在则 undefined）。 */
   dispatchHold(workItemId: number): { reason: WaitingReason; conflictsWith: number[]; detail?: string } | undefined {
     return this.pathHolds.get(workItemId);
   }
 
-  /** BRK14：派发等待读数（WI 级三条 ＋ 任务级三条）——UI「为什么排队」的数据源（`computeWaits`）。 */
+  /** 派发等待读数（WI 级三条 ＋ 任务级三条）——UI「为什么排队」的数据源（`computeWaits`）。 */
   listDispatchHolds(): Array<{
     workItemId: number | null;
     taskId: number;
@@ -2347,7 +2347,7 @@ export class Engine {
     ];
   }
 
-  // ───────────────────── M1-4 接缝：工作目录 + 路径白名单提交 ─────────────────────
+  // ───────────────────── 接缝：工作目录 + 路径白名单提交 ─────────────────────
 
   /** 幂等：已解析过工作区就复用（正常调度在 apply 内已建，调度器循环再调不重复开 scope/检查点）。 */
   private ensureWorkspace(workItemId: number): void {
@@ -2365,7 +2365,7 @@ export class Engine {
       .get(task.project_id) as { root_dir: string; access_mode: string } | undefined;
     if (!proj) return;
     const shortId = task.short_id ?? `task-${task.id}`;
-    // BRK22 加固（2026-10-16）：工作区解析失败（如 staging 项目根不是 git 仓）**不得炸派发**——
+    //  加固（2026-10-16）：工作区解析失败（如 staging 项目根不是 git 仓）**不得炸派发**——
     // 响亮留痕并回退项目根（与 inplace 同形；产物来源/指纹尽量照落，不谎报 worktree）。
     let ws: { cwd: string; worktree: { path: string; branch: string } | null };
     try {
@@ -2392,7 +2392,7 @@ export class Engine {
       });
       ws = { cwd: proj.root_dir, worktree: null };
     }
-    // M3-N-2（GAP4）：staging 工作项派发即记检查点（base_sha = 工作项开始前的 HEAD）。
+    // staging 工作项派发即记检查点（base_sha = 工作项开始前的 HEAD）。
     // 失败只留日志、不阻塞派发；真正回滚前还会核对分支/祖先/脏路径。
     if (proj.access_mode === 'staging' && ws.worktree && this.git) {
       try {
@@ -2462,7 +2462,7 @@ export class Engine {
         });
       }
     }
-    // B2-4/D-30：认领＝实测（brief JSON）∪ 返工血缘源件实测（重启/重试不丢已测事实）。
+    // /：认领＝实测（brief JSON）∪ 返工血缘源件实测（重启/重试不丢已测事实）。
     const touched = this.seedClaimPaths(workItemId);
     // staging 是任务独占 worktree ⇒ 工作区里的改动都属于本件；inplace 是共享工作区，
     // 只有派发前干净时才允许按路径白名单自动提交（否则可能把老板在制改动卷进去）。
@@ -2510,7 +2510,7 @@ export class Engine {
   private finishWorkspace(workItemId: number): void {
     const ctx = this.workspaceByWorkItem.get(workItemId);
     if (!ctx) return;
-    // B0-12：提交信息带语义摘要（员工 submit_work_item.summary）；没有就明说，不用模板占位。
+    // 提交信息带语义摘要（员工 submit_work_item.summary）；没有就明说，不用模板占位。
     const finishWi = getWorkItem(this.db, workItemId);
     const finishTask = finishWi ? getTaskById(this.db, finishWi.task_id) : undefined;
     const commitMessage = workItemCommitMessage({
@@ -2520,10 +2520,10 @@ export class Engine {
       workItemId,
     });
     if (this.git && ctx.accessMode === 'staging') {
-      // M1-4 的硬约束保留：有显式 `touched_paths`/产物白名单时只提交白名单。
+      //  的硬约束保留：有显式 `touched_paths`/产物白名单时只提交白名单。
       // 真实 planner 产出的工作项是纯文本 brief（白名单为空）——此时 staging 是任务独占 worktree，
-      // 按工作区真实改动提交，不再因 `touched=[]` 跳过提交（M3 联动审计 P0-1 的根因）。
-      // F-03（2026-10-24）：白名单先与真实 diff 对账——员工可能漏报锁文件、或把 gitignored 产物
+      // 按工作区真实改动提交，不再因 `touched=[]` 跳过提交（联动审计 P0-1 的根因）。
+      // （2026-10-24）：白名单先与真实 diff 对账——员工可能漏报锁文件、或把 gitignored 产物
       // （如 `out/*.png`）报进来导致 `git add` 整条失败；staging 是独占工作区，过滤后为空则提交全部。
       const changed = listChangedPaths(this.git, ctx.cwd);
       const actual = changed.ok ? changed.paths : null;
@@ -2549,7 +2549,7 @@ export class Engine {
     } else if (this.git && ctx.accessMode === 'inplace' && hasWorkingTreeChanges(this.git, ctx.cwd)) {
       // inplace = 共享工作区：只在「派发前干净 + 本次有明确路径白名单」时提交，
       // 避免把老板在制改动卷进任务提交。无白名单/基线不干净 ⇒ 不提交并如实留痕。
-      // F-03（2026-10-24）：白名单先与真实 diff 对账，过滤 gitignored/不存在路径；锁文件自动纳入。
+      // （2026-10-24）：白名单先与真实 diff 对账，过滤 gitignored/不存在路径；锁文件自动纳入。
       if (ctx.baselineClean && ctx.touched.length > 0) {
         const changed = listChangedPaths(this.git, ctx.cwd);
         const actual = changed.ok ? changed.paths : null;
@@ -2597,7 +2597,7 @@ export class Engine {
         });
       }
     }
-    // M3-N-2（GAP4）：完成提交后补检查点 head 与真实改动路径（base..head）。
+    // 完成提交后补检查点 head 与真实改动路径（base..head）。
     if (ctx.accessMode === 'staging' && this.git) {
       try {
         const checkpoint = getCheckpointForAttempt(this.db, workItemId, ctx.attempt);
@@ -2620,8 +2620,8 @@ export class Engine {
         );
       }
     }
-    // M2-C 第 5 项：**真写** changeset（staging 提交后按 numstat 汇总）+ 回挂产物。
-    // 注：只对 `staging` 写（`inplace` 无任务分支 ⇒ changesets 的 branch/base/head 语义不成立；M0 默认行为不变）。
+    //  第 5 项：**真写** changeset（staging 提交后按 numstat 汇总）+ 回挂产物。
+    // 注：只对 `staging` 写（`inplace` 无任务分支 ⇒ changesets 的 branch/base/head 语义不成立； 默认行为不变）。
     if (ctx.accessMode === 'staging') {
       this.writeChangesetForWorkItem(workItemId, ctx);
     }
@@ -2643,7 +2643,7 @@ export class Engine {
   }
 
   /**
-   * M2-C 第 5 项：把 work item 的这次提交写成一条 `changesets`（+ 每文件行）并回挂其产物。
+   *  第 5 项：把 work item 的这次提交写成一条 `changesets`（每文件行）并回挂其产物。
    *
    * - **写点**：`finishWorkspace()`（staging 提交后）；`inplace` 也写（无提交则 numstat 为空 ⇒ 0/0/0，仍留痕）。
    * - **幂等**：`UNIQUE(work_item_id, head_sha)`（`003`）+ `INSERT OR IGNORE` ⇒ 重放/重复完成不写第二条。
@@ -2691,7 +2691,7 @@ export class Engine {
         filesChanged: files.length,
         insertions,
         deletions,
-        // B0-12：员工提交摘要（≤200 字）；无摘要写明文件数，不再写空串。
+        // 员工提交摘要（≤200 字）；无摘要写明文件数，不再写空串。
         summary: changesetSummary({ summary: summaryFromWorkItemResult(wi.result), filesChanged: files.length }),
         commitMsg: null,
         state: 'open',
@@ -2790,7 +2790,7 @@ export class Engine {
     return { files, insertions, deletions };
   }
 
-  /** M1-2：从物化状态**重算**路径冲突 hold（幂等、不改状态；供 UI `waiting_reason` 与验收）。 */
+  /** 从物化状态**重算**路径冲突 hold（幂等、不改状态；供 UI `waiting_reason` 与验收）。 */
   evaluatePathHolds(): PathConflict[] {
     const occupied = listRunningPathClaims(this.db);
     const holds: PathConflict[] = [];
@@ -2856,7 +2856,7 @@ export class Engine {
           fired += 1;
         }
       } else if (timer.kind === 'task_deadline_remind' || timer.kind === 'task_deadline_overdue') {
-        // UG-02：截止提醒/逾期卡——只回调通知，不改任务状态；终态/已归档任务丢弃残留 timer。
+        // 截止提醒/逾期卡——只回调通知，不改任务状态；终态/已归档任务丢弃残留 timer。
         if (!owner || owner.state === 'done' || owner.state === 'cancelled' || owner.archived === 1) {
           markTimerFired(this.db, timer.id, now);
           continue;
@@ -2893,12 +2893,12 @@ export class Engine {
           markTimerFired(this.db, timer.id, now);
           continue;
         }
-        // B6：读**真实** default_action（不再硬编码 `approve` = 替老板做决定）
+        // 读**真实** default_action（不再硬编码 `approve` = 替老板做决定）
         const pending = latestPendingApproval(this.db, timer.task_id);
         const realDefault = pending?.default_action ?? null;
         const kind = resolveDefaultActionKind(realDefault, parseApprovalOptions(pending?.options));
-        // 可自动执行？`awaiting_approval`：FLOWS §3.1.1 L224（L1 且 default_action=批准）；
-        // `needs_decision`：B6 白名单（fail-closed）——只有非破坏性默认动作才自动。
+        // 可自动执行？`awaiting_approval`： L224（L1 且 default_action=批准）；
+        // `needs_decision`： 白名单（fail-closed）——只有非破坏性默认动作才自动。
         const ownerRisk = owner && 'risk_level' in owner ? (owner as { risk_level: number }).risk_level : null;
         const actionable =
           ownerState === 'awaiting_approval' ? realDefault === 'approve' && ownerRisk === 1 : kind === 'auto';

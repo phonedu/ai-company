@@ -1,6 +1,6 @@
 /**
- * M2-A 余 · 日报（`PLAN §157`「提醒而不轰炸：长期未处理的决策与待验收，每天并进日报提醒一次」；
- * `PLAN §516`「日报：每项目一份 ＋ 全局一份，**由事件流自动生成**」）。
+ *  余 · 日报（``「提醒而不轰炸：长期未处理的决策与待验收，每天并进日报提醒一次」；
+ * ``「日报：每项目一份 ＋ 全局一份，**由事件流自动生成**」）。
  *
  * 本版（v1）只做**全局一份**、内容**全部由真数据推导**（不臆造、空就是空）：
  *  - 当日完成/失败/取消的任务（`tasks.closed_at` 在窗内）＋ 参与员工数（按完成任务的 owner 去重）；
@@ -104,7 +104,7 @@ export function emitDailyDigest(db: SqliteDb, input: { now: number }): EmitDiges
   const d = new Date(input.now);
   const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const res = notify(db, {
-    taskId: digestAnchorTaskId(db), // 最近活跃任务；无任务 ⇒ null（全局卡；BRK21/008：该列已可空）
+    taskId: digestAnchorTaskId(db), // 最近活跃任务；无任务 ⇒ null（全局卡；/008：该列已可空）
     kind: 'notification', // FYI（`UI §4.1` 第四类）；不占决策/验收 tab
     dedupeKey: `digest:${dateKey}`,
     payload: { title: `日报 · ${dateKey}`, tldr: digestText(content), digest: content },
@@ -116,7 +116,7 @@ export function emitDailyDigest(db: SqliteDb, input: { now: number }): EmitDiges
 /**
  * 日报落点的 `task_id`：挂**当日最近活跃任务的 id**；**无任务 ⇒ `null`**（全局卡）。
  *
- * 修正（BRK21 / 迁移 `008`，2026-10-15）：此前用哨兵 `0` 且注释声称「`reports.task_id` 无 FK 校验到 tasks」——
+ * 修正（/ 迁移 `008`，2026-10-15）：此前用哨兵 `0` 且注释声称「`reports.task_id` 无 FK 校验到 tasks」——
  * **与实况不符**（`schema.sql` 该列 `REFERENCES tasks(id)`）⇒ 空库首启日报撞 FOREIGN KEY、当天永远收不到。
  * 现口径：`reports.task_id` 已放宽**可空**（008），`null` = 不属任何任务的全局卡；UI 显示「全局」。
  */

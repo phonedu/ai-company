@@ -1,4 +1,4 @@
-// B0-9 真机配方：更新「人工确认」链路（发现新版 → 点「下载更新」→ 下载完成 → 出现「重启安装」）。
+//  真机配方：更新「人工确认」链路（发现新版 → 点「下载更新」→ 下载完成 → 出现「重启安装」）。
 //
 // 用假更新器（AICO_UPDATE_FAKE=1，仅开发版启用）验证真实 UI ＋ preload ＋ IPC ＋ 控制器：
 //   - 检查更新前没有「下载更新」按钮（不自动下载）；
@@ -89,7 +89,7 @@ try {
   await waitFor("!!(window.api && document.querySelector('[data-testid=leftrail-settings]'))", '页面就绪');
 
   const problems = [];
-  // 进入 设置 → 数据与关于
+  // 进入设置 → 数据与关于
   await evalIn("(function(){var b=document.querySelector('[data-testid=leftrail-settings]'); if(b) b.click(); return !!b;})()");
   await waitFor("!!document.querySelector('[data-testid=settings-group-data]')", '设置导航');
   await evalIn("(function(){var b=document.querySelector('[data-testid=settings-group-data]'); if(b) b.click(); return !!b;})()");

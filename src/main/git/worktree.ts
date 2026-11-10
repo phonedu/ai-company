@@ -1,5 +1,5 @@
 /**
- * M1-4 · 每任务独立 `git worktree`（**M1 部分**）—— `PLAN §18 / §15.3`、`B-5 G-4`、`lessons §2.2`。
+ *  · 每任务独立 `git worktree`（** 部分**）—— ` / §15.3`、`B-5 G-4`、`lessons §2.2`。
  *
  * 目标（结构性消除 L4/L14）：每任务一个 worktree + 分支 `aico/<shortId>` → **独立 index/HEAD**，
  * 「共享 index 把别人在制改动卷进提交」「`--amend` 改写他人提交」的根因**结构上不存在**。
@@ -8,10 +8,10 @@
  *  - ✅ 创建 / **幂等复用**、**终态移除** + `prune`、**引擎独占写的路径白名单提交**（`add -- <paths>` + `commit -- <paths>`）、**崩溃清理**；
  *  - ⛔ merge/diff/changesets、运行时 `path→work_item` 锁表、冲突事件 → **M2**。
  *
- * **默认行为不变（硬要求）**：`inplace` 项目（M0 现状）**不走 worktree**，仍在工作区按路径白名单提交；
+ * **默认行为不变（硬要求）**：`inplace` 项目（现状）**不走 worktree**，仍在工作区按路径白名单提交；
  * worktree 仅在 **`access_mode='staging'`**（或显式开关）时启用 —— 见 `resolveTaskWorkspace`。
  *
- * 台账 = **推导**（`git worktree list` + 命名规则；`.git/worktrees` 即账本）→ **零 schema 变更**。
+ * 清单 = **推导**（`git worktree list` + 命名规则；`.git/worktrees` 即账本）→ **零 schema 变更**。
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, rmSync } from 'node:fs';
@@ -80,7 +80,7 @@ function parseWorktreeList(stdout: string): PorcelainEntry[] {
 }
 
 /**
- * M3-N-2：按分支找**任意位置**的 worktree（回滚时不知道装配方把 worktree 根放哪：
+ * 按分支找**任意位置**的 worktree（回滚时不知道装配方把 worktree 根放哪：
  * 生产落 `userData/worktrees`，测试落任意临时目录）。找不到 ⇒ null（调用方显式拒，不猜路径）。
  */
 export function findWorktreeByBranch(
@@ -107,7 +107,7 @@ export class WorktreeManager {
     this.baseDir = baseDir;
   }
 
-  /** 台账推导：列出由本管理器命名规则（`baseDir/<shortId>` + 分支 `aico/<shortId>`）产生的 worktree。 */
+  /** 清单推导：列出由本管理器命名规则（`baseDir/<shortId>` + 分支 `aico/<shortId>`）产生的 worktree。 */
   list(): WorktreeInfo[] {
     const res = this.git.run(['worktree', 'list', '--porcelain'], this.repoRoot);
     if (res.status !== 0) return [];
@@ -145,7 +145,7 @@ export class WorktreeManager {
     return { info: { taskShortId: shortId, path, branch }, created: true };
   }
 
-  /** 移除 worktree（保留分支，供后续合并/审查；M1 部分）。返回是否移除了。 */
+  /** 移除 worktree（保留分支，供后续合并/审查； 部分）。返回是否移除了。 */
   remove(shortId: string): boolean {
     const existing = this.find(shortId);
     if (!existing) return false;
@@ -228,7 +228,7 @@ export function listChangedPaths(
   for (const line of status.stdout.split('\n')) {
     if (line.trim().length === 0) continue;
     let path = line.slice(3);
-    // rename/copy: `R  old -> new`（提交新路径）
+    // rename/copy: `R old -> new`（提交新路径）
     const arrow = path.indexOf(' -> ');
     if (arrow >= 0) path = path.slice(arrow + 4);
     if (path.startsWith('"') && path.endsWith('"')) path = path.slice(1, -1);

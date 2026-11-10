@@ -1,5 +1,5 @@
 /**
- * 记忆写入/注入的密钥检测（D-17 硬规则：不存密钥/凭据）。
+ * 记忆写入/注入的密钥检测（硬规则：不存密钥/凭据）。
  *
  * 口径：
  *  - **已知前缀**：sk-/sk_live/sk_test/rk_live、ghp_/github_pat_/glpat-、npm_、xapp-/xox*、AIza、AKIA；

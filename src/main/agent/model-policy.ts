@@ -76,7 +76,7 @@ export function resolveAssembleModel(): AssembleModel {
 
 /**
  * 普通档名（唯一来源）：settings `models.default`（R2-3 设置页，启动注入/写入即生效）优先；
- * `AICO_MODEL` 次之；兼容 DEV §11 已文档化的 `AICO_PI_MODEL`；兜底 `deepseek-flash`。
+ * `AICO_MODEL` 次之；兼容已文档化的 `AICO_PI_MODEL`；兜底 `deepseek-flash`。
  */
 export function normalModelName(): string {
   return defaultModelOverride ?? process.env.AICO_MODEL ?? process.env.AICO_PI_MODEL ?? 'deepseek-flash';
@@ -109,7 +109,7 @@ export function getFallbackChain(): readonly string[] {
 }
 
 /**
- * B0-11：链内降级的指数退避（500ms 起、翻倍、8s 封顶）。`AICO_LLM_BACKOFF_MS` 配基值（0=关）。
+ * 链内降级的指数退避（500ms 起、翻倍、8s 封顶）。`AICO_LLM_BACKOFF_MS` 配基值（0=关）。
  * 目的：单供应商限流/5xx 时不要「立刻打满整链」——先等一拍，仍失败再换模型。
  */
 export function providerBackoffMs(hop: number, env: NodeJS.ProcessEnv = process.env): number {
@@ -131,7 +131,7 @@ function providerIdOf(model: string): string {
 }
 
 /**
- * D-22 selection-time key hard gate: only asks whether the model's provider has a key; never reads plaintext.
+ *  selection-time key hard gate: only asks whether the model's provider has a key; never reads plaintext.
  * Same lookup as `resolveProviderKey` (env first, then local secrets file).
  */
 export function providerForModel(
@@ -178,7 +178,7 @@ export function resolveSessionModel(
   options: { keyAvailable?: (model: string) => boolean } = {},
 ): ModelTierResolution {
   const keyAvailable = options.keyAvailable ?? isModelKeyAvailable;
-  // D-22 assistant：主进程启动时会预热目录；未加载 → 空候选（解析器回落并说明，不静默选错）。
+  //  assistant：主进程启动时会预热目录；未加载 → 空候选（解析器回落并说明，不静默选错）。
   const assistantCandidates: AssistantCandidate[] = getCachedCatalogModels()
     .filter((m) => m.keyConfigured)
     .map((m) => ({
@@ -196,9 +196,9 @@ export function resolveSessionModel(
       roleMap,
     },
   );
-  // D-22：硬约束拒绝优先于一切（assistant 未启用 / 任务模型越界）；调用方负责响亮失败。
+  // 硬约束拒绝优先于一切（assistant 未启用 / 任务模型越界）；调用方负责响亮失败。
   if (base.rejected) return base;
-  // 异供应商（EMPLOYEES §10.3：「critic/verifier 建议用不同供应商——视角差异」）：
+  // 异供应商（：「critic/verifier 建议用不同供应商——视角差异」）：
   // **仅对非显式指派的结果尝试**（明派＝task/employee 压一切；只有 role_map/项目默认/公司默认才做视角差异），
   // 备选取自 `models.fallback_chain` 且必须落在项目允许清单内；找不到第二供应商 ⇒ 保持原模型并**如实标 `diversified:false`**（调用方留痕）。
   if (

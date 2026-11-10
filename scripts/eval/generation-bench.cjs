@@ -1,4 +1,4 @@
-// B1-1 生成质量基线（内部 59 §2）：四类任务各 2 条，直连模型生成 → 同一模型按 rubric 打分。
+//  生成质量基线：四类任务各 2 条，直连模型生成 → 同一模型按 rubric 打分。
 //
 // 运行：`pnpm eval:gen`（Electron 主进程；从应用 userData 解 OSCrypt 读取真实 DeepSeek Key，
 // 只用 env/内存传递，不打印、不落盘）。成本受 maxTokens 约束（约 $0.01/轮）。

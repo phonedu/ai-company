@@ -6,9 +6,9 @@
  *  - 跑 `pnpm audit:chain` 出「账本待更新」提示（open 而孤儿已消失）⇒ 当日复核、翻状态；
  *  - 叙事与证据链的真源＝研究件 [`docs/work/research-feature-chain-gap.md`]；本表只做**机器视图**，不复制证据。
  *
- * 读数基准日：2026-10-15（`BRK1`/`V3`/`BRK18`/`BRK19` 已交付；`BRK2`/`BRK3` 两件**并行会话当日在途修复**
+ * 读数基准日：2026-10-15（``/`V3`/``/`` 已交付；``/`` 两件**并行会话当日在途修复**
  * 〔未提交〕，与 `loop.ts` 任务级失败聚合（`fail` 接线）同批——三处孤儿读数已消失，本表照现实翻 `fixed`；
- * 该批若撤销，审计将报**回归**。
+ * 该次若撤销，审计将报**回归**。
  */
 import type { Disposition, Probe, ToolSpec, WriterSpec } from './chain-audit.js';
 
@@ -185,7 +185,7 @@ export const ORPHAN_DISPOSITIONS: Disposition[] = [
   { check: 'timer-kind', name: 'session_heartbeat', status: 'fixed', ref: 'BRK-R6（M3-R-6）', note: '调度/刷新/清除已接线（`timers.heartbeatWorkItem/clearWorkItemHeartbeat`；engine fireDueTimers 处理）；锚＝test/engine.test.ts' },
   { check: 'timer-kind', name: 'cron_fire', status: 'fixed', ref: 'GAP1（M3-N-1）', note: 'cron 触发已接：`TriggerService` 用 timers(kind=cron_fire) 存储/重排，tick 创建任务；事件触发用 kind=event_trigger；重启 rebuild 保留两类定时器' },
 
-  // —— 孤儿推送通道（声明/推送/路由 三腿；⑦）——
+  // —— 孤儿推送通道（声明/推送/路由三腿；⑦）——
   { check: 'ipc-push', name: 'evt:hall', status: 'fixed', ref: 'BRK15（挂载 2，2026-10-15 交付）', note: '主进程 `onEvent` 同推 `evt:hall`（大厅动状态实时刷新，不靠下一次拉取）；修复锚＝finding 再现即回归' },
   { check: 'ipc-push', name: 'evt:notify', status: 'fixed', ref: 'BRK15（挂载 2，2026-10-15 交付）', note: '卡片落库回调 `onCard` → `evt:notify`（引擎卡；main 日报直接推）；渲染层 store 路由 `loadChannel` 实时刷新' },
   { check: 'ipc-push', name: 'evt:inbox', status: 'fixed', ref: 'BRK15（挂载 2，2026-10-15 交付）', note: '同上（「待我处理」与频道同源刷新）；修复锚＝finding 再现即回归' },

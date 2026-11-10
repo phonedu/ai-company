@@ -1,11 +1,11 @@
 /**
- * evt-sink（最小版，DEV §7.3 Q-B / §7.3.1）
+ * evt-sink（最小版， Q-B / §7.3.1）
  *
  * 把主进程产生的事件按 **16ms 窗口**合并成统一信封推给渲染层：
  *   `{ channel, batchSeq, items[], emitAt }`（每批 ≤ `maxPerBatch`，超出拆多批；`emitAt` 供 P-09 延迟采样）。
  * 批内同 `key` 的条目 **last-wins**（同窗口同一主体只留最新）；无 key 的条目不去重。
  *
- * M0 只做最小版：**不含 `truncated` 标记与完整背压**（留 M1）。
+ *  只做最小版：**不含 `truncated` 标记与完整背压**（留）。
  * 纯逻辑、不依赖 Electron，便于单测（test/evt-sink.test.ts）。
  */
 
@@ -13,7 +13,7 @@ export interface EvtBatchEnvelope {
   channel: string;
   batchSeq: number;
   items: unknown[];
-  /** P-09：主进程发出该批的 epoch ms（渲染层收包减它＝主→渲染延迟）。 */
+  /** P-09：主进程发出该次的 epoch ms（渲染层收包减它＝主→渲染延迟）。 */
   emitAt: number;
 }
 

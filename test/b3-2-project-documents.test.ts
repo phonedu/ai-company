@@ -1,5 +1,5 @@
 /**
- * B3-2/D-31③：多文档根注册层——project_documents DAO＋读边界扩展。
+ * /：多文档根注册层——project_documents DAO＋读边界扩展。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

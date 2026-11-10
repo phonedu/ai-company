@@ -1,9 +1,9 @@
 /**
- * B2-7（58 §2.5 G6；D-30）：员工 bash git 只读白名单——提交收口归宿主。
+ * 员工 bash git 只读白名单——提交收口归宿主。
  *
- * 旧实现：`git commit` 不在外发族（B0-9 只拦 push/remote）、不在黑名单（默认空）、
+ * 旧实现：`git commit` 不在外发族（只拦 push/remote）、不在黑名单（默认空）、
  * 不在只读快速通道（readonly-bash 明确「git 不入」）⇒ 员工 standard 档 `git commit`
- * 自动放行，与宿主 auto_commit 双提交并存（58 §2.4 坐实）。
+ * 自动放行，与宿主 auto_commit 双提交并存。
  *
  * 新口径：
  *  - **员工会话**（`GateContext.employeeSession = true`）的 bash 命令含 **git 写子命令**
@@ -115,16 +115,16 @@ test('B2-7：链式与包裹形态（&& 链 / bash -c / 前置全局旗标）', 
 });
 
 test('B2-7/D4：绕过面收紧——引号 bin / env·xargs 包裹 / 命令替换内层', () => {
-  // D4 P2-1：bin 名剥引号（此前 `"git" commit` 绕过）
+  //  P2-1：bin 名剥引号（此前 `"git" commit` 绕过）
   assert.equal(detectGitWriteCommand('"git" commit -m x'), 'git commit');
   assert.equal(detectGitWriteCommand("'git' commit -m x"), 'git commit');
-  // D4 P2-2：包裹型 bin 剥壳递归（此前 `env git commit` / `xargs git commit` 绕过）
+  //  P2-2：包裹型 bin 剥壳递归（此前 `env git commit` / `xargs git commit` 绕过）
   assert.equal(detectGitWriteCommand('env git commit -m x'), 'git commit');
   assert.equal(detectGitWriteCommand('env VAR=1 git push origin main'), 'git push');
   assert.equal(detectGitWriteCommand('nohup git commit -m x'), 'git commit');
   assert.equal(detectGitWriteCommand('xargs git commit'), 'git commit');
   assert.equal(detectGitWriteCommand('xargs ls'), null, '非 git 包裹不误伤');
-  // D4 P3-1 收紧：命令替换内层同检（`echo $(git commit -m x)` 此前绕过）
+  //  P3-1 收紧：命令替换内层同检（`echo $(git commit -m x)` 此前绕过）
   assert.equal(detectGitWriteCommand('echo $(git commit -m x)'), 'git commit');
   assert.equal(detectGitWriteCommand('echo "版本 $(git describe)"'), null, '读替换不误伤');
 });
@@ -180,7 +180,7 @@ test('B2-7：非员工会话（频道助手/引擎）不受本件影响（W1 口
   // employeeSession 未设置（频道助手/引擎动作）→ 不走 git_write_deny（回落既有门禁）。
   const assistantCommit = bash('git commit -m x');
   assert.notEqual(assistantCommit.rule, 'git_write_deny');
-  // push 仍走 B0-9 的 egress ask（B2-7 不改变助手面）。
+  // push 仍走的 egress ask（不改变助手面）。
   assert.equal(bash('git push origin main').rule, 'consent:egress');
 });
 

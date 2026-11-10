@@ -1,4 +1,4 @@
-// B1 真跑入口：Electron 主进程解出真实 DeepSeek Key（只放 env），再启动无头评测跑器。
+//  真跑入口：Electron 主进程解出真实 DeepSeek Key（只放 env），再启动无头评测跑器。
 //
 // 为什么需要：secrets 已是 safeStorage 密文，纯 Node 无法解密；评测跑器本身不 import Electron。
 // 用法：`electron scripts/eval/run-with-key.cjs --limit=1 --tiers=eco`

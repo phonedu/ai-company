@@ -1,4 +1,4 @@
-# src/core — 编排核心（M0 第一批）
+# src/core — 编排核心（第一批）
 
 三个模块都是**纯逻辑 + 存储接口注入**，不依赖 Electron/SQLite，可以直接单测；
 后续把 `ResolverStore` / `CounterStore` 换成 better-sqlite3 实现即可接入产品。

@@ -21,7 +21,7 @@ export async function createSubmitReviewTool() {
     parameters: Type.Object({
       verdict: Type.Union(REVIEW_VERDICTS.map((v) => Type.Literal(v)), { description: '评审结论' }),
       notes: Type.Optional(Type.String({ description: '理由/证据（可选）' })),
-      // F-02（2026-11-06 老板裁）：计划步骤未完成**不是硬门**，但必须交代；
+      // （2026-11-06 决定）：计划步骤未完成**不是硬门**，但必须交代；
       // 独立字段便于宿主机器校验（写在 notes 里不算），也便于 UI 定向展示。
       planStepsNote: Type.Optional(
         Type.String({

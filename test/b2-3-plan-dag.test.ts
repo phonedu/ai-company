@@ -1,11 +1,11 @@
 /**
- * B2-3（58 §6-2；D-30②）：planner 产带依赖的多工作项 DAG——「1 任务=1 工作项」推翻。
+ * planner 产带依赖的多工作项 DAG——「1 任务=1 工作项」推翻。
  *
- * 口径（D-30②）：
+ * 口径：
  *  - 依赖只限**同任务内**工作项（新表 `work_item_deps`；环检测同 task_deps 口径——插入即拒）；
  *  - 调度按依赖门控：无依赖并行、有依赖等前置 done（不占员工、任务不被 block）；
  *  - 失败粒度=单件：件 failed → 该件 attempt+1 重派（运行时错误与业务失败同口径），
- *    全部重试耗尽才任务 failed（B0-3 的「业务失败不重试」被 D-30 推翻）；
+ *    全部重试耗尽才任务 failed（的「业务失败不重试」被推翻）；
  *  - 返工件（spawnReworkItem）带 `retry_of` 血缘；同员工返工**继承员工×任务×源件会话键**
  *    （前轮现场可见，57 P1-7/P2-2）；换员工改派不继承（隔离优先）。
  */
@@ -99,7 +99,7 @@ test('B2-3: normalizePlanWorkItems —— 2–6 件、非空标题、deps 1-base
     false,
     '二环拒',
   );
-  // D4 复核 P3-3 收紧：浮点/字符串 dependsOn 响亮拒（不静默过滤成无依赖）
+  //  复核-3 收紧：浮点/字符串 dependsOn 响亮拒（不静默过滤成无依赖）
   assert.equal(normalizePlanWorkItems([{ title: 'x' }, { title: 'y', dependsOn: [1.5] }]).ok, false, '浮点 deps 拒');
   assert.equal(normalizePlanWorkItems([{ title: 'x' }, { title: 'y', dependsOn: ['1'] }]).ok, false, '字符串 deps 拒');
   assert.equal(normalizePlanWorkItems('no').ok, false);
@@ -158,7 +158,7 @@ test('B2-3: 调度按依赖门控——有依赖件等前置（hold deps_unsatis
       runningByEmployee: new Map(),
     });
     assert.ok(actions2.some((d) => d.type === 'dispatch_work_item' && d.workItemId === c.id), '前置 done → C 派发');
-    // B2a 出口 B 实测修正：前置 submitted（已提交等任务级验证）也算满足（防死等）
+    //  出口 B 实测修正：前置 submitted（已提交等任务级验证）也算满足（防死等）
     const actions3 = planScheduling({
       now: 3,
       config: DEFAULT_SCHEDULER_CONFIG,
@@ -281,7 +281,7 @@ test('B2-3: 返工件带 retry_of；同员工会话键继承源件（员工×任
       now: 2,
     });
     assert.equal(rework.retry_of, src.id, '血缘落库');
-    // D4 复核 P1-b：直测 executor 导出的判定纯函数（此前是同义反复——同一纯函数同参自比）
+    //  复核-b：直测 executor 导出的判定纯函数（此前是同义反复——同一纯函数同参自比）
     const inherited = reworkInheritedSessionKey(src, 7, taskId);
     assert.equal(inherited, employeeSessionKey({ employeeId: 7, taskId, workItemId: src.id }), '同员工继承源件会话键');
     // 换员工改派：不继承（返回 undefined ⇒ 执行器走新件自己的会话键，隔离优先）

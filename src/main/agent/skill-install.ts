@@ -1,7 +1,7 @@
 /**
- * GAP7 · 技能安装/解析（M3-N-3）。
+ *  · 技能安装/解析。
  *
- * 口径（EMPLOYEES §4）：
+ * 口径：
  *  - 技能＝一个目录里的 `SKILL.md`（Agent Skills 便携形态）；frontmatter 至少 name/description；
  *  - **安装＝复制**到软件数据目录（`<userData>/skills/<kind>/<name>`），不引用用户原目录
  *    （原目录删了技能仍可用；更新走重新安装）；

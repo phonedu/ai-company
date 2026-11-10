@@ -1,7 +1,7 @@
 /**
  * `chat:resolve-attachment` —— 按 `{messageId, index}` 反查消息附件并生成**安全预览**。
  *
- * 口径（DEV §7.3 / UI §4.6 / §8 D1）：
+ * 口径（/ UI §4.6 / §8）：
  *  - renderer 只传消息 id + 下标；**不传路径**；
  *  - 主进程查 `human_messages.attachments[index]` 的 `fileToken`，再按 staging 规则找文件；
  *  - 图片/PDF 返回 `aico-file://preview/<短票>`（协议处理器只认自己签出的短票）；

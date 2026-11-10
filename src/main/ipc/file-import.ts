@@ -10,14 +10,14 @@ import { createReadStream } from 'node:fs';
 import { stagedFileName } from './staged-files.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 文件导入 IPC（DEV §7.3 D1 例外③ / T0.5 起）。
+// 文件导入 IPC（例外③ / 起）。
 //
-//   `file:import`        —— 入参是 **preload** 通过 `webUtils.getPathForFile(File)` 得到的可信路径；
+//   `file:import` —— 入参是 **preload** 通过 `webUtils.getPathForFile(File)` 得到的可信路径；
 //                           主进程按该路径流式复制到 staging 目录，返回不透明 `fileToken`。
-//   `file:import-bytes`  —— 无盘路径来源（如剪贴板截图）：入参是 `arrayBuffer()` 的字节；
+//   `file:import-bytes` —— 无盘路径来源（如剪贴板截图）：入参是 `arrayBuffer()` 的字节；
 //                           主进程写盘后同样返回 `fileToken`。
 //
-//   铁律（D1）：**返回体只有 `fileToken + 元信息`，绝不回传路径**；staging 文件名由 token 生成，
+//   铁律：**返回体只有 `fileToken + 元信息`，绝不回传路径**；staging 文件名由 token 生成，
 //   不信任原始文件名（防路径穿越）。
 // ─────────────────────────────────────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
 /**
- * K1 幕僚长 `memory_search` 工具（老板 2026-11-05 裁「1 和 2 都做」的 ②）。
+ * K1 幕僚长 `memory_search` 工具（2026-11-05 裁「1 和 2 都做」的 ②）。
  *
  * 缺口：幕僚长的记忆 brief 只注入 global＋当前项目两节（`store.brief`），「别的项目里记过什么」
  * 检索不到。本工具只读、走既有 `SqliteMemoryStore.search`（FTS5/LIKE），**全局＋全部活跃项目**

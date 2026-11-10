@@ -1,11 +1,11 @@
 /**
- * B4b/D-29：内容工具接线与门禁——
+ * B4b/：内容工具接线与门禁——
  *  - image_generate 归 spend：external grant 不放行（一次对外批准不得顺带授权花钱），只认 consent:spend；
  *    工具参数不得含路径类键（spend 类不经路径层，收路径即未受检的写路径）；
  *  - export_format 归 write：走路径层（项目外/穿越/敏感/外部文档根一律拒）；输出与源同目录派生；
  *  - 公众号 HTML：链接不可注入属性、javascript: 不出链接、未闭合代码块收尾；错误回文 Key 片段脱敏；
- *  - 接线守卫：四个 B4 员工工具都在 employee-factory 注册（防「模块在、零调用方」回归——B3 换方向审查实抓过）。
- * 顺带补 B4a：web_fetch/screenshot 的门禁分类此前无测试。
+ *  - 接线守卫：四个员工工具都在 employee-factory 注册（防「模块在、零调用方」回归—— 换方向审查发现过）。
+ * 顺带补：web_fetch/screenshot 的门禁分类此前无测试。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -39,7 +39,7 @@ test('B4-4: image_generate 每次 ask；external grant 不放行；只有同名 
   assert.equal(plain.decision, 'ask');
   assert.equal(plain.rule, 'consent:spend');
 
-  // 老板批过这个工具的 external 放行——不得顺带授权花钱。
+  // 要求过这个工具的 external 放行——不得顺带授权花钱。
   const withExternal = permissionGate(call, ctx({
     policy: {
       grants: [

@@ -1,5 +1,5 @@
 /**
- * OPT-M6-1「差异台账轻产品化」：**复用 `task_events`**（`kind='deviation_recorded'`），**不新建表/不加迁移**。
+ * OPT-「差异清单轻产品化」：**复用 `task_events`**（`kind='deviation_recorded'`），**不新建表/不加迁移**。
  * 口径：偏离/绕法必须带 **owner + 里程碑**；**收尾不得有\"未结且无 owner\"的项**（\"偏离清零\"读数）。
  */
 export const DEVIATION_KIND = 'deviation_recorded';
@@ -41,7 +41,7 @@ export interface DeviationSummary {
   open: number;
   /** 未结（`status!=='resolved'`）且**无 owner** 的项标题 —— 收尾读数，必须为空。 */
   openWithoutOwner: string[];
-  /** UG-07：逐条明细（只读投影；旧调用方可忽略）。 */
+  /** 逐条明细（只读投影；旧调用方可忽略）。 */
   items?: DeviationItem[];
 }
 

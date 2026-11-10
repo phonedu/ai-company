@@ -1,5 +1,5 @@
 /**
- * 未读读数分面（纯函数；M3 联动审计 P0-2）。
+ * 未读读数分面（纯函数； 联动审计 P0-2）。
  *
  * `channel:cards` 与 `channel:messages` 是两个独立 surface：任何一侧的返回都**只能**写自己那组字段。
  * 这里先做严格的 surface/数值校验，再由 store 落状态——防止 messages 读数把卡片 badge 覆盖成 0。

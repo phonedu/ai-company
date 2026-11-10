@@ -4,7 +4,7 @@
  * 判据（本文件头注即真源）：
  *  - **P20**：同一任务内**同时在跑**的 work item ≤ 上限（缺省 3；`tasks.max_parallel_work_items` 可按任务覆盖）；
  *  - **P22**：**公司级**同时在跑的 work item ≤ 上限（缺省 6）——「卡正在工作的数量，不卡人头」；
- *  - **幕僚长天然豁免**：它**不持 work item**（老板频道会话）⇒ 闸门天然不约束它，无需特判（口径断言见 05 §3 行）；
+ *  - **幕僚长天然豁免**：它**不持 work item**（老板频道会话）⇒ 闸门天然不约束它，无需特判（口径断言见行）；
  *  - 达上限 ⇒ 新派发 `queued` ＋ 等待原因 `concurrency_limit`（**可见**）；**在跑任务不打断**；
  *  - **C2**：`recordCost({taskId:null})` ⇒ `costs` 行 `task_id IS NULL`（公司级），**不碰 `tasks.cost_tokens`、不写 `task_events`**；
  *    `summarizeCosts().companyUsd` 如实反映；**有牙**：把上限放宽 → 不再排队（证明判定承重）。

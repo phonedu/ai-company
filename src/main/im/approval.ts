@@ -115,7 +115,7 @@ export function parseApprovalChoice(text: string, options: readonly CardOption[]
     return option?.key ?? null;
   }
 
-  // RW-25（S10 真机）：接受老板自然写法——剥掉任务号前缀（T-1020／#T1020）与语气助词后
+  // （真机）：接受老板自然写法——剥掉任务号前缀（T-1020／#T1020）与语气助词后
   // 再做精确词匹配；「不批准」「先不批准，等我看下计划」剥完仍不是精确词 → null（不猜，走普通消息）。
   const bare = value
     .replace(/^#?\s*t\s*-?\s*\d{1,6}\s*[:：,，、-]?\s*/iu, '')

@@ -1,5 +1,5 @@
 /**
- * B4b/D-29：图像生成＋导出适配器＋自媒体 SOP——纯函数/接口测试。
+ * B4b/：图像生成＋导出适配器＋自媒体 SOP——纯函数/接口测试。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

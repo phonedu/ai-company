@@ -1,6 +1,6 @@
 /**
  * `work_items` DAO —— 派给员工的原子工作单元（schema.sql）。
- * 本模块只做行的读写；状态迁移语义在 `engine/statemachine.ts`（FLOWS §3.1.2）。
+ * 本模块只做行的读写；状态迁移语义在 `engine/statemachine.ts`。
  */
 import type { WorkItemSnapshot, WorkItemState } from '../../core/types.js';
 import { insertTaskEvent } from './task_events.js';
@@ -19,7 +19,7 @@ export interface WorkItemRow {
   created_at: number;
   started_at: number | null;
   finished_at: number | null;
-  /** B2-3/D-30②：返工血缘（spawnReworkItem 指向源件；同员工返工继承源件会话键）。 */
+  /** /：返工血缘（spawnReworkItem 指向源件；同员工返工继承源件会话键）。 */
   retry_of: number | null;
 }
 
@@ -31,11 +31,11 @@ export interface InsertWorkItemInput {
   attempt?: number;
   now: number;
   actor?: string;
-  /** B2-3：返工血缘（spawnReworkItem）；DAO 不校验任务归属（引擎侧保证同任务）。 */
+  /** 返工血缘（spawnReworkItem）；DAO 不校验任务归属（引擎侧保证同任务）。 */
   retryOf?: number;
-  /** B2-5：附加事件 payload（work_item_created 审计字段，如 reply 件的 askKey）。 */
+  /** 附加事件 payload（work_item_created 审计字段，如 reply 件的 askKey）。 */
   eventExtra?: Record<string, unknown>;
-  /** 规划期落定：本次工作项会触碰的路径（相对 `projects.root_dir`）→ 存进 `brief` JSON（M1-2）。 */
+  /** 规划期落定：本次工作项会触碰的路径（相对 `projects.root_dir`）→ 存进 `brief` JSON。 */
   touchedPaths?: string[];
 }
 
@@ -65,7 +65,7 @@ export function insertWorkItem(db: SqliteDb, input: InsertWorkItemInput): WorkIt
       )
       .run(input.taskId, input.employeeId, input.title, briefText, input.attempt ?? 0, input.retryOf ?? null, input.now);
     id = Number(info.lastInsertRowid);
-    // FLOWS §3.1.2 首行：派发/产出 work item 时写 work_item_created（同一事务）
+    //  首行：派发/产出 work item 时写 work_item_created（同一事务）
     insertTaskEvent(db, {
       taskId: input.taskId,
       workItemId: id,
@@ -107,7 +107,7 @@ export function updateWorkItem(db: SqliteDb, id: number, patch: WorkItemPatch): 
 }
 
 /**
- * OPT-M3-1：指派验证者（应用层断言：**验证者 ≠ 实现者**；M3 复用员工 id，不新增角色/表）。
+ * OPT-：指派验证者（应用层断言：**验证者 ≠ 实现者**； 复用员工 id，不新增角色/表）。
  */
 export function assignWorkItemVerifier(db: SqliteDb, workItemId: number, verifierEmployeeId: number): WorkItemRow {
   const row = getWorkItem(db, workItemId);
@@ -146,11 +146,11 @@ export function latestWorkersByTask(db: SqliteDb): Map<number, { employeeId: num
 /**
  * employeeId -> 正在运行的 work item id（员工并发 = 1，scheduler 输入）。
  *
- * ⚠️ **静默折叠风险（M1 加固，见 PLAN 附录 B-5）**：`Map` 对同一 employeeId 的多个值只保留
+ * ⚠️ **静默折叠风险（加固，见附录 B-5）**：`Map` 对同一 employeeId 的多个值只保留
  * 最后一个 —— 若「员工并发=1」不变量被打破（历史数据 / 旁路写入 / 恢复），这里会**静默**丢掉多余
  * running 而不报错。当前依赖：(1) 调度器占用队列；(2) 引擎 `findOtherRunningWorkItem` 硬守卫。
- * M1 计划：DB 部分唯一索引 `ux_wi_running_emp` + 会话池 `acquire` 断言 + 派发前去重 +
- * `concurrency_conflict_detected` 事件。**M0 不顺手改结构**（可控范围内的已知风险）。
+ *  计划：DB 部分唯一索引 `ux_wi_running_emp` + 会话池 `acquire` 断言 + 派发前去重 +
+ * `concurrency_conflict_detected` 事件。** 不顺手改结构**（可控范围内的已知风险）。
  */
 /** N3(P20/P22)：**正在跑的 work item 数**（公司级；给 taskId 则该任务内）。闸门用它判并发上限。 */
 export function countRunningWorkItems(db: SqliteDb, opts: { taskId?: number } = {}): number {
@@ -167,7 +167,7 @@ export function runningByEmployee(db: SqliteDb): Map<number, number> {
   return new Map(rows.map((r) => [r.employee_id, r.id]));
 }
 
-// ───────────────────── M1-2 · 文件所有权（touched_paths）─────────────────────
+// ───────────────────── · 文件所有权（touched_paths）─────────────────────
 
 export interface PathClaim {
   workItemId: number;
@@ -246,7 +246,7 @@ export function listRunningPathClaims(db: SqliteDb): PathClaim[] {
 /**
  * 查找某员工**另一个**正在运行的 work item（排除 `excludeWorkItemId`）。
  *
- * 用于「员工并发=1」硬守卫（FLOWS §0 第4条 / §3.1.2）：任何 → `running` 的迁移前若已有
+ * 用于「员工并发=1」硬守卫（第4条 / §3.1.2）：任何 → `running` 的迁移前若已有
  * running，则拒绝。**不得复用 `runningByEmployee`**——它建的是 Map，同一员工若出现多条
  * running 会**静默折叠**只留一条，正是要防的不可观测失效。
  */

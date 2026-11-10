@@ -1,5 +1,5 @@
 /**
- * UG-10 · 汇报卡任务分区（产物 / 变更 / 证据 / 成本）。
+ *  · 汇报卡任务分区（产物 / 变更 / 证据 / 成本）。
  *
  * 只在卡片展开时拉 `task:get` + `cost:summary`；不复制 payload、不假设 0。
  * 数字来自主进程；空数据显式 `—`/空态。
@@ -54,7 +54,7 @@ export function CardTaskSections({
   onPreviewArtifact,
 }: {
   taskId: number;
-  /** UG-05/10：汇报卡产物入口——打开任务详情并把该产物预览放进抽屉。 */
+  /** /10：汇报卡产物入口——打开任务详情并把该产物预览放进抽屉。 */
   onPreviewArtifact?: (artifactId: number) => void;
 }): ReactElement {
   const [detail, setDetail] = useState<CardTaskDetail | null>(null);

@@ -29,7 +29,7 @@ export function registerAicoFileProtocol(): void {
         'Cache-Control': 'no-store',
         'X-Content-Type-Options': 'nosniff',
       };
-      // P2-1（D4 2026-11-03）：HTML 预览禁止任何外部子资源——沙箱挡脚本/同源，
+      // P2-1（2026-11-03）：HTML 预览禁止任何外部子资源——沙箱挡脚本/同源，
       // CSP 再挡外链图片/样式/字体，避免本地 HTML 把预览变成对外请求。
       if (entry.type.toLowerCase().startsWith('text/html')) {
         headers['Content-Security-Policy'] = "default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:";

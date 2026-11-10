@@ -2,7 +2,7 @@
  * `src/main/agent` 公共出口 —— 会话运行时接缝 + 幕僚长运行时 + 工具事件落库。
  *
  * 真实 Pi 实现（`@earendil-works/pi-coding-agent`）在 `pi-runtime.ts`（装配时接上）；
- * 单测用 `makeFakeAgentRuntime`（DEV §9）。
+ * 单测用 `makeFakeAgentRuntime`。
  */
 export type {
   AgentEvent,

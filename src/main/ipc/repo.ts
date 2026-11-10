@@ -1,5 +1,5 @@
 /**
- * T0.5 持久化端口实现。
+ *  持久化端口实现。
  *
  * 复用 `src/main/db/**` DAO（human_messages / reports / approvals / resolver_store）——
  * 不再重复写 SQL。报告状态投影（`acknowledged` / `resolved`）已收归 DAO（`ccdbf3c`，幂等），
@@ -118,11 +118,11 @@ function basenameOf(p: string): string {
 }
 
 /**
- * OPT-M8-1：任务产物元信息（`artifacts` 表，只读、按 id 升序、按 `task_id` 定界）。
+ * OPT-：任务产物元信息（`artifacts` 表，只读、按 id 升序、按 `task_id` 定界）。
  * **列无关（口径冻结前）**：若存在 `source`/`commit_sha`/`at`（`003`）则映射；**缺列一律 `null`**（不阻塞）。
  * `commit_sha` → DTO `commit`（列名避开 SQL 关键字 `commit`）。
  */
-// 事实：`artifacts` 的 `source`/`commit_sha`/`at`（若有）与 `changesets.head_sha` 目前均**无写者（属 M2）**
+// 事实：`artifacts` 的 `source`/`commit_sha`/`at`（若有）与 `changesets.head_sha` 目前均**无写者（属）**
 //   → 恒 `null`，**非数据缺失**；将来由产出方填入，本函数**零改动**即可显示。
 function listArtifactsForTask(db: SqliteDb, taskId: number): StoredArtifact[] {
   const cols = new Set(
@@ -181,7 +181,7 @@ function parseAttachments(raw: unknown): AttachmentMeta[] {
         type: String(record.type ?? ''),
       };
       if (typeof record.fileToken === 'string' && record.fileToken.length > 0) {
-        meta.fileToken = record.fileToken; // D1 例外③：不透明令牌（非路径）
+        meta.fileToken = record.fileToken; //  例外③：不透明令牌（非路径）
       }
       out.push(meta);
     }
@@ -244,14 +244,14 @@ function toApproval(row: ApprovalRow): StoredApproval {
   };
 }
 
-/** T0.5 视图投影：卡片标签需要 short_id；决策按钮需要该 report 对应的 approval id。 */function enrichReport(db: SqliteDb, row: ReportRow): StoredReport {
+/**  视图投影：卡片标签需要 short_id；决策按钮需要该 report 对应的 approval id。 */function enrichReport(db: SqliteDb, row: ReportRow): StoredReport {
   const task = db
     .prepare('SELECT t.short_id, t.project_id, p.name AS project_name FROM tasks t LEFT JOIN projects p ON p.id = t.project_id WHERE t.id = ?')
     .get(row.task_id) as { short_id: string | null; project_id: number | null; project_name: string | null } | undefined;
   const approval = db
     .prepare('SELECT id, options FROM approvals WHERE report_id = ? ORDER BY id LIMIT 1')
     .get(row.id) as { id: number; options: string | null } | undefined;
-  // RW-21：审批行 options 作为卡的兜底选项源——卡 payload 缺 options 的历史卡（升级卡修复前发出的）
+  // 审批行 options 作为卡的兜底选项源——卡 payload 缺 options 的历史卡（升级卡修复前发出的）
   // 靠它复活按钮；新卡 payload 自带时以 payload 为准。
   let approvalOptions: Array<{ key: string; label?: string }> | null = null;
   if (approval?.options) {
@@ -331,7 +331,7 @@ function taskProjectRef(
 }
 
 /**
- * D-22：任务头「预计模型＋来源」——用**执行员工**视角预览（实际会话可能由规划/评审角色跑；
+ * 任务头「预计模型＋来源」——用**执行员工**视角预览（实际会话可能由规划/评审角色跑；
  * 这里只回答“这件活会落到哪个模型”，不冒充会话实况）。无工作项时用负责人；无员工偏好走项目默认。
  */
 function taskModelPreview(db: SqliteDb, row: TaskRow): {
@@ -367,7 +367,7 @@ function taskModelPreview(db: SqliteDb, row: TaskRow): {
 }
 
 /** R2-3 · `projects` 行 → `ProjectDTO`（camelCase；JSON 列防御解析——坏值 → `[]`，不抛）。 */
-/** GAP6：MCP 行 → 渲染视图；**env 值绝不进 renderer**（只给 key 名）。 */
+/** MCP 行 → 渲染视图；**env 值绝不进 renderer**（只给 key 名）。 */
 function toMcpServerView(row: McpServerRow): McpServerView {
   let args: string[] = [];
   try {
@@ -417,7 +417,7 @@ function toProjectDTO(db: SqliteDb, row: ProjectRow): ProjectDTO {
     defaultEmployeeIds: arr(row.default_employee_ids).filter((v): v is number => typeof v === 'number'),
     defaultOwnerId: row.default_owner_id ?? null,
     defaultRiskTier: row.default_risk_tier ?? null,
-    /** D-19 P1：项目级频道助手写权限（读面＝permission_policies；未设＝confirm）。 */
+    /**  P1：项目级频道助手写权限（读面＝permission_policies；未设＝confirm）。 */
     assistantWriteMode: resolveAssistantWriteMode(db, row.id),
     docsCheckEnabled: row.docs_check_enabled !== 0,
     defaultSkills: arr(row.default_skills).filter((v): v is string => typeof v === 'string'),
@@ -442,13 +442,13 @@ function toProjectDTO(db: SqliteDb, row: ProjectRow): ProjectDTO {
 function ensureDefaultProject(db: SqliteDb): number {
   const existing = getDefaultProject(db);
   if (existing) return existing.id;
-  // 幂等（BRK17 深件同批）：设置未设时**复用**既有「默认项目」行——旧实现每次 INSERT，
+  // 幂等（深件同批）：设置未设时**复用**既有「默认项目」行——旧实现每次 INSERT，
   // 归属拿不准路径（未设默认 + 多次建任务）会累积出多个同名「默认项目」。
   const legacy = db
     .prepare("SELECT id FROM projects WHERE name = '默认项目' AND archived = 0 ORDER BY id LIMIT 1")
     .get() as { id: number } | undefined;
   if (legacy) return legacy.id;
-  // RW-1（M5 真机带回）：回退根改为**用户主目录下的应用工作区**并当场创建——
+  // （真机带回）：回退根改为**用户主目录下的应用工作区**并当场创建——
   // 旧默认模板路径不存在 ⇒
   // 落到该项目的任务员工全部工具失败（write EPERM / bash cwd 不存在）。这是应用自己的
   // 工作区目录（不碰用户已有文件）；用户随时可在设置·项目里改根或接入自己的文件夹。
@@ -558,7 +558,7 @@ export function createSqliteChatRepo(db: SqliteDb): ChatRepo {
       return row ? toProjectDTO(db, row) : null;
     },
 
-    // 编制 v1（D-11）：写三项缺省（校验/落库在 `db/projects.ts#setProjectStaffing`——非法拒且不落库）。
+    // 编制 v1：写三项缺省（校验/落库在 `db/projects.ts#setProjectStaffing`——非法拒且不落库）。
     projectStaffingSet(input) {
       const res = setProjectStaffing(db, input.projectId, {
         ...(input.ownerEmployeeId !== undefined ? { ownerEmployeeId: input.ownerEmployeeId } : {}),
@@ -569,20 +569,20 @@ export function createSqliteChatRepo(db: SqliteDb): ChatRepo {
       return { ok: true, project: toProjectDTO(db, res.row) };
     },
 
-    // 编制 v1（D-11）：建任务缺省（已过在职校验收口；项目不存在 → null）。
+    // 编制 v1：建任务缺省（已过在职校验收口；项目不存在 → null）。
     projectStaffing(projectId) {
       const s = getProjectStaffing(db, projectId);
       if (!s) return null;
       return { ownerEmployeeId: s.ownerEmployeeId, defaultEmployeeId: s.defaultEmployeeId, defaultRiskTier: s.defaultRiskTier };
     },
 
-    // M3-DOC-4：项目级文档检查开关（不存在 → null）。
+    // 项目级文档检查开关（不存在 → null）。
     projectDocsCheckSet(input) {
       const row = setProjectDocsCheck(db, input.projectId, input.enabled);
       return row ? toProjectDTO(db, row) : null;
     },
 
-    // D-19 P1：项目级频道助手写权限（不存在 → null；只写 permission_policies 的 assistantWriteMode）。
+    //  P1：项目级频道助手写权限（不存在 → null；只写 permission_policies 的 assistantWriteMode）。
     projectAssistantWriteModeSet(input: { projectId: number; mode: AssistantWriteMode }) {
       if (!getProjectById(db, input.projectId)) return null;
       setAssistantWriteMode(db, input.projectId, input.mode);
@@ -590,7 +590,7 @@ export function createSqliteChatRepo(db: SqliteDb): ChatRepo {
       return row ? toProjectDTO(db, row) : null;
     },
 
-    // D-22：项目模型策略（三字段整体写；校验在 core/model-tiers.ts；非法拒且不落库）。
+    // 项目模型策略（三字段整体写；校验在 core/model-tiers.ts；非法拒且不落库）。
     projectModelPolicySet(input) {
       const res = dbSetProjectModelPolicy(db, {
         projectId: input.projectId,
@@ -611,14 +611,14 @@ export function createSqliteChatRepo(db: SqliteDb): ChatRepo {
       return { ok: true, project: toProjectDTO(db, row) };
     },
 
-    // S13-G/D-N06：合并目标分支（空串/null ⇒ 清空，回到 main/master 口径）。
+    // /：合并目标分支（空串/null ⇒ 清空，回到 main/master 口径）。
     projectTargetBranchSet(input) {
       const row = setProjectTargetBranch(db, input.projectId, input.branch);
       if (!row) return { ok: false, code: 'not_found', message: `项目不存在：${input.projectId}` };
       return { ok: true, project: toProjectDTO(db, row) };
     },
 
-    // B3（M3-N-3）：项目默认技能集（先解析校验，再落库；不可解析项显式拒）。
+    // 项目默认技能集（先解析校验，再落库；不可解析项显式拒）。
     projectDefaultSkillsSet(input) {
       const project = getProjectById(db, input.projectId);
       if (!project) return { ok: false, code: 'not_found', message: `项目不存在：${input.projectId}` };
@@ -634,7 +634,7 @@ export function createSqliteChatRepo(db: SqliteDb): ChatRepo {
       return { ok: true, project: toProjectDTO(db, updated) };
     },
 
-    // G-A（M2 §7 序 3，迁移 007）：跨项目引用——源侧读 ＋ 原子登记（新产物行 ＋ 审计事件）。
+    // G-A（§7 序 3，迁移 007）：跨项目引用——源侧读 ＋ 原子登记（新产物行 ＋ 审计事件）。
     getArtifact(id) {
       const row = dbGetArtifactById(db, id);
       if (!row) return null;
@@ -728,7 +728,7 @@ export function createSqliteChatRepo(db: SqliteDb): ChatRepo {
       const hasDocsCheck = provided.some(
         (item) => item != null && typeof item === 'object' && (item as { check?: unknown }).check === DOCS_CHECK_COMMAND,
       );
-      // M3-DOC-4：L1/L2 新任务默认挂文档检查（项目开关默认开；L0 直通免验不挂；显式同检查不重复）。
+      // L1/L2 新任务默认挂文档检查（项目开关默认开；L0 直通免验不挂；显式同检查不重复）。
       const acceptance =
         (input.riskLevel ?? 1) > 0 && project?.docs_check_enabled !== 0 && !hasDocsCheck
           ? [...provided, { text: '文档检查通过（.aico/docs）', check: DOCS_CHECK_COMMAND }]
@@ -738,21 +738,21 @@ export function createSqliteChatRepo(db: SqliteDb): ChatRepo {
         title: input.title,
         goal: input.goal,
         acceptance,
-        // D-11（编制）：负责人随建任务落库（显式 > 编制缺省，已由 handler 解析；`undefined` → NULL＝缺省链兜底）
+        // （编制）：负责人随建任务落库（显式 > 编制缺省，已由 handler 解析；`undefined` → NULL＝缺省链兜底）
         ...(typeof input.ownerId === 'number' ? { ownerId: input.ownerId } : {}),
         // R3-1：显式选档透传（`undefined` → db 缺省 1＝L1 审计划）
         ...(typeof input.riskLevel === 'number' ? { riskLevel: input.riskLevel } : {}),
-        // BRK13（挂载 3）：预算随建任务落库（存在性以 db 列为准）
+        // （挂载 3）：预算随建任务落库（存在性以 db 列为准）
         ...(typeof input.budgetTokens === 'number' ? { budgetTokens: input.budgetTokens } : {}),
         // 009（N5 余账）：任务级模型随建任务落库（白名单拦点在 ipc 侧先行——本层只如实落库）
         ...(typeof input.model === 'string' && input.model.trim().length > 0 ? { model: input.model.trim() } : {}),
-        // GAP1：触发建任务保留来源（audit/timeline 不再一律记 boss）。
+        // 触发建任务保留来源（audit/timeline 不再一律记 boss）。
         ...(typeof input.origin === 'string' && input.origin.trim().length > 0 ? { origin: input.origin.trim() } : {}),
-        // M2 尾（D4）：截止时刻与依赖边随建任务落库（依赖存在性/同事务由 db/tasks 保证）
+        //  尾：截止时刻与依赖边随建任务落库（依赖存在性/同事务由 db/tasks 保证）
         ...(input.deadline != null ? { deadline: input.deadline } : {}),
         ...(input.dependsOn && input.dependsOn.length > 0 ? { dependsOn: input.dependsOn } : {}),
       });
-      // UG-02：截止提醒/逾期卡落在 timers；只提醒，不自动暂停。
+      // 截止提醒/逾期卡落在 timers；只提醒，不自动暂停。
       if (row.deadline != null) {
         scheduleTaskDeadlineTimers(db, { taskId: row.id, deadline: row.deadline, now: row.created_at });
       }
@@ -784,7 +784,7 @@ export function createSqliteChatRepo(db: SqliteDb): ChatRepo {
     },
 
     setTaskBudget(taskId, budgetTokens, now) {
-      // BRK13：唯一写入口之一（`加预算 T1042 N` 命令与将来的表单共用）。
+      // 唯一写入口之一（`加预算 T1042 N` 命令与将来的表单共用）。
       // 只用**预算列**的直写 UPDATE——不借 `updateTask`（OPT-M2-1c 状态位同源门：state 写者唯一＝引擎）。
       const row = getTaskById(db, taskId);
       if (!row) return null;
@@ -798,7 +798,7 @@ export function createSqliteChatRepo(db: SqliteDb): ChatRepo {
     },
 
     listTasks(filter) {
-      // M2-A 项目分组：**零新通道**——用 `projects` 表建 id→{name,alias} map，逐行 join 到 `TaskDTO`。
+      //  项目分组：**零新通道**——用 `projects` 表建 id→{name,alias} map，逐行 join 到 `TaskDTO`。
       const projectById = new Map(
         dbListProjects(db, { includeArchived: true }).map(
           (p) => [p.id, { name: p.name, alias: p.alias, accessMode: p.access_mode }] as const,
@@ -824,12 +824,12 @@ export function createSqliteChatRepo(db: SqliteDb): ChatRepo {
       return filter?.limit != null ? rows.slice(0, filter.limit) : rows;
     },
 
-    // OPT-EXT-13 用量可视：聚合成本（`since` 缺省 = 全部）。
+    //  用量可视：聚合成本（`since` 缺省 = 全部）。
     costSummary(since) {
       return summarizeCosts(db, since === undefined ? {} : { since });
     },
 
-    // OPT-EXT-13 成本 tab：单任务成本 + 按模型拆分。
+    //  成本 tab：单任务成本 + 按模型拆分。
     taskCosts(taskId) {
       return summarizeTaskCosts(db, taskId);
     },
@@ -863,7 +863,7 @@ export function createSqliteChatRepo(db: SqliteDb): ChatRepo {
       return buildHallState(db).employees;
     },
 
-    // UG-11：花名册含已停用（active 真值），否则停用后从 UI 消失、无法重新启用。
+    // 花名册含已停用（active 真值），否则停用后从 UI 消失、无法重新启用。
     listRosterEmployees() {
       const active = buildHallState(db).employees;
       const rows = db
@@ -1053,7 +1053,7 @@ export function createSqliteChatRepo(db: SqliteDb): ChatRepo {
         payload: parseJson(event.payload),
       }));
 
-      // GAP12：结论上屏的只读投影。**reports.verdict 优先**（独立验证真列），
+      // 结论上屏的只读投影。**reports.verdict 优先**（独立验证真列），
       // 事件 payload 兜底；`plan_reviewed` 只取带 verdict 的行，避免 critic 打回时
       // 「plan_reviewed(revise) + revise(plan_reviewed)」同一结论上两块。
       const reviews: StoredReview[] = [];
@@ -1096,7 +1096,7 @@ export function createSqliteChatRepo(db: SqliteDb): ChatRepo {
         .prepare("SELECT id FROM work_items WHERE task_id = ? AND state = 'submitted' ORDER BY id DESC LIMIT 1")
         .get(id) as { id: number } | undefined;
 
-      // BRK17（挂载 3 余·取消小步）：工作项**按状态计数**——UI「取消」确认文案的**真读数**
+      // （挂载 3 余·取消小步）：工作项**按状态计数**——UI「取消」确认文案的**真读数**
       //（在跑 N / 已提交 M；无行 ⇒ 空对象，UI 不写数字——不臆造）。
       const workItemCounts: Record<string, number> = {};
       const wiRows = db
@@ -1104,7 +1104,7 @@ export function createSqliteChatRepo(db: SqliteDb): ChatRepo {
         .all(id) as Array<{ state: string; n: number }>;
       for (const row of wiRows) workItemCounts[row.state] = row.n;
 
-      // UG-01：负责人 + 前置任务 + 执行员工（详情与列表同源；不再让详情只剩标题）。
+      // 负责人 + 前置任务 + 执行员工（详情与列表同源；不再让详情只剩标题）。
       const ownerRow = row.owner_id == null ? null : getEmployeeById(db, row.owner_id);
       const worker = latestWorkersByTask(db).get(id);
       const dependsOn = listTaskDependencies(db, id).flatMap((dependsOnId) => {
@@ -1135,7 +1135,7 @@ export function createSqliteChatRepo(db: SqliteDb): ChatRepo {
         workItemCounts,
         artifacts: listArtifactsForTask(db, id),
         rawConversation: projectRawConversation(db, id),
-        // M2-A 变更区块：本任务变更集 + 文件明细（`staging` 才有；空数组 = 无）。
+        //  变更区块：本任务变更集 + 文件明细（`staging` 才有；空数组 = 无）。
         changesets: listChangesetsByTask(db, id).map((cs) => ({
           id: cs.id,
           branch: cs.branch,
@@ -1218,7 +1218,7 @@ export function createSqliteChatRepo(db: SqliteDb): ChatRepo {
       });
       // G1 余项接线（共用处）：**任一批准入口**（`task:approve` / `inbox:answer` / 卡片动作）→ 发 grant。
       // 幂等：同 `(rule,toolName,sessionKey)` 重复批准只留一条；非批准类选项不动。
-      // D-19 P1：频道审批用 `approve_once`/`approve_project`（无 task_id → 项目级/会话级 grant）。
+      //  P1：频道审批用 `approve_once`/`approve_project`（无 task_id → 项目级/会话级 grant）。
       if (isGrantingChoice(input.chosen)) {
         applyApprovalAsGrant(db, input.approvalId, { now: input.now ?? Date.now(), approvedBy: input.decidedBy });
       }
@@ -1226,8 +1226,8 @@ export function createSqliteChatRepo(db: SqliteDb): ChatRepo {
     },
 
     /**
-     * B4b 裁决 8：按**这张**权限审批找到发起它的工作项。
-     * 第三轮复核 P2-3 实抓：只按 toolName+rule 取「最近一条」会在同规则多卡时补错件。
+     *  决定 8：按**这张**权限审批找到发起它的工作项。
+     * 第三轮复核-3 发现：只按 toolName+rule 取「最近一条」会在同规则多卡时补错件。
      * 现在优先用审批问题里带的会话键（`…:wi:<id>`，发起请求时写进去的真相）直接定位件；
      * 会话键缺失/解析不出时才回落 toolName+rule 匹配。
      */

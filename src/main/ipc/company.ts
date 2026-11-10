@@ -1,5 +1,5 @@
 /**
- * GAP9（M3-N-5）· `company:config` IPC：导出 / 预览 diff / 应用 / 回滚。
+ * · `company:config` IPC：导出 / 预览 diff / 应用 / 回滚。
  *
  * 安全边界：
  *  - 文件固定为 `<项目根>/.aico/company.json`（备份 `.aico/company.backup.json`）；

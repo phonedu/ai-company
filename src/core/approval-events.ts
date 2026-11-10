@@ -2,7 +2,7 @@
  * 决策卡作答 → 引擎事件的唯一映射（自 ipc.ts 迁出至 core，供卡片工具/审批入口共用）。
  *
  * - `awaiting_approval`：`approve` → `plan_approved`；`revise`/`reject` → `revise`（带意见重规划）；
- *   **其它选项 → `null`（不猜、不推状态机；作答已落台账）**。
+ *   **其它选项 → `null`（不猜、不推状态机；作答已落清单）**。
  * - `needs_decision`：作答 → `decision_made`（payload 带 chosen；回 `resume_state` 继续）；
  *   **`cancel` → 真 `cancel` 事件**（needs_decision+cancel→cancelled 是机器真边）；**`proceed` → `decision_proceed_latest`**
  *   （最新稿视同批准，不重规划——机器边仅规划期升级有效，验证期由 guard 拦下）。
@@ -18,9 +18,9 @@ export function approvalAnswerEvent(
     return null;
   }
   if (taskState === 'needs_decision') {
-    // RW-21 收尾：三个卡选项各走机器真边——cancel→真取消；proceed→最新稿视同批准（不重规划）；
+    //  收尾：三个卡选项各走机器真边——cancel→真取消；proceed→最新稿视同批准（不重规划）；
     // 其余（revise 等）→ decision_made（回 resume_state，规划期自动重派规划）。
-    // B2-6/D-30③：签收卡机器真边——sign→signoff（done）；rework:<wiId>→signoff_reject（单件返工）。
+    // /：签收卡机器真边——sign→signoff（done）；rework:<wiId>→signoff_reject（单件返工）。
     if (chosen === 'sign') return { event: 'signoff' };
     if (chosen.startsWith('rework:')) {
       const wi = Number(chosen.slice('rework:'.length));

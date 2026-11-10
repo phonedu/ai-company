@@ -1,5 +1,5 @@
 /**
- * BRK7（M3-R-3）：员工不可用 → 同角色/在职/未试过 的改派；无候选才失败。
+ * 员工不可用 → 同角色/在职/未试过的改派；无候选才失败。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

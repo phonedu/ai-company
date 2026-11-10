@@ -1,7 +1,7 @@
 /**
  * 记忆模块 v1 —— 公共类型（**不依赖 Electron / Pi / 渲染层**）。
  *
- * 口径：docs/work/design-memory-v1.md（D-17）。
+ * 口径：docs/work/design-memory-v1.md。
  * 分层：L1 任务摘要仍在 `employee_memory`（自动、确定性）；
  *       `memory_items` 承载 L2 项目事实 / L3 全局事实；`memory_events` 承载审计。
  */

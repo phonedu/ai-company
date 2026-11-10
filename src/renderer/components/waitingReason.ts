@@ -1,5 +1,5 @@
 /**
- * M1-3 · `waiting_reason` 渲染侧（`PLAN §10 第 4 条` · `B-5 G-9`「等待可见」）。
+ *  · `waiting_reason` 渲染侧（` 第 4 条` · `B-5 G-9`「等待可见」）。
  *
  * **单一映射表**：枚举→文案只写这一份（`WAITING_REASON_TEXT`）；枚举本体是
  * `src/core/types.ts` 的 `WaitingReason`（**唯一权威，不另建第二份枚举**）。
@@ -11,10 +11,10 @@ import type { WaitingReason } from '../../core/types.js';
 
 /** `task:get().waits[]` 的元素（在 `task` 域内提供；数据源 = 引擎 `listDispatchHolds()`/`evaluatePathHolds()`）。 */
 export interface TaskWaitDTO {
-  /** WI 级等待＝该件；任务级等待（等槽位/等预算/等员工空闲）＝`null`（BRK14）。 */
+  /** WI 级等待＝该件；任务级等待（等槽位/等预算/等员工空闲）＝`null`。 */
   workItemId: number | null;
   reason: WaitingReason | string;
-  /** 供人读的补充（如「研究员 正忙（T-1038）」）。 */
+  /** 供人读的补充（如「研究员正忙（T-1038）」）。 */
   detail?: string;
   /** 冲突的 work item id（如 `path_conflict`）。 */
   conflictsWith?: number[];
@@ -46,7 +46,7 @@ function conflictLabel(wait: TaskWaitDTO): string {
   return '';
 }
 
-/** 一条等待的人话文案（`UI §1`「等待：研究员 正忙」口径）。 */
+/** 一条等待的人话文案（`UI §1`「等待：研究员正忙」口径）。 */
 export function waitingReasonText(wait: TaskWaitDTO): string {
   const label = WAITING_REASON_TEXT[wait.reason] ?? String(wait.reason);
   const conflict = conflictLabel(wait);

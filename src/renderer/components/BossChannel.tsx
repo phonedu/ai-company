@@ -13,7 +13,7 @@ import { TaskCreateDialog } from './TaskCreateDialog';
 import { streamAnchors } from './channelStream';
 
 // 老板频道（UI §4.5）：消息流 + composer + 卡片最小渲染。
-// 只读主进程推送、只发 IPC 请求；不碰 Node/DB/fs（DEV §7.4）。
+// 只读主进程推送、只发 IPC 请求；不碰 Node/DB/fs。
 // 2026-10-16（频道批，设计板 v4）：**日期锚**（今天/昨天/…）＋**「新消息」锚**（本次进入后到达的
 //   第一条——挂载时刻起算，进入即重置；与「待我处理」未读游标口径分开，各管各的）+ 气泡终版（见 CSS）。
 
@@ -192,7 +192,7 @@ export function BossChannel(): ReactElement {
   const cardSnap = useSnapshot(cards);
   const sessionSnap = useSnapshot(session);
   const actionsSnap = useSnapshot(projectActions);
-  // 频道范围选择器（老板 2026-10-26）：下拉常驻显示当前范围；「＋新建项目」就地小表单。
+  // 频道范围选择器（2026-10-26）：下拉常驻显示当前范围；「＋新建项目」就地小表单。
   const [scopeCreating, setScopeCreating] = useState(false);
   const [scopeName, setScopeName] = useState('');
   const [scopeError, setScopeError] = useState('');
@@ -213,7 +213,7 @@ export function BossChannel(): ReactElement {
   const lastItemKeyRef = useRef<string | null>(null);
   // RM-4（2026-10-19 真机）：首次进入/切回频道时先落到底部，不再从最早一条开始。
   const initialScrollDoneRef = useRef(false);
-  // D4：老板主动上翻时，新到的 IM 消息不能强行把他拽回底部。
+  // 老板主动上翻时，新到的 IM 消息不能强行把他拽回底部。
   const atBottomRef = useRef(true);
   const [loaded, setLoaded] = useState(false);
   // 「新消息」锚：进入频道时的服务端消息游标快照（在 mark 之前取；否则标读后锚会立刻消失）。
@@ -228,7 +228,7 @@ export function BossChannel(): ReactElement {
   useEffect(() => {
     // V3 修：**订阅已上移到 `AppShell`**（全局单点；此前挂在本组件 ⇒ 离开频道视图即丢推送、
     // 左栏任务分组陈旧）。本组件只负责进频道时拉一次同源数据。
-    // M3-REM-1c：先拉数据＋消息游标，记下**进入时**的游标（供「新消息」锚），再推进消息游标。
+    // 1c：先拉数据＋消息游标，记下**进入时**的游标（供「新消息」锚），再推进消息游标。
     void (async () => {
       await loadChannel();
       await loadReadState('channel:messages');
@@ -246,7 +246,7 @@ export function BossChannel(): ReactElement {
   // 「新消息」优先用服务端消息游标（持久、跨重启）；没有游标时回落本次进入时刻。
   const anchors = streamAnchors(items, openedAt, now, entryCursorRef.current ?? inboxSnap.messageCursor);
 
-  // 等回复判定（老板 2026-10-26 真机反馈：回复慢且无任何指示，不知道是卡住还是在整理）：
+  // 等回复判定（2026-10-26 真机反馈：回复慢且无任何指示，不知道是卡住还是在整理）：
   // 纯数据推导——流末尾是老板自己的消息 ⇒ 在等幕僚长（回执/回复一到，末尾变 out/卡，指示自消）。
   const lastItem = items[items.length - 1];
   const awaitingReply =
@@ -272,10 +272,10 @@ export function BossChannel(): ReactElement {
     initialScrollDoneRef.current = true;
   }, [loaded, items.length]);
 
-  // 底部跟随（老板 2026-10-26 真机反馈：助手回复/决策卡到达屏幕纹丝不动，全靠手滑）：
+  // 底部跟随（2026-10-26 真机反馈：助手回复/决策卡到达屏幕纹丝不动，全靠手滑）：
   // **老板本来就在底部时，任何新内容（自己消息/助手回复/卡片）都跟随滚动**；
-  // 上翻读历史时仍不抢滚动位置（D4 原则保留）。用最后一条 key 判断——列表上限 100，长度可能不变。
-  // RW-24（S10 真机：「对话来了依旧不回底」）：长 Markdown 回复/卡片排版晚于本次提交——
+  // 上翻读历史时仍不抢滚动位置（原则保留）。用最后一条 key 判断——列表上限 100，长度可能不变。
+  // （真机：「对话来了依旧不回底」）：长 Markdown 回复/卡片排版晚于本次提交——
   // 只滚一次会停在旧底部；改为下一帧滚（rAF），并由下面的 MutationObserver 在内容继续增长时钉住。
   useEffect(() => {
     const stream = streamRef.current;
@@ -293,15 +293,15 @@ export function BossChannel(): ReactElement {
     const raf = requestAnimationFrame(() => {
       if (!stream.isConnected) return;
       stream.scrollTop = stream.scrollHeight;
-      // S13-C：程序化滚动落地后显式回到「在底部」——否则排版未完时 scroll 事件会把
+      // 程序化滚动落地后显式回到「在底部」——否则排版未完时 scroll 事件会把
       // atBottom 判成 false，后续长回复增长就再也不跟随（真机 gap 88→743）。
       atBottomRef.current = true;
     });
     return () => cancelAnimationFrame(raf);
   }, [items, focusSnap.cardId]);
 
-  // RW-24：内容增长钉底——长回复/表格/代码块排版完成、流式文字追加都会再改 scrollHeight；
-  // 老板在底部（atBottomRef）时每帧跟随一次；上翻读历史时不动（D4 原则）。
+  // 内容增长钉底——长回复/表格/代码块排版完成、流式文字追加都会再改 scrollHeight；
+  // 老板在底部（atBottomRef）时每帧跟随一次；上翻读历史时不动（原则）。
   useEffect(() => {
     const stream = streamRef.current;
     if (!stream) return;
@@ -450,8 +450,8 @@ export function BossChannel(): ReactElement {
           {createNotice}
         </p>
       ) : null}
-      {/* 频道范围选择器（老板 2026-10-26 提案）：范围＝助手的工作范围，显式可选、常驻可见。
-          自定义菜单（非原生 select——老板 2026-10-26 反馈：样式要跟应用、朝上展开）。
+      {/* 频道范围选择器（2026-10-26 提案）：范围＝助手的工作范围，显式可选、常驻可见。
+          自定义菜单（非原生 select——2026-10-26 反馈：样式要跟应用、朝上展开）。
           公司＝可聊天/查任意任务状态；选项目＝该项目的命令与读写。与项目树点选互同步。 */}
       <div className="boss-channel__scope" data-testid="channel-scope" style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 12px 4px', fontSize: 12, color: 'var(--text-dim)', flexWrap: 'wrap' }}>
         <span>当前范围</span>

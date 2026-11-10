@@ -1,5 +1,5 @@
 /**
- * M2 尾巴 T1 · `ensureProviderKey` 隔离单测（M2 台账 §2 覆盖风险第 1 条）。
+ *  尾巴 T1 · `ensureProviderKey` 隔离单测（清单 §2 覆盖风险第 1 条）。
  *
  * 只用注入的 resolve/inject，不读 `~/.aico/secrets`、不发网络、不启动 Pi SDK。
  */

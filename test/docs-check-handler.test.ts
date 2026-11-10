@@ -1,7 +1,7 @@
 /**
- * M2 §7 序 4 · `docs:check` handler 守据（真库＋真临时目录）。
+ *  §7 序 4 · `docs:check` handler 守据（真库＋真临时目录）。
  *
- * 口径：文档根＝`<项目根>/.aico/docs`；**不存在 ⇒ `hasDocsTree:false` ＋ 零计数且不代建**（模板属 M3）；
+ * 口径：文档根＝`<项目根>/.aico/docs`；**不存在 ⇒ `hasDocsTree:false` ＋ 零计数且不代建**（模板属）；
  * 跳过依赖/产物目录与符号链接；只读（不改任何文件）。
  */
 import test from 'node:test';

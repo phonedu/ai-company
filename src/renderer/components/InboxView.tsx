@@ -1,9 +1,9 @@
 /**
- * OPT-EXT-2 · 「待我处理」视图（`UI §51`）。
+ *  · 「待我处理」视图（`UI §51`）。
  *
  * **同源**：直接读 `store.cards.list`（= `inbox:list()`，与老板频道同一份数据）→ 老板频道/待我处理
  * **一处处理、另一处同步消除**（动作走后端的 `answerCard`/`acknowledgeCard`，随后 `loadChannel()` 刷新同源）。
- * 本文件**不碰 Node/DB/fs**（`DEV §7.4`）；tab/分组逻辑在纯函数 `inboxView.ts`（可单测）。
+ * 本文件**不碰 Node/DB/fs**（``）；tab/分组逻辑在纯函数 `inboxView.ts`（可单测）。
  */
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactElement } from 'react';
@@ -90,7 +90,7 @@ export function InboxView(): ReactElement {
   const groups = groupByTab(list);
   const entries = inboxEntries(list);
   const questions = mailboxSnap.questions;
-  /** M4-C-4：首载与失败不伪装成“没有事”；有旧数据时保留列表并显式报错。 */
+  /** 首载与失败不伪装成“没有事”；有旧数据时保留列表并显式报错。 */
   const initialLoading = cardsSnap.loading && !cardsSnap.loaded;
   const maxEntryId = entries.length > 0 ? entries[entries.length - 1]!.id : 0;
   // 空 tab 不渲染（F-B 修复）：只列“有卡”的 tab；无卡则 0 个（进空态）。
@@ -112,7 +112,7 @@ export function InboxView(): ReactElement {
     void loadMailbox();
   }, []);
 
-  // M3-REM-1c：进视图看到当前这批卡即推进服务端卡片游标；新卡到达不自动标读。
+  // 1c：进视图看到当前这批卡即推进服务端卡片游标；新卡到达不自动标读。
   useEffect(() => {
     if (markedRef.current !== 0 || maxEntryId <= 0) return;
     markedRef.current = maxEntryId;
@@ -159,7 +159,7 @@ export function InboxView(): ReactElement {
       {/* 层级纪律（2026-10-16 待我处理批）：一级页**无返回钮/面包屑**——原返回入口已删。 */}
       <header className="inbox-view__head">
         <h2 className="inbox-view__title">待我处理</h2>
-        {/* D3 老板抽查（2026-11-03）：验收卡批量已阅；2026-11-04 老板：频道里解决了决策但卡不清——
+        {/*  老板抽查（2026-11-03）：验收卡批量已阅；2026-11-04 老板：频道里解决了决策但卡不清——
             加「全部清除」兜底（含决策/异常/通知；确认文案如实说明决策未真作答的后果）。 */}
         {reportTargets.length > 0 ? (
           <button
@@ -248,10 +248,10 @@ export function InboxView(): ReactElement {
             // 日报在列表里也要能读到关键读数；普通卡有 tldr/summary 时一并展示（ask 的题面已是标题）。
             const summary = card.payload.tldr ?? card.payload.summary;
             const digest = card.kind === 'notification' ? digestLine(card.payload.digest) : null;
-            // GAP8：批准卡在列表里也给计划摘要（编辑后随卡 payload 刷新）。
+            // 批准卡在列表里也给计划摘要（编辑后随卡 payload 刷新）。
             // 2026-11-06：只有数组才当计划（同名非数组字段会让 planSummary/.map 崩溃）。
             const planLine = card.kind === 'ask' && Array.isArray(card.payload.planSteps) ? planSummary(card.payload.planSteps) : null;
-            // GAP12：验证/评审结论与批注上屏（reports.verdict 真列优先）。
+            // 验证/评审结论与批注上屏（reports.verdict 真列优先）。
             const verdict = verdictText(card.verdict ?? card.payload.verdict);
             const reviewNote =
               typeof card.payload.notes === 'string' && card.payload.notes.trim().length > 0
@@ -291,7 +291,7 @@ export function InboxView(): ReactElement {
                   <FoldText text={titleOf(card)} clamp={2} testid="inbox-title" />
                 </div>
                 {card.payload.card === 'permission' && permissionDetailLines(card.payload) != null ? (
-                  /* 卡片可读性批：权限行显「谁 申请：干什么 · 项目」（技术串在频道卡折叠里） */
+                  /* 卡片可读性批：权限行显「谁申请：干什么 · 项目」（技术串在频道卡折叠里） */
                   <div className="inbox-row__question" data-testid="inbox-question">
                     <FoldText
                       text={`${permissionDetailLines(card.payload)!.who} 申请：${permissionDetailLines(card.payload)!.action} · ${permissionDetailLines(card.payload)!.project}`}
@@ -356,7 +356,7 @@ export function InboxView(): ReactElement {
                 ) : null}
                 {card.kind === 'ask' && card.payload.options && card.payload.options.length > 0 ? (
                   isMultiSelect(card.payload) ? (
-                    /* 多选卡（老板 2026-10-28 指令）：行内不做即点（会误答）——引导去频道勾选提交。 */
+                    /* 多选卡（2026-10-28 指令）：行内不做即点（会误答）——引导去频道勾选提交。 */
                     <div className="inbox-row__options">
                       <button
                         type="button"

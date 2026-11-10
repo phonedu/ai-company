@@ -1,5 +1,5 @@
 /**
- * OPT-M4-1 · `seams` DAO（接缝矩阵的行载体；`schema.sql` 由迁移 `002` 建表）。
+ * OPT- · `seams` DAO（接缝矩阵的行载体；`schema.sql` 由迁移 `002` 建表）。
  * `UNIQUE(project_id, boundary)`；`status ∈ covered|gap`；`coverage_ref`/`owner`/`milestone` 为行属性。
  */
 import type { SeamStatus } from '../seams/index.js';

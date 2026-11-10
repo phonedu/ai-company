@@ -1,9 +1,9 @@
 /**
- * `ask_colleague` customTool（EMPLOYEES §2 五工具之一；OPT-AI-1 接入结构化 mailbox）。
+ * `ask_colleague` customTool（五工具之一； 接入结构化 mailbox）。
  *
  * ⚠️ **只做信号**：真正的投递（`task_events` `question_asked` + `notifications`）由宿主
  * （`employee-executor.ts` 观察 tool_call 结果）调 `engine/mailbox.ts` 的 `requestAsk` 完成。
- * **非阻塞**（blocking 本里程碑不支持，PLAN §G-6 / DEV）。
+ * **非阻塞**（blocking 本里程碑不支持， /）。
  *
  * ESM/CJS 约束同 `report-progress-tool.ts`：异步工厂内动态 `import()`。
  */

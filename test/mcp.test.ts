@@ -1,5 +1,5 @@
 /**
- * OPT-AI-10 · MCP 客户端最小闭环（真 stdio 子进程）：
+ *  · MCP 客户端最小闭环（真 stdio 子进程）：
  *  - `upsertMcpServer` → `listMcpTools`（initialize ＋ tools/list）；
  *  - `callMcpTool`（tools/call）返回子进程结果；
  *  - IPC `mcp:set/list` 注册与列表；

@@ -1,7 +1,7 @@
 /**
  * D-2 startup 守卫：模型目录预热的时机。
  * 口径：启动 DB 初始化块不得同步调用 loadModelCatalog（Pi SDK 动态 import 会抢首帧主线程）；
- * 必须移到 `ui:mounted` 之后延迟，且首次建任务前补加载，避免 D-22 幕僚长选型退化。
+ * 必须移到 `ui:mounted` 之后延迟，且首次建任务前补加载，避免幕僚长选型退化。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 test('D-2: 启动 DB 块不预热模型目录；预热在 ui:mounted 后延迟', () => {
   const src = readFileSync('src/main/index.ts', 'utf8');
   const start = src.indexOf("setFallbackChain(readSetting(db, 'models.fallback_chain'))");
-  const end = src.indexOf('// M4-C：主题（light/dark/system）');
+  const end = src.indexOf('// 主题（light/dark/system）');
   assert.ok(start > 0 && end > start, '启动 DB 块定位失败');
   assert.doesNotMatch(src.slice(start, end), /loadModelCatalog\(/, '启动块不得同步预热模型目录');
   assert.match(src, /catalogPreheatStarted/, '必须有预热去重标记');

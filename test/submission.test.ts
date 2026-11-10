@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { validateSubmission } from '../src/main/agent/submission.js';
 
-// ── OPT-AI-7（M2-C）· 结构化提交的校验：单一真源（工具侧抛回模型 / 宿主侧兜底共用） ──
+// ── · 结构化提交的校验：单一真源（工具侧抛回模型 / 宿主侧兜底共用） ──
 
 test('OPT-AI-7 校验：合法提交 → 归一化（trim；可选数组缺省＝空数组）；契约外字段进 extra（审计可见）', () => {
   const ok = validateSubmission({
@@ -75,7 +75,7 @@ test('OPT-AI-7 工具侧：真 SDK 工厂 —— 非法提交**抛错**（模型
   assert.deepEqual((out.details as { artifacts: string[] }).artifacts, ['a.py']);
 });
 
-// ── BRK24（2026-10-16·狗粮批）：产物项形状——只放路径/URL/文件名，含空白逐条拒 ──
+// ── （2026-10-16·狗粮批）：产物项形状——只放路径/URL/文件名，含空白逐条拒 ──
 
 test('BRK24：产物项含空白/控制字符 → 逐条拒且**人话点名**（狗粮「commit 86b8890」场景）；合法项不受牵连', () => {
   const res = validateSubmission({

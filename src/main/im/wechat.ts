@@ -321,7 +321,7 @@ export class WeChatIlinkAdapter implements ImAdapter {
     if (msg.message_type !== USER_MESSAGE_TYPE) return;
     const senderId = msg.from_user_id;
     if (typeof senderId !== 'string' || senderId.length === 0) return;
-    // D-13：产品没有群聊。若平台消息带房间/群标识，直接丢弃——绝不把群消息当 1:1 回复。
+    // 产品没有群聊。若平台消息带房间/群标识，直接丢弃——绝不把群消息当 1:1 回复。
     const room = msg as unknown as {
       room_id?: unknown;
       chatroom_id?: unknown;

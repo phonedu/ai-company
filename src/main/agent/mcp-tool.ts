@@ -1,7 +1,7 @@
 /**
- * GAP6 / B5 · MCP 工具（员工会话侧）：
+ *  / · MCP 工具（员工会话侧）：
  *  - `mcp_list`：列出**本会话分配**的 server；direct/auto 列工具名，deferred/codemode **不预列**（用 tool_search）；
- *  - `tool_search`：按关键词发现分配 server 的工具（含 deferred），返回 description/schema（B5）；
+ *  - `tool_search`：按关键词发现分配 server 的工具（含 deferred），返回 description/schema；
  *  - `mcp_call`：调用某 server 的某工具（**external**，逐次过会话闸门；未分配/连不上/超时报错可见）。
  *
  * 白名单：`setSessionMcpServers(sessionId, names)` 由 `pi-runtime.run` 每轮写入（来源＝员工 `mcps`∩启用），

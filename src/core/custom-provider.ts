@@ -1,5 +1,5 @@
 /**
- * 自定义供应商（D-22 余账）：设置项 `models.custom_providers` 的形状/安全边界。
+ * 自定义供应商（余账）：设置项 `models.custom_providers` 的形状/安全边界。
  * 纯逻辑；运行时注册在 `main/agent/custom-providers.ts`。
  */
 export const CUSTOM_PROVIDER_APIS = ['openai-completions', 'anthropic-messages', 'google-generative-ai'] as const;

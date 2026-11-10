@@ -1,5 +1,5 @@
 /**
- * RW-51（2026-11-05 老板定性「必须做到」）：幕僚长的**待办卡工具**——
+ * （2026-11-05 老板定性「必须做到」）：幕僚长的**待办卡工具**——
  * 老板在频道里用自然话（「把那张决策卡按推荐方案处理了」「待办都有什么」）
  * 就能驱动待办，而不必去点按钮。这是「一人公司」与「带按钮的表单」的分界线。
  *
@@ -20,7 +20,7 @@ export interface BossCardToolDeps {
   db: SqliteDb;
   /** 权限批准联动（与 recordCardIntent 同语义：批准→grant）。 */
   onGrant?: ((approvalId: number, chosen: string) => void) | null;
-  /** 引擎（作答推状态机用；缺省＝只落台账不推，与 `task:approve` 无引擎时同口径）。 */
+  /** 引擎（作答推状态机用；缺省＝只落清单不推，与 `task:approve` 无引擎时同口径）。 */
   engine?: { dispatch(event: EngineEvent): Promise<void> } | null;
   /** 待办读数变化（托盘/待办刷新）。 */
   onInboxChanged?: (() => void) | null;
@@ -112,7 +112,7 @@ export async function createBossCardTools(deps: BossCardToolDeps): Promise<{ inb
       if (card.task_id == null) {
         return { content: [{ type: 'text', text: `卡#${card.id} 不关联任务，只能 ack 清除，无法选选项。` }], details: { action: 'select', card: card.id, result: 'no_task' } };
       }
-      // 第三轮复核 P2-5（2026-11-09）：**按这张卡绑定的审批**回答，而不是「任务最近一条待批」——
+      // 第三轮复核-5（2026-11-09）：**按这张卡绑定的审批**回答，而不是「任务最近一条待批」——
       // 同任务两张权限卡并存时（正是权限卡的常见场景），后者会把卡 810 的作答落到 811 上，
       // 老板看到「已处理 810」实际批的是 811 的规则。优先 report_id 绑定；没绑定才回落任务级。
       const approval =
@@ -145,7 +145,7 @@ export async function createBossCardTools(deps: BossCardToolDeps): Promise<{ inb
         deps.onGrant?.(approval.id, chosen);
       }
       const task = deps.db.prepare('SELECT state FROM tasks WHERE id = ?').get(card.task_id) as { state: string } | undefined;
-      // 换方向复核 P2-6（2026-11-09）：**权限审批不驱动任务状态机**（与 `task:approve` 同一口径）。
+      // 换方向复核-6（2026-11-09）：**权限审批不驱动任务状态机**（与 `task:approve` 同一口径）。
       // 此前幕僚长这个入口无条件映射，批准/拒绝一张权限卡会顺带推 decision_made/plan_approved。
       // 权限只影响 grant（`deps.onGrant` 已在上一步处理）；补跑本入口暂不接（如实不假装）。
       const permissionCard = isPermissionApproval(approval.question ?? '');

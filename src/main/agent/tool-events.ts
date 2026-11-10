@@ -1,17 +1,17 @@
 /**
- * 会话事件 → `task_events` 落库（DEV §6.2 事件映射表）。
+ * 会话事件 → `task_events` 落库（事件映射表）。
  *
- * M0：
+ *
  *  - `tool_call`（start / end）→ `task_events.kind='tool_call'`（员工墙 / 行为日志数据源）；
- *  - `report_progress` 工具 → 额外落 `progress_reported` 并投影 `plan_steps`（DEV §4.8）；
- *  - `message_update`（text_delta）**不落库**（推送即忘，DEV §6.2）。
+ *  - `report_progress` 工具 → 额外落 `progress_reported` 并投影 `plan_steps`；
+ *  - `message_update`（text_delta）**不落库**（推送即忘）。
  */
 import { insertTaskEvent } from '../db/task_events.js';
 import { updatePlanStepState, PLAN_STEP_STATES, type PlanStepState } from '../db/plan_steps.js';
 import type { SqliteDb } from '../db/open.js';
 
 /**
- * RET-F-08：员工 `tool_call_start` 落库时只保留**找路/审计需要**的字段（command/path/pattern…），
+ * RET-：员工 `tool_call_start` 落库时只保留**找路/审计需要**的字段（command/path/pattern…），
  * 不上传 content/body/任意大字段；每个值截断到 500 字符。原始工具结果仍在归档/会话里。
  */
 export const TOOL_INPUT_EVENT_KEYS = ['command', 'path', 'file_path', 'pattern', 'glob', 'query', 'name', 'url', 'timeout'] as const;

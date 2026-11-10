@@ -1,5 +1,5 @@
 /**
- * B-6（M4）· 项目概览「项目记忆」纯视图：空态/行/操作按钮/时间文案 + 接线守卫。
+ * B-6· 项目概览「项目记忆」纯视图：空态/行/操作按钮/时间文案 + 接线守卫。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

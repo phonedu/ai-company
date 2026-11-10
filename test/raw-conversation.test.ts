@@ -1,5 +1,5 @@
 /**
- * OPT-AI-1 · `rawConversation` 派生投影 + `agent_message` 写入（契约守卫，可弄红）。
+ *  · `rawConversation` 派生投影 + `agent_message` 写入（契约守卫，可弄红）。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

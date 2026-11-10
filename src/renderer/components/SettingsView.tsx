@@ -67,13 +67,13 @@ export function SettingsView({ initialSection }: { initialSection?: string } = {
       setInitialLoadDone(true);
     })();
   }, []);
-  // D-22 配套：模型分区打开时拉一次只读目录（懒加载 SDK；不阻塞其它分区）。
+  //  配套：模型分区打开时拉一次只读目录（懒加载 SDK；不阻塞其它分区）。
   // 2026-11-03 D4-N1：拍平后 section 恒为组 id——按 settingsGroupOf 归组判断，旧分区 id 判断已不可达（目录/IM 假状态回归）。
   useEffect(() => {
     if (settingsGroupOf(section)?.id !== 'model') return;
     void loadModelCatalog();
   }, [section]);
-  // M3：IM 分区打开时轮询状态（扫码/连接都在主进程推进；不新增推送通道）。
+  // IM 分区打开时轮询状态（扫码/连接都在主进程推进；不新增推送通道）。
   useEffect(() => {
     if (settingsGroupOf(section)?.id !== 'integrations') return;
     void loadImStatus();

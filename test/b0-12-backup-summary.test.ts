@@ -1,5 +1,5 @@
 /**
- * B0-12（57 D 路 P2）：迁移前无自动备份、changeset/commit message 无语义的回归测试。
+ * （57 D 路 P2）：迁移前无自动备份、changeset/commit message 无语义的回归测试。
  *
  * 旧实现：
  *  - `backupDatabase`（VACUUM INTO）全仓零调用；迁移失败仅 console 后继续开窗——迁移一旦写坏

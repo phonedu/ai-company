@@ -1,7 +1,7 @@
 /**
- * B-2（M4）· `task:discard`：真 git 仓库 + 内存库。
+ * B-2· `task:discard`：真 git 仓库 + 内存库。
  *
- * 判据：只改该 changeset 台账；主分支/分支/worktree 不动；同任务其它 changeset 不动；
+ * 判据：只改该 changeset 清单；主分支/分支/worktree 不动；同任务其它 changeset 不动；
  * 二次调用幂等（不重复事件）；merge 对 discarded 显式拒；归档/取消/错任务显式拒。
  */
 import test from 'node:test';

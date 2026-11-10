@@ -1,6 +1,6 @@
 /**
- * `task_deps` DAO（D4 写入面）—— 任务依赖 DAG（`schema.sql`）。
- * 之前**只有读取**（引擎 `buildSchedulerInput`），没有写入者 → 「依赖激活」路径实际不可达（审计 D4）。
+ * `task_deps` DAO（写入面）—— 任务依赖 DAG（`schema.sql`）。
+ * 之前**只有读取**（引擎 `buildSchedulerInput`），没有写入者 → 「依赖激活」路径实际不可达（审计）。
  * 本模块补上写入面：`addTaskDependency`（纯插入）/ `addTaskDependencyChecked`（存在性＋判环＋审计）。
  */
 import { insertTaskEvent } from './task_events.js';

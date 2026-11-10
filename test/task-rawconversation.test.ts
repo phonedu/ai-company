@@ -6,7 +6,7 @@ import { insertTaskEvent } from '../src/main/db/task_events.js';
 import { createSqliteChatRepo } from '../src/main/ipc/repo.js';
 import { handleTaskGet } from '../src/main/ipc/ipc.js';
 
-// ── OPT-AI-1：`task:get` 暴露派生投影 `rawConversation`（只读；老板/员工/工具；按 at 升序） ──
+// ──：`task:get` 暴露派生投影 `rawConversation`（只读；老板/员工/工具；按 at 升序） ──
 
 test('AI-1: task:get.rawConversation 由真存储派生（boss + agent_message + tool_call）', () => {
   const db = openMemoryDatabase();

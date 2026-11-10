@@ -16,7 +16,7 @@ import { ProseText } from './ProseText.js';
 // 卡片：受理(report)/决策(ask)/汇报(report)/异常(alert)。`kind` 定版式、`state` 定可操作性。
 // UI §4.1：同一张待处理卡片在老板频道可原地点按钮，点完即消（state 变 resolved）。
 // M1（`UI §4.7`）：卡片可携带 `payload.schema`（GenUI）→ 由**受控渲染器**渲染（同 kind、换 renderer）；
-//   schema 非法/未知组件 → **整卡降级 legacy 文本**（不白屏）；无 schema → 走原 legacy 渲染（M0 行为不变）。
+//   schema 非法/未知组件 → **整卡降级 legacy 文本**（不白屏）；无 schema → 走原 legacy 渲染（行为不变）。
 // 2026-10-16（频道批，设计板 v4）：kind＝**语义色点**（不再 emoji）；state＝**人话 chip**；
 //   ask 卡＝倒计时（`payload.timeoutAt`）＋超时默认注（`payload.defaultAction`）＋选项**键帽**；
 //   report 卡＝「去验收」→ 任务详情。文案/读数口径在 `cardCopy.ts`（可单测）。
@@ -66,7 +66,7 @@ function CardShell({
             {CARD_STATE_TEXT[card.state] ?? card.state}
           </span>
         )}
-        {/* 老板 2026-10-24：无头像的卡片也要显示出现时间（悬停看完整日期）。 */}
+        {/* 2026-10-24：无头像的卡片也要显示出现时间（悬停看完整日期）。 */}
         <span
           className="card__time"
           data-testid="card-time"
@@ -136,7 +136,7 @@ export function Card({ card, initialCollapsed = false }: { card: ReportDTO; init
         </CardShell>
       );
     }
-    // 非法 / 未知组件 / M4 组件 → **整卡降级 legacy 文本**（AC1：不白屏）
+    // 非法 / 未知组件 / 组件 → **整卡降级 legacy 文本**（AC1：不白屏）
     return (
       <CardShell card={card} collapsed={collapsed} onToggle={toggleCollapsed}>
         <ProseText className="card__fallback" testId="genui-fallback" text={fallbackText(card)} />
@@ -144,21 +144,21 @@ export function Card({ card, initialCollapsed = false }: { card: ReportDTO; init
     );
   }
 
-  // ── 以下为 M0 legacy 渲染（无 schema 时，行为与之前一致）──────────────────
+  // ── 以下为legacy 渲染（无 schema 时，行为与之前一致）──────────────────
   const actionable = isActionable(card.state);
-  // RW-21：选项源兜底——payload.options 优先；历史升级卡 payload 无 options 时用审批行的
+  // 选项源兜底——payload.options 优先；历史升级卡 payload 无 options 时用审批行的
   // approvalOptions（同一行也供 approvalId，作答通路不变）。
   const payloadOptions = (card.payload.options ?? []) as Array<{ key: string; label?: string; recommended?: boolean }>;
   const cardOptions: Array<{ key: string; label?: string; recommended?: boolean }> =
     payloadOptions.length > 0 ? payloadOptions : (card.approvalOptions ?? []).map((o) => ({ ...o }));
-  // 多选＋自定义作答（老板 2026-10-28 指令）：multi＝勾选后统一提交（chosen=k1+k2）；
+  // 多选＋自定义作答（2026-10-28 指令）：multi＝勾选后统一提交（chosen=k1+k2）；
   // 自定义＝选项都不满意时手写作答（chosen=原文）——仅决策/普通 ask（机器键卡不给）。
   const multi = isMultiSelect(card.payload);
   const allowCustom = actionable && customAnswerAllowed({ kind: card.kind, payload: card.payload });
   const [picked, setPicked] = useState<string[]>([]);
   const [customOpen, setCustomOpen] = useState(false);
   const [customText, setCustomText] = useState('');
-  // P0/V1（S13-E 对抗审查）：作答期间禁用按钮、失败就地显示——不得静默消失或重复提交。
+  // P0/V1（对抗审查）：作答期间禁用按钮、失败就地显示——不得静默消失或重复提交。
   const [answerPending, setAnswerPending] = useState(false);
   const [answerError, setAnswerError] = useState<string | null>(null);
   const submitAnswer = async (chosen: string): Promise<boolean> => {
@@ -179,7 +179,7 @@ export function Card({ card, initialCollapsed = false }: { card: ReportDTO; init
   const due = typeof card.payload.timeoutAt === 'number' ? card.payload.timeoutAt : null;
   const defaultAction = typeof card.payload.defaultAction === 'string' ? card.payload.defaultAction : null;
   const digest = card.kind === 'notification' ? digestLine(card.payload.digest) : null;
-  // 卡片可读性批（老板 2026-10-28）：权限卡优先结构化三行（谁/干什么/哪个项目），
+  // 卡片可读性批（2026-10-28）：权限卡优先结构化三行（谁/干什么/哪个项目），
   // 原始技术串与 session 收进折叠；老卡（无 detail）回落 question 原样。
   const permDetail = permissionDetailLines(card.payload);
 
@@ -193,7 +193,7 @@ export function Card({ card, initialCollapsed = false }: { card: ReportDTO; init
             <strong>{permDetail.who}</strong> 申请：{permDetail.action}
           </div>
           <div>项目：{permDetail.project}</div>
-          {/* B4b 安全批（2026-11-09 审查 F1）：入参摘要上卡面——花钱/对外不再盲批。 */}
+          {/*  安全批（2026-11-09 审查）：入参摘要上卡面——花钱/对外不再盲批。 */}
           {permDetail.params ? <div data-testid="card-permission-params">内容：{permDetail.params}</div> : null}
           <details className="card__permission-raw">
             <summary>技术细节</summary>
@@ -205,7 +205,7 @@ export function Card({ card, initialCollapsed = false }: { card: ReportDTO; init
       !(card.kind === 'ask' && card.payload.question === `需要你决策（${card.shortId ?? `#${card.taskId}`}）`) ? (
         <div className="card__question">{card.payload.question}</div>
       ) : null}
-      {/* D-22：Key/模型硬拒的决策卡要直接在卡面说清原因（不只藏在 payload/时间线）。 */}
+      {/* Key/模型硬拒的决策卡要直接在卡面说清原因（不只藏在 payload/时间线）。 */}
       {typeof card.payload.modelRejected === 'string' && card.payload.modelRejected.trim().length > 0 ? (
         <ProseText className="card__notes" testId="card-model-rejected" text={card.payload.modelRejected} />
       ) : null}
@@ -213,7 +213,7 @@ export function Card({ card, initialCollapsed = false }: { card: ReportDTO; init
       {card.payload.summary ? <ProseText className="card__summary" text={card.payload.summary} /> : null}
       {/* E-16：卡正文（招募卡的人设/模型/技能等）——此前 body 无任何渲染面，内容是死数据。 */}
       {card.payload.body ? <ProseText className="card__bodytext" testId="card-body-text" text={card.payload.body} /> : null}
-      {/* GAP12：评审/验证结论 + 文字批注（reports.verdict 真列优先，payload 兜底）。 */}
+      {/* 评审/验证结论 + 文字批注（reports.verdict 真列优先，payload 兜底）。 */}
       {verdictText(card.verdict ?? card.payload.verdict) != null ? (
         <span
           className="card__verdict"
@@ -227,8 +227,8 @@ export function Card({ card, initialCollapsed = false }: { card: ReportDTO; init
       {typeof card.payload.notes === 'string' && card.payload.notes.trim().length > 0 ? (
         <ProseText className="card__notes" testId="card-notes" text={card.payload.notes} />
       ) : null}
-      {/* GAP8：批准卡直接展示计划全文；编辑计划后由主进程合并更新 payload（卡与详情同步）。
-          2026-11-06（F-02 真机抓到的真崩溃）：`planSteps` 必须是**数组**才渲染——历史/外部
+      {/* 批准卡直接展示计划全文；编辑计划后由主进程合并更新 payload（卡与详情同步）。
+          2026-11-06（真机抓到的真崩溃）：`planSteps` 必须是**数组**才渲染——历史/外部
           payload 若混进同名字符串，CardPlan 会 .map 崩掉并让 React 整棵卸载（空页）。 */}
       {Array.isArray(card.payload.planSteps) && card.payload.planSteps.length > 0 ? (
         <CardPlan steps={card.payload.planSteps} />
@@ -249,12 +249,12 @@ export function Card({ card, initialCollapsed = false }: { card: ReportDTO; init
         />
       ) : null}
 
-      {/* RW-21：选项源＝卡 payload 优先，缺/空时兜底审批行的 options（历史升级卡复活按钮）。 */}
+      {/* 选项源＝卡 payload 优先，缺/空时兜底审批行的 options（历史升级卡复活按钮）。 */}
       {cardOptions.length > 0 ? (
         <div className="card__options" data-multi={multi ? 'true' : 'false'}>
           {cardOptions.map((option) =>
             multi ? (
-              // 多选：勾选 toggle，统一「提交」作答（老板 2026-10-28 指令——AI 列多项可同时选）。
+              // 多选：勾选 toggle，统一「提交」作答（2026-10-28 指令——AI 列多项可同时选）。
               <button
                 key={option.key}
                 type="button"
@@ -320,7 +320,7 @@ export function Card({ card, initialCollapsed = false }: { card: ReportDTO; init
         </div>
       ) : null}
 
-      {/* 自定义作答（老板 2026-10-28 指令）：列出的选项都不满意时自己写；机器键卡（批准/权限）不给。 */}
+      {/* 自定义作答（2026-10-28 指令）：列出的选项都不满意时自己写；机器键卡（批准/权限）不给。 */}
       {allowCustom && cardOptions.length > 0 ? (
         customOpen ? (
           <div className="card__custom" data-testid="card-custom">

@@ -1,5 +1,5 @@
 /**
- * OPT-M9-3 · 长任务归因（effect scope 台账耗时读数）。每条断言可被弄红。
+ * OPT- · 长任务归因（effect scope 清单耗时读数）。每条断言可被弄红。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

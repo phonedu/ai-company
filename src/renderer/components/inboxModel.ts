@@ -1,8 +1,8 @@
 /**
- * OPT-EXT-2 · 「待我处理」视图的**纯逻辑**（可单测、无 React/DOM/存储依赖）。
+ *  · 「待我处理」视图的**纯逻辑**（可单测、无 React/DOM/存储依赖）。
  *
- * 口径（`docs/UI.md §51/§160/§407/§471`）：
- *  - 待我处理 = **决策 / 验收 / 异常** 三个 tab；本件因 **`OPT-EXT-1` 新增 `kind='notification'`** 来源，
+ * 口径（`docs//§160/§407/§471`）：
+ *  - 待我处理 = **决策 / 验收 / 异常** 三个 tab；本件因 **`` 新增 `kind='notification'`** 来源，
  *    增 **第 4 个 tab「通知」**（tab 数据驱动：哪类有卡才出哪个）。
  *  - **同一张待处理卡片**同时出现在老板频道与「待我处理」→ **同源**（都用 `store.cards.list`，即 `inbox:list()`），
  *    在任一处处理 → 另一处同步消除。
@@ -18,7 +18,7 @@ export interface InboxTab {
   label: string;
 }
 
-/** tab 顺序（即 UI 展示顺序）；`notification` 为 `OPT-EXT-1` 新增来源。
+/** tab 顺序（即 UI 展示顺序）；`notification` 为 `` 新增来源。
  *  2026-10-16（待我处理批）：撤 icon 字段——胶囊 tab 按设计板＝「标签 ＋ 计数」纯文字（去 emoji）。 */
 export const INBOX_TABS: readonly InboxTab[] = [
   { key: 'ask', label: '决策' },
@@ -59,7 +59,7 @@ const NAGGING_KINDS: ReadonlySet<string> = new Set(['ask', 'report', 'alert']);
 
 /**
  * 未读数 = **三类可处理卡**中 `createdAt > seenAt` 的条数（FYI 通知与未知来源不计）。
- * @deprecated M3-REM-1c 起生产读数走服务端 `inbox:read-state`；本函数只留作旧测试/对照，
+ * @deprecated 1c 起生产读数走服务端 `inbox:read-state`；本函数只留作旧测试/对照，
  * 新代码不得再用它算 badge（服务端 `read_cursors` 是唯一权威）。
  */
 export function unreadCount(cards: readonly ReportDTO[], seenAt: number): number {
@@ -105,7 +105,7 @@ export function digestLine(digest: ReportDTO['payload']['digest']): string | nul
 }
 
 /**
- * GAP8：待批卡的计划摘要（列表里看得到改了哪几条，不必先进频道）。
+ * 待批卡的计划摘要（列表里看得到改了哪几条，不必先进频道）。
  * 只取前 `max` 步、带序号；超出部分如实写「另 N 步」。缺省/空 → null（不造一行）。
  */
 export function planSummary(steps: readonly string[] | undefined | null, max = 3): string | null {
@@ -114,7 +114,7 @@ export function planSummary(steps: readonly string[] | undefined | null, max = 3
   return steps.length > max ? `${head} · 另 ${steps.length - max} 步` : head;
 }
 
-/** **只保留"有卡"的 tab**（**空 tab 不渲染** —— `OPT-EXT-2` 口径，2997；独立验证的 `F-B`）。 */
+/** **只保留"有卡"的 tab**（**空 tab 不渲染** —— `` 口径，2997；独立验证的 `F-B`）。 */
 export function visibleTabs(cards: readonly ReportDTO[]): InboxTab[] {
   const groups = groupByTab(cards);
   return INBOX_TABS.filter((tab) => groups[tab.key].length > 0);

@@ -1,5 +1,5 @@
 /**
- * B-4（M4）· 设置·高级「数据保留」纯视图（无 store 依赖，node 静态渲染可测）。
+ * B-4· 设置·高级「数据保留」纯视图（无 store 依赖，node 静态渲染可测）。
  * 容器见 `MaintenancePanel.tsx`；口径：只清四张临时表，不删任务/报告/产物/变更集。
  */
 import type { CSSProperties, ReactElement } from 'react';

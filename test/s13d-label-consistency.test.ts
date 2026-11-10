@@ -1,5 +1,5 @@
 /**
- * S13-D 一致性：选项按钮不得重复「（推荐）」后缀（真机见「按评审意见再改（推荐）（推荐）」）。
+ *  一致性：选项按钮不得重复「（推荐）」后缀（真机见「按评审意见再改（推荐）（推荐）」）。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

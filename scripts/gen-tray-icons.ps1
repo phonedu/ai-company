@@ -1,4 +1,4 @@
-# Generate tray status icons for M3-P-3 GAP3 closeout and write
+# Generate tray status icons for closeout and write
 # src/main/tray/icons.ts (idle / working / waiting).
 # Usage: powershell -NoProfile -File scripts/gen-tray-icons.ps1
 Add-Type -AssemblyName System.Drawing

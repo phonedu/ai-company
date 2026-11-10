@@ -1,5 +1,5 @@
 /**
- * 项目模型白名单（EMPLOYEES §10.3）——**单一判据**。
+ * 项目模型白名单——**单一判据**。
  *
  * `task:create.model` / `模型` 命令 / `employee:update` / `company.json apply` 共用；
  * 任何入口都不得复制第二份，否则 company.json 可以绕过项目白名单。

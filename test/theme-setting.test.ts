@@ -1,5 +1,5 @@
 /**
- * M4-C · 主题设置（ui.theme）：白名单/枚举校验 + settings:set 立即应用到 nativeTheme 注入面。
+ *  · 主题设置（ui.theme）：白名单/枚举校验 + settings:set 立即应用到 nativeTheme 注入面。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

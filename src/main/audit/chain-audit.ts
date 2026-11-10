@@ -1,18 +1,18 @@
 /**
  * `chain-audit.ts` —— 功能链条断点审计（`pnpm audit:chain`）的**纯逻辑**（无 IO，可内存测）。
  *
- * 缘起（老板 2026-10-15「第一步」令）：`docs/work/research-feature-chain-gap.md`（`C4` 批）的人肉审计
- * 已到天花板——`BRK1–BRK22` 全是「行在、生产者/执行方缺」类接缝断线，而 `test/doc-consistency.test.ts`
+ * 缘起（2026-10-15「第一步」令）：`docs/work/research-feature-chain-gap.md`（`C4` 批）的人肉审计
+ * 已到天花板——`–` 全是「行在、生产者/执行方缺」类接缝断线，而 `test/doc-consistency.test.ts`
  * （`g-10-1`）只锁「文档↔代码逐行一致」，看不见**接线存在性**。本件把该件 §6「复跑配方」＋五类孤儿探测
  * 机器化，把「判不准」变成「跑一下」（判据对象＝代码差集，随功能增长自动重算）：
  *
  *   ① 孤儿迁移：状态机每个 `event` 的生产者（字面量 ＋ UI 表 `implemented:true` 透传）＝0 ⇒ 孤儿；
- *   ② 非法派发：dispatch 调用点的 `(scope,event)` 不在真值表 ⇒ 断链本体（`BRK2`/`BRK3` 的签名）；
- *   ③ 孤儿写者：约定函数（如 `task_deps` 写者）的调用者仅测试 ⇒ 孤儿（`BRK6` 的签名）；
- *   ④ 孤儿工具：员工工具在 `employee-executor`（员工会话侧）消费＝0 ⇒ 孤儿（`BRK5` 的签名）；
+ *   ② 非法派发：dispatch 调用点的 `(scope,event)` 不在真值表 ⇒ 断链本体（``/`` 的签名）；
+ *   ③ 孤儿写者：约定函数（如 `task_deps` 写者）的调用者仅测试 ⇒ 孤儿（`` 的签名）；
+ *   ④ 孤儿工具：员工工具在 `employee-executor`（员工会话侧）消费＝0 ⇒ 孤儿（`` 的签名）；
  *   ⑤ 孤儿 timer：`TimerKind` 联合类型内、全仓无调度/处理引用 ⇒ 孤儿（`heartbeat_timeout`/cron 的签名）；
- *   ⑥ 孤儿动作：迁移 `actions()` 产出的 `kind` 无消费者 ⇒ 孤儿（未来防护；`BRK5` 近邻）；
- *   ⑦ 推送三腿：`evt:*` 通道 ×（声明/推送/路由）三腿对账 ⇒ 缺腿＝孤儿（`BRK15` 的签名）。
+ *   ⑥ 孤儿动作：迁移 `actions()` 产出的 `kind` 无消费者 ⇒ 孤儿（未来防护；`` 近邻）；
+ *   ⑦ 推送三腿：`evt:*` 通道 ×（声明/推送/路由）三腿对账 ⇒ 缺腿＝孤儿（`` 的签名）。
  *
  * 口径（v1，如实登记）：
  *  - 生产源 ＝ `src/main`＋`src/preload` 的**整行非注释**字面量 `event: 'X'` ＋ UI 表 `implemented:true` 条目；
@@ -20,7 +20,7 @@
  *  - 孤儿动作（⑥）：`actions()` 以 **dummy ctx 执行**收集 `kind`（条件分支由字面量 `act('K'` 兜底，
  *    取并集；执行抛错的行如实登记为 failures）＋消费者＝字面量或 `action.kind.startsWith('P')` 族处理器；
  *  - 推送三腿（⑦）：preload `EVENT_CHANNELS` 声明 ↔ 主进程 `push('evt:X'` 站点 ↔ 渲染
- *    `channel === 'evt:X'` 路由——声明了零推送＝孤儿（`BRK15`）；推了未声明＝反向孤儿；
+ *    `channel === 'evt:X'` 路由——声明了零推送＝孤儿（``）；推了未声明＝反向孤儿；
  *    `evt:batch` 是信封传输层（`evt-sink` 恒推送），不参与对账；
  *  - UI 入口 × 状态交叉已有 `test/task-actions.test.ts`（对照 `m0:true` 行）承担，本件不重复；
  *  - 探针读数 ＝ 作用域内（整行注释与 `src/main/audit/` 自身除外）正则命中行数；
@@ -82,7 +82,7 @@ export interface Disposition {
   check: OrphanCheck;
   name: string;
   status: DispositionStatus;
-  /** 证据/裁决指针（BRK 编号、裁决 id、工单名）。 */
+  /** 证据/决定指针（BRK 编号、决定 id、工单名）。 */
   ref: string;
   note: string;
 }
@@ -126,7 +126,7 @@ export interface WriterSpec {
 
 export interface ToolSpec {
   name: string;
-  /** 消费者文件（员工会话侧；幕僚长 assistant 不算——`BRK5` 口径）。 */
+  /** 消费者文件（员工会话侧；幕僚长 assistant 不算——`` 口径）。 */
   consumer: string;
   /** 可选：消费者侧的非字面量接线（工厂函数/变量名），如 `createLoadSkillTool|loadSkill`。 */
   consumerPattern?: string;

@@ -1,5 +1,5 @@
 /**
- * 2026-11-04 SplitLayout 统一分栏批（老板拍板）：主从两栏一处实现。
+ * 2026-11-04 SplitLayout 统一分栏批（要求）：主从两栏一处实现。
  * 判据：断点真源单处定义（壳层复用）；窄窗堆叠＝折叠头＋记忆（缺省收起）；
  * 宽窗维持各页固定宽；34vh 拦腰截断由「显式展开＋内部滚动」取代。
  */
@@ -29,7 +29,7 @@ test('SplitLayout 断点真源：NARROW_QUERY 单处定义，壳层复用不再�
   assert.equal(NARROW_QUERY, '(max-width: 1040px)');
   assert.match(appShell, /import \{ isNarrowViewport, NARROW_QUERY \} from '\.\/components\/SplitLayout';/, '壳层 import 共享常量');
   assert.doesNotMatch(appShell, /const NARROW_RAIL_QUERY/, '壳层本地断点定义已删（防漂移）');
-  // 断点数值只允许出现在 SplitLayout 一处（src/renderer 内；styles.css 的 S11 media query 在接入批删除）
+  // 断点数值只允许出现在 SplitLayout 一处（src/renderer 内；styles.css 的media query 在接入批删除）
   const pane = readFileSync('src/renderer/components/SettingsPane.tsx', 'utf8');
   const hall = readFileSync('src/renderer/components/CompanyHallView.tsx', 'utf8');
   for (const [name, src] of [['SettingsPane', pane], ['CompanyHallView', hall]] as const) {
@@ -139,7 +139,7 @@ test('SplitLayout 批次 4：笔记页已接入（hideMain 随选中态）', () 
   assert.match(page, /hideMain: selected == null/, '未选中=列表独占；选中=常规分栏/堆叠');
 });
 
-// T1 交互专项（S13-C 口径）：抽屉＝弹层，Esc 必须能关（与建任务/新建笔记弹层同语言）。
+// T1 交互专项（口径）：抽屉＝弹层，Esc 必须能关（与建任务/新建笔记弹层同语言）。
 test('SplitLayout 抽屉：展开态挂 Esc 关闭；收起/宽窗不挂', () => {
   assert.match(component, /if \(!stacked \|\| collapsed\) return;/, 'Esc 监听只在「窄窗且展开」挂');
   assert.match(component, /event\.key === 'Escape'/, 'Esc 关抽屉');

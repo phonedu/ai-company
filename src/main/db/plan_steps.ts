@@ -1,12 +1,12 @@
 /**
- * `plan_steps` DAO + materialized 投影（DEV §4 第 8 条；1191 裁决 F=(a)）。
+ * `plan_steps` DAO + materialized 投影（第 8 条；1191 决定 F=(a)）。
  *
  * `plan_steps` 是 `task_events` 的物化投影（唯一事实来源仍是事件）：
  *  - `plan_drafted.payload.steps[]` → `replacePlanSteps(taskId, steps)`
- *  - `plan_edited.payload.steps[]` → `replacePlanSteps(taskId, steps)`（GAP8：批准前老板编辑；仍是全量替换）
+ *  - `plan_edited.payload.steps[]` → `replacePlanSteps(taskId, steps)`（：批准前老板编辑；仍是全量替换）
  *  - `progress_reported.payload={stepIdx,state}` → `updatePlanStepState(taskId, stepIdx, state)`
  * 投影由引擎在**事务内**做（可随事件重放；重复应用不产生重复行——replace 是全量替换、update 是幂等 set）。
- * 进度条 = `count(state='done') / count(*)`（按 idx 排序，docs/UI.md §7 / T0.7）。
+ * 进度条 = `count(state='done') / count(*)`（按 idx 排序，docs/ /）。
  */
 import type { SqliteDb } from './open.js';
 

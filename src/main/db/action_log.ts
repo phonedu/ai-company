@@ -1,5 +1,5 @@
 /**
- * `action_log` DAO —— 副作用动作的幂等台账（schema.sql / PLAN §19.3）。
+ * `action_log` DAO —— 副作用动作的幂等清单（schema.sql /）。
  *
  * 幂等键规范：`<kind>:<subject_kind>:<subject_id>:<revision>`
  *   例：`dispatch:work_item:42:2` · `notify:report:88:0`
@@ -57,7 +57,7 @@ export function listActions(db: SqliteDb): ActionLogRow[] {
   return db.prepare(`SELECT ${COLUMNS} FROM action_log ORDER BY id`).all() as ActionLogRow[];
 }
 
-/** MP1-F15：是否存在挂起动作（轻量存在性探测——tick 的 schedulePass 据此在会话期间也排水）。 */
+/** 是否存在挂起动作（轻量存在性探测——tick 的 schedulePass 据此在会话期间也排水）。 */
 export function hasPendingActions(db: SqliteDb): boolean {
   return db.prepare("SELECT 1 FROM action_log WHERE state = 'pending' LIMIT 1").get() != null;
 }

@@ -1,7 +1,7 @@
 /**
  * `actions.ts` —— 副作用动作的登记（事务内）与执行（事务外、幂等）。
  *
- * 流程（PLAN §19.3 / DEV §5）：
+ * 流程（/）：
  *   ① 事务内：`registerActions()` 把动作写入 `action_log`（pending，幂等键去重）；
  *   ② 事务外：`executePendingActions()` 逐个执行——**先查 action_log，done 则跳过**；
  *      成功后置 done；失败置 failed。
@@ -59,7 +59,7 @@ export function toPersistedAction(actionKey: string, kind: string, taskId: numbe
 /**
  * 事务外执行所有 pending 动作；已 done/failed 的跳过。
  *
- * `inFlight`（D3 会话实测抓到的真 bug 修复）：**正在执行的动作**集合——执行器内部会 `dispatch` 事件，
+ * `inFlight`（会话实测抓到的真 bug 修复）：**正在执行的动作**集合——执行器内部会 `dispatch` 事件，
  * 该事件 drain 时又列 pending（**在跑的这条还是 `pending`**）⇒ 不加认领会被**重入执行**（会话跑两遍、
  * 第二遍还因状态已前进而失败、动作被误标 `failed`）。重入路径在此**跳过**（不执行、也不标 done——
  * 由**外层**执行完标 done；崩溃时仍是 `pending` ⇒ 恢复重放语义不变）。
@@ -70,7 +70,7 @@ export async function executePendingActions(
   now: number = Date.now(),
   gate?: (action: PersistedAction) => GateResult,
   inFlight?: ReadonlySet<string>,
-  /** BRK10：ask 命中的权限请求——把「升级给老板」交回引擎（actions 层无 dispatch；缺省＝不升级，向后兼容/测试不接）。 */
+  /** ask 命中的权限请求——把「升级给老板」交回引擎（actions 层无 dispatch；缺省＝不升级，向后兼容/测试不接）。 */
   enqueue?: (event: import('./types.js').EngineEvent) => void,
 ): Promise<ExecuteResult> {
   const pending = listPendingActions(db);
@@ -87,14 +87,14 @@ export async function executePendingActions(
     }
     const action = toPersistedAction(current.action_key, current.kind, current.task_id, current.payload);
 
-    // OPT-M9-1：副作用执行前过权限闸门。
-    //  - deny  → 置 failed + `permission_decision`（审计），不执行；
-    //  - ask   → **留 pending** + `permission_requested`（等待批准，批准后重放）；不执行。
+    // OPT-：副作用执行前过权限闸门。
+    //  - deny → 置 failed + `permission_decision`（审计），不执行；
+    //  - ask → **留 pending** + `permission_requested`（等待批准，批准后重放）；不执行。
     const decision = gate?.(action);
     if (decision && decision.decision !== 'allow') {
       if (action.taskId != null) {
-        // MP1-F15 补丁：ask 挂起动作在 tick 每秒排水下会被反复看到——事件按 actionKey 查重
-        //（approvals 已有 BRK10 幂等；task_events 此前没有 ⇒ 事件写放大，每秒一条直到批准）。
+        //  补丁：ask 挂起动作在 tick 每秒排水下会被反复看到——事件按 actionKey 查重
+        //（approvals 已有幂等；task_events 此前没有 ⇒ 事件写放大，每秒一条直到批准）。
         const kind = decision.decision === 'deny' ? 'permission_decision' : 'permission_requested';
         const already = db
           .prepare(`SELECT 1 FROM task_events WHERE task_id = ? AND kind = ? AND json_extract(payload, '$.actionKey') = ? LIMIT 1`)
@@ -113,8 +113,8 @@ export async function executePendingActions(
         markActionFailed(db, action.actionKey, now);
         failed.push({ actionKey: action.actionKey, error: `denied: ${decision.reason}` });
       } else {
-        // ask：审批复用 approvals（PLAN §16.4）；默认动作 null（对外永不自动）。
-        // BRK10（审计抓）：**可见化**——此前只建 approvals 行 ⇒ 老板在「待我处理」看不到、任务不转 `needs_decision`；
+        // ask：审批复用 approvals；默认动作 null（对外永不自动）。
+        // （审计抓）：**可见化**——此前只建 approvals 行 ⇒ 老板在「待我处理」看不到、任务不转 `needs_decision`；
         // 现：建行 → 派 `escalate`（状态机侧**唯一卡源**合成决策卡、`approvalId` 回挂真卡、`notifyRevision` 按行分卡）；
         // 被闸门跳过的动作**保持 pending**，批准后重放（G1 口径不变）。
         // ⚠️ **幂等**：同 actionKey 的 ask 在每个 drain 都会再看一次 ⇒ 必须查重（否则反复建行/升级/入队，队列不收敛——
@@ -159,7 +159,7 @@ export async function executePendingActions(
       executed.push(current.action_key);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      // OPT-M8-2①：失败也留痕（task_events.kind='action_failed'）
+      // OPT-：失败也留痕（task_events.kind='action_failed'）
       if (action.taskId != null) {
         insertTaskEvent(db, {
           taskId: action.taskId,

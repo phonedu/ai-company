@@ -1,5 +1,5 @@
 /**
- * M3-P-3（GAP3 收口）：托盘状态点真读数 + OS 通知点击回任务/失败如实。
+ * （收口）：托盘状态点真读数 + OS 通知点击回任务/失败如实。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

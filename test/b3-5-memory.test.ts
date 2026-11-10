@@ -1,5 +1,5 @@
 /**
- * B3-5（57 P0-4/5/6 余项；D-31）：记忆智能化——归档＋globalDir 修复＋brief 去重＋LLM 抽取提议卡。
+ * （57 P0-4/5/6 余项；）：记忆智能化——归档＋globalDir 修复＋brief 去重＋LLM 抽取提议卡。
  *
  * 口径：
  *  - **归档**：appendMemory 超 20 块的挤出块写**库旁** `.aico/memory-archive/<emp>-<proj>.md`
@@ -115,7 +115,7 @@ test('B3-5: 抽取提议卡闸门——provisional 不进 brief；老板确认�
     store.remember({ scope: { type: 'project', projectId: 3 }, kind: 'fact', value: '抽取来的未确认事实', confidence: 'provisional', source: { type: 'task', ref: 'task:9', at: 1 } });
     const before = renderBrief(store.brief({ principal: { kind: 'employee', employeeId: 7 }, projectId: 3 }).sections);
     assert.ok(!before.includes('抽取来的未确认事实'), 'provisional 抽取不进 brief（闸门）');
-    // 老板确认（confidence→confirmed）
+    // 要求（confidence→confirmed）
     const items = store.list({ scope: { type: 'project', projectId: 3 }, includeHistorical: false, limit: 10 });
     const item = items.find((it) => it.value === '抽取来的未确认事实');
     assert.ok(item, '抽取条目在库（待确认可见）');

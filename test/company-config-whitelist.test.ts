@@ -1,5 +1,5 @@
 /**
- * M3 联动修复 P1：company.json apply 不得绕过项目模型白名单/引用校验。
+ *  联动修复 P1：company.json apply 不得绕过项目模型白名单/引用校验。
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';

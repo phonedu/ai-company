@@ -1,5 +1,5 @@
 /**
- * GAP8（M3-P-1）：批准前计划可编辑。
+ * 批准前计划可编辑。
  *
  * 断言四层：
  *  ① 状态机：`awaiting_approval --plan_edited--> KEEP`（合法迁移，不越级）；

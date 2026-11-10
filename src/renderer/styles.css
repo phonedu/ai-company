@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   设计令牌 —— Cupertino v2.0（2026-10-22 老板令：按 Cupertino 设计系统重做）
+   设计令牌 —— Cupertino v2.0（2026-10-22 要求：按 Cupertino 设计系统重做）
    规范：设计令牌（Cupertino）
    日间＝默认（systemGroupedBackground / systemBlue）· 夜间＝跟随系统
    桌面适配：body 15（iOS body 17 在三栏工作台过宽）；强调色文字用深一档
@@ -24,7 +24,7 @@
   /* 语义层（旧变量名保留，417 个选择器零改动继承新值） */
   --bg: #f2f2f7;             /* systemGroupedBackground */
   --panel: #ffffff;          /* groupedSecondary / 卡片 / 栏 */
-  --panel-2: #e9e9ef; /* F1：与 --bg(#f2f2f7) 拉开一级（次级面/输入） */        /* fill.tertiary / 选项行 / 输入底 */
+  --panel-2: #e9e9ef; /* 与 --bg(#f2f2f7) 拉开一级（次级面/输入） */ /* fill.tertiary / 选项行 / 输入底 */
   --border: #c6c6c8;         /* opaqueSeparator（发丝线） */
   --separator: rgba(60, 60, 67, .29);
   --text: #000000;           /* label.primary */
@@ -35,7 +35,7 @@
   --on-accent: #ffffff;
   --ok: #248a3d;
   --warn: #c26a00;
-  --warn-text: #9a5200; /* F4：文字用 accessible 警告色（≥4.5:1） */
+  --warn-text: #9a5200; /* 文字用 accessible 警告色（≥4.5:1） */
   --danger: #d70015;
   --muted: var(--text-dim);
 
@@ -43,7 +43,7 @@
   --tint-soft: rgba(0, 122, 255, .12);
   --file-icon-note: #007aff;
   --file-icon-doc: #1d7a34;
-  --file-icon-artifact: #b25a00; /* F6：浅色下加深，避免 2.1:1 */
+  --file-icon-artifact: #b25a00; /* 浅色下加深，避免 2.1:1 */
   --tint-softer: rgba(0, 122, 255, .08);
   --fill: rgba(118, 118, 128, .12);
   --fill-2: rgba(118, 118, 128, .08);
@@ -113,9 +113,9 @@
     --sys-gray5: #2c2c2e;
     --sys-gray6: #1c1c1e;
 
-    /* 老板 2026-10-28 真机：深色中间区纯黑（#000）过生硬——改近黑，保留面板/浮层分层 */
+    /* 2026-10-28 真机：深色中间区纯黑（#000）过生硬——改近黑，保留面板/浮层分层 */
     --bg: #16161a;
-    --panel: #202024; /* F2：bg #16161a → panel 提亮，背景层级可见 */
+    --panel: #202024; /* bg #16161a → panel 提亮，背景层级可见 */
     --panel-2: #2c2c2e;
     --border: #38383a;
     --separator: rgba(84, 84, 88, .6);
@@ -123,11 +123,11 @@
     --text-dim: #aeaeb2;
     --accent: #0a84ff;
     --accent-strong: #0a6ce0;
-    --accent-ink: #3d9bff; /* F5：强调文字与填充分离，panel 上 5.67:1 */
+    --accent-ink: #3d9bff; /* 强调文字与填充分离，panel 上 5.67:1 */
     --on-accent: #ffffff;
     --ok: #30d158;
     --warn: #ff9f0a;
-    --warn-text: #ffb340; /* F4 深色文字用亮警告色 */
+    --warn-text: #ffb340; /*  深色文字用亮警告色 */
     --danger: #ff453a;
 
     --tint-soft: rgba(10, 132, 255, .18);
@@ -213,7 +213,7 @@ h3 {
   --right-rail-w: 0px;
 }
 
-/* 窄窗（B5）：1180 以下右栏收窄；1040 以下**右栏自动收起**（AppShell 的 matchMedia 驱动；
+/* 窄窗：1180 以下右栏收窄；1040 以下**右栏自动收起**（AppShell 的 matchMedia 驱动；
    顶栏开关仍可临时展开，手动展开只影响本次窄窗，不覆盖宽窗偏好）。这里的 240px 是手动展开宽度。 */
 @media (max-width: 1180px) {
   .app-shell {
@@ -248,7 +248,7 @@ h3 {
   }
 }
 
-/* 矮窗（B5）：首启内容较多，给到 90vh 再内部滚动；建任务对话框用 sticky 按钮行（见下）。 */
+/* 矮窗：首启内容较多，给到 90vh 再内部滚动；建任务对话框用 sticky 按钮行（见下）。 */
 @media (max-height: 720px) {
   .onboarding__card {
     max-height: 90vh;
@@ -325,7 +325,7 @@ h3 {
   font-size: var(--text-micro);
 }
 
-/* OPT-M7-1（@0 2115-B）：未实现/无数据源的点位必须**视觉可辨**（不能只靠 DOM 属性）——
+/* OPT-（@0 2115-B）：未实现/无数据源的点位必须**视觉可辨**（不能只靠 DOM 属性）——
    搜索盒（命令面板未实现）＝ disabled ＋ dim ＋ 禁用光标。 */
 .topbar__search:disabled {
   opacity: 0.6;
@@ -1034,7 +1034,7 @@ textarea:focus {
   background: var(--panel-2);
 }
 
-/* UI-2 S2b 复核（2026-11-09）：归档页「归档项目」区此前没有样式（排成一行挤在一起）。
+/*   复核（2026-11-09）：归档页「归档项目」区此前没有样式（排成一行挤在一起）。
    与任务行同视觉：卡内分隔、行内 8 gap、次要用 --text-dim 的 12px。 */
 .tlist__archived-projects {
   display: flex;
@@ -1085,14 +1085,14 @@ textarea:focus {
   cursor: not-allowed;
 }
 
-/* 复核 P2（2026-11-10）：项目名要和「恢复/导出/删除」区分开——行内按钮规则 0,1,1 会压掉
-   .tlist__linklike（0,1,0），实抓 computed 12px/400。这里提到 0,2,0 且放在后面。 */
+/* 复核（2026-11-10）：项目名要和「恢复/导出/删除」区分开——行内按钮规则 0,1,1 会压掉
+   .tlist__linklike（0,1,0），发现 computed 12px/400。这里提到 0,2,0 且放在后面。 */
 .tlist__archived-project-row .tlist__linklike {
   color: var(--text);
   font-size: var(--text-body);
   font-weight: 600;
   text-align: left;
-  /* 复核 P2（2026-11-10）：动作按钮的 :not() 不再重置名字按钮，全局按钮底色漏进来变成灰胶囊——
+  /* 复核（2026-11-10）：动作按钮的 :not() 不再重置名字按钮，全局按钮底色漏进来变成灰胶囊——
      名字就是纯文本链接，显式清掉。 */
   background: transparent;
   border: 0;
@@ -1117,7 +1117,7 @@ textarea:focus {
   font-size: var(--text-note);
 }
 
-/* 复核 P2（2026-11-10）：后置的列表标题规则把 .tlist__title 压成 15px，归档页标题比空态标题
+/* 复核（2026-11-10）：后置的列表标题规则把 .tlist__title 压成 15px，归档页标题比空态标题
    （20px）还小——按页头作用域还原 20px（只影响页头，不动列表内小标题）。 */
 .tlist__head .tlist__title {
   font-size: var(--text-title);
@@ -1591,7 +1591,7 @@ textarea:focus {
   border-top: 1px solid var(--border);
 }
 
-/* 任务详情条（2026-10-16 任务详情批）：插话入口（`#短号 要说的话` 直通）。 */
+/* 任务详情条（2026-10-16 任务详情批）：插话入口（`#短号要说的话` 直通）。 */
 .tdv__steer {
   display: inline-flex;
   align-items: center;
@@ -1681,7 +1681,7 @@ textarea:focus {
   background: var(--panel-2);
 }
 
-/* OPT-M7-1（@0 2115-B）：未实现入口**看起来就不能点**（深灰 + 禁用光标 + 划线），
+/* OPT-（@0 2115-B）：未实现入口**看起来就不能点**（深灰 + 禁用光标 + 划线），
    与可点项一眼可辨。 */
 .left-rail__item:disabled {
   opacity: 0.45;
@@ -1693,7 +1693,7 @@ textarea:focus {
   background: transparent;
 }
 
-/* ── OPT-AI-1 「原始交流」（UI §7）：头部开关 + 气泡 + 工具 chip + 💭 折叠 ── */
+/* ── 「原始交流」（UI §7）：头部开关 + 气泡 + 工具 chip + 💭 折叠 ── */
 .td__grouphead {
   display: flex;
   align-items: center;
@@ -1717,7 +1717,7 @@ textarea:focus {
   color: var(--text);
 }
 
-/* 无数据 → 禁用且视觉可辨（同 M7-1 口径：不能只靠 DOM 属性） */
+/* 无数据 → 禁用且视觉可辨（同口径：不能只靠 DOM 属性） */
 .td__toggle:disabled {
   opacity: 0.45;
   cursor: not-allowed;
@@ -1814,7 +1814,7 @@ textarea:focus {
   color: var(--text);
 }
 
-/* 右栏上下文（2026-10-17 B2）：全局「谁在忙」/ 任务「产物·证据·成本」。 */
+/* 右栏上下文（2026-10-17）：全局「谁在忙」/ 任务「产物·证据·成本」。 */
 .right-rail__section {
   display: flex;
   flex-direction: column;
@@ -1931,7 +1931,7 @@ textarea:focus {
   text-decoration: underline;
 }
 
-/* 空态原语（2026-10-17 B3）：整页 22/500，卡内 15/500；提示 12/dim。 */
+/* 空态原语（2026-10-17）：整页 22/500，卡内 15/500；提示 12/dim。 */
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -1968,7 +1968,7 @@ textarea:focus {
   margin-top: 4px;
 }
 
-/* ── 老板频道（T0.5）──────────────────────────────────────────── */
+/* ── 老板频道──────────────────────────────────────────── */
 .boss-channel {
   display: flex;
   flex-direction: column;
@@ -2076,7 +2076,7 @@ textarea:focus {
 }
 
 /* 气泡终版（2026-10-16 频道批，设计板 v4）：老板（进入消息）＝accent-strong 实底＋白字；
-   幕僚长＝panel＋发丝（.bubble 基样式）。此前两侧**反着**，本批拨正。 */
+   幕僚长＝panel＋发丝（.bubble 基样式）。此前两侧**反着**，本次拨正。 */
 .bubble--in {
   background: var(--accent-strong);
   border-color: transparent;
@@ -2189,7 +2189,7 @@ textarea:focus {
   color: var(--text);
 }
 
-/* GAP12：评审/验证结论与文字批注 */
+/* 评审/验证结论与文字批注 */
 .card__verdict {
   display: inline-block;
   margin-top: 4px;
@@ -2224,7 +2224,7 @@ textarea:focus {
   word-break: break-word;
 }
 
-/* GAP8：批准卡上的计划全文（编辑后同步刷新） */
+/* 批准卡上的计划全文（编辑后同步刷新） */
 .card__plan {
   margin: 8px 0 0;
   padding: 8px 10px;
@@ -2256,7 +2256,7 @@ textarea:focus {
   font-variant-numeric: tabular-nums;
 }
 
-/* UG-10：汇报卡任务分区（产物/变更/证据/成本）；展开才拉数据。 */
+/* 汇报卡任务分区（产物/变更/证据/成本）；展开才拉数据。 */
 .card__sections {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2648,7 +2648,7 @@ textarea:focus {
   opacity: 0.8;
 }
 
-/* ── 左栏任务分组（T0.6）────────────────────────────── */
+/* ── 左栏任务分组────────────────────────────── */
 .left-rail {
   overflow-y: auto;
 }
@@ -2871,7 +2871,7 @@ textarea:focus {
   border-color: var(--accent);
 }
 
-/* ─────────────────────────── 待我处理（inbox）——BRK23 ───────────────────────────
+/* ─────────────────────────── 待我处理（inbox）—— ───────────────────────────
    「批准/决策/验收主界面」此前零样式（全浏览器默认）⇒ 主操作面观感差。本节按既有 token
    （--panel/--border/--accent…）补一套克制的卡片样式；kind 色只用**左边条**区分（不抢内容）。 */
 .inbox-view {
@@ -2914,7 +2914,7 @@ textarea:focus {
   font-size: var(--text-meta);
 }
 
-/* M4-D-1（P2）：时间线工具大输出摘要/展开 */
+/* （P2）：时间线工具大输出摘要/展开 */
 .td__tooloutput-wrap {
   display: inline-flex;
   flex-direction: column;
@@ -3294,14 +3294,14 @@ textarea:focus {
   border-color: var(--accent);
 }
 
-/* ───────── 右栏读数行（2026-10-16，M2 可续清单④：资源占用/成本真读数） ───────── */
+/* ───────── 右栏读数行（2026-10-16， 可续清单④：资源占用/成本真读数） ───────── */
 .right-rail__row {
   padding: 6px 0;
   border-bottom: 1px solid var(--border);
   font-variant-numeric: tabular-nums;
 }
 
-/* ───────── 编制 v1（D-11）：项目概览「编制」卡（只读一行＋就地编辑三控件） ───────── */
+/* ───────── 编制 v1：项目概览「编制」卡（只读一行＋就地编辑三控件） ───────── */
 /* 预览抽屉（2026-10-17 浮层批，设计板 §4.9）：480 宽右侧抽屉；遮罩实色口径；截断/不一致如实标注。 */
 .td__drawer-scrim {
   position: fixed;
@@ -3440,7 +3440,7 @@ textarea:focus {
   padding: 8px 12px;
 }
 
-/* UG-05：图片/PDF 产物预览沿用同一抽屉；图片 contain（不裁掉主体），PDF 限高。 */
+/* 图片/PDF 产物预览沿用同一抽屉；图片 contain（不裁掉主体），PDF 限高。 */
 .td__preview-image {
   display: block;
   width: 100%;
@@ -3632,7 +3632,7 @@ textarea:focus {
 .project-view__state-group > ul {
   list-style: none;
   margin: 0;
-  /* 老板 2026-10-25：项目树任务行按状态分组缩进＋左侧发丝线，层级一眼可辨（不再是平铺一列）。 */
+  /* 2026-10-25：项目树任务行按状态分组缩进＋左侧发丝线，层级一眼可辨（不再是平铺一列）。 */
   padding: 0 0 0 14px;
   margin-left: 4px;
   border-left: 1px solid var(--border);
@@ -3799,7 +3799,7 @@ textarea:focus {
   font-size: 12px;
 }
 
-/* UI-2 S2 复核 P1：模型卡复用同一套字段排版，输入框/多行文本框与 select 同视觉。 */
+/*   复核：模型卡复用同一套字段排版，输入框/多行文本框与 select 同视觉。 */
 .project-view__staffing-field input {
   height: 26px;
   width: 200px;
@@ -3825,7 +3825,7 @@ textarea:focus {
   resize: vertical;
 }
 
-/* 复核 P2（2026-11-10）：模型编辑表单改两列网格——标签列定宽 88、控件列吃满，四行左边界对齐；
+/* 复核（2026-11-10）：模型编辑表单改两列网格——标签列定宽 88、控件列吃满，四行左边界对齐；
    小窗（752 高）下打开表单会自动滚到可见（组件里 scrollIntoView），主操作不再落在折线以下。 */
 .project-view__model-form {
   display: grid;
@@ -3879,18 +3879,18 @@ textarea:focus {
   gap: 8px;
 }
 
-/* 复核 P2（2026-11-10）：摘要行是主读数，别比同排的「设置」按钮还小（12 灰 vs 15）。
-   注意：这条与 .project-view__docs-text 同优先级时会被文件后段规则压回去（终验员实测仍 12px），
+/* 复核（2026-11-10）：摘要行是主读数，别比同排的「设置」按钮还小（12 灰 vs 15）。
+   注意：这条与 .project-view__docs-text 同优先级时会被文件后段规则压回去（独立复核实测仍 12px），
    所以带上父级 .project-view__docs-row 提到 0,2,0。 */
 .project-view__docs-row .project-view__model-summary {
   font-size: var(--text-body);
   color: var(--text);
-  /* 终验员 P3 排版细节：CJK 默认可在任意字间断行，「合并目标」被拆成「合 / 并」——keep-all 只在空格/
+  /* 独立复核排版细节：CJK 默认可在任意字间断行，「合并目标」被拆成「合 / 并」——keep-all 只在空格/
      分隔符处断。 */
   word-break: keep-all;
 }
 
-/* ───────── 双栏改版（2026-10-17 老板令「不做跳转，一页两栏」）─────────
+/* ───────── 双栏改版（2026-10-17 要求「不做跳转，一页两栏」）─────────
    项目树页＝左列项目（300）＋右列项目概览；公司大厅＝左列名单（300）＋右列当前任务/协作。
    两页同一套骨架与间距：页内边距 20、卡距 12、卡内 12/14、按钮距 8。 */
 .projects-page,
@@ -3923,14 +3923,14 @@ textarea:focus {
 
 .projects-page__head {
   display: flex;
-  align-items: stretch; /* D3 老板抽查 2026-11-03：baseline＋子项宽度失衡 → 两钮等高等宽 */
+  align-items: stretch; /*  老板抽查 2026-11-03：baseline＋子项宽度失衡 → 两钮等高等宽 */
   justify-content: space-between;
   gap: 8px;
   padding: 4px 4px 0;
 }
 
 .projects-page__create {
-  flex: 1 1 0; /* D3 老板抽查 2026-11-03：等宽 */
+  flex: 1 1 0; /*  老板抽查 2026-11-03：等宽 */
   min-width: 0;
   min-height: 36px;
   padding: 6px 12px;
@@ -4410,7 +4410,7 @@ textarea:focus {
   font-size: var(--text-meta);
 }
 
-/* UG-08：当前动作一行（等你裁定/上一件…）；超长省略，title 看全文。 */
+/* 当前动作一行（等你裁定/上一件…）；超长省略，title 看全文。 */
 .hall-row__action {
   display: block;
   max-width: 100%;
@@ -4421,7 +4421,7 @@ textarea:focus {
   font-size: var(--text-meta);
 }
 
-/* 老板 2026-10-25 D5：全员空闲时右栏列每人最近情况（空闲 · 上一件：X）。 */
+/* 2026-10-25：全员空闲时右栏列每人最近情况（空闲 · 上一件：X）。 */
 .hall-idle-list {
   list-style: none;
   margin: 8px 0 12px;
@@ -4525,7 +4525,7 @@ textarea:focus {
   background: var(--warn);
 }
 
-/* M3-P-5：大厅实时活动流（task_events 投影；不做假动态） */
+/* 大厅实时活动流（task_events 投影；不做假动态） */
 .hall-activity {
   list-style: none;
   margin: 0;
@@ -4909,7 +4909,7 @@ textarea:focus {
   color: var(--text);
 }
 
-/* ── UI 体系 v1（2026-10-17 细节优化批 B1）────────────────────────────────────
+/* ── UI 体系 v1（2026-10-17 细节优化批）────────────────────────────────────
    目标：把交互状态从“各组件各写一套”收成全局一层；组件类样式仍可覆盖具体颜色。
    频次纪律不变：100+ 次/天操作不做位移动画；只有按压/焦点/浮层进场三档。 */
 button:not(:disabled) {
@@ -4942,7 +4942,7 @@ textarea:focus-visible {
   border-color: var(--border);
 }
 
-/* 浮层进场 240ms；退场需要 presence 管理，随 B5 浮层批补。 */
+/* 浮层进场 240ms；退场需要 presence 管理，随浮层批补。 */
 .palette-scrim,
 .taskdlg-scrim,
 .td__drawer-scrim {
@@ -5497,7 +5497,7 @@ textarea:focus,
   background: var(--bg);
 }
 
-/* B 方案（老板 2026-10-22 选定）：输入与工具条同在一个浮起胶囊里。 */
+/* B 方案（2026-10-22 选定）：输入与工具条同在一个浮起胶囊里。 */
 .composer__shell {
   display: flex;
   flex-direction: column;
@@ -5666,7 +5666,7 @@ textarea:focus,
   box-shadow: var(--shadow-card);
 }
 
-/* 老板 2026-10-25 D5 反馈：产物/输入附件/变更/证据组合并为一张卡——
+/* 2026-10-25 反馈：产物/输入附件/变更/证据组合并为一张卡——
    组内行去卡片化、发丝分隔、产物行相对组题缩进（层级可辨，不再是竖排碎卡）。 */
 .td__group--card {
   border: 0;
@@ -6125,7 +6125,7 @@ button[data-testid$='-save']:disabled {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   排版重规划（2026-10-22 老板令）
+   排版重规划（2026-10-22 要求）
    「文字的间距、段落之间的间距和排版要重规划，反正各个页面都是不同的数据」
    问题：全站共用 15/1.5；长文没有段间距、说明 12 冒充正文、区块标题比正文弱、
         卡片/列表/表单的块内节奏各用一套 margin。
@@ -6403,7 +6403,7 @@ button[data-testid$='-save']:disabled {
   line-height: 1.6;
 }
 
-/* 模型目录（D-22 配套）：只读表格；默认折叠。 */
+/* 模型目录（配套）：只读表格；默认折叠。 */
 .settings-catalog {
   max-height: 360px;
   margin-top: 8px;
@@ -6583,7 +6583,7 @@ button[data-testid$='-save']:disabled {
   color: var(--text);
 }
 
-/* F-08（2026-10-25）：汇报卡批量标记已阅（只处理 report；决策/异常逐张） */
+/* （2026-10-25）：汇报卡批量标记已阅（只处理 report；决策/异常逐张） */
 .inbox-ack-all {
   margin-left: auto;
   border: 1px solid var(--border);
@@ -6717,7 +6717,7 @@ button[data-testid$='-save']:disabled {
   border-right: 0;
 }
 
-/* ── S11 边界批（2026-10-28 G-9）窄窗堆叠已于 2026-11-04 迁 SplitLayout（批次 3）：
+/* ── 边界批（2026-10-28 G-9）窄窗堆叠已于 2026-11-04 迁 SplitLayout（批次 3）：
  * 项目树/大厅的 34vh 拦腰截断退役——折叠头缺省收起，展开列表内部滚动。
  * 缺陷②（行内按钮竖排）仍由下方白名单防回潮守卫覆盖。 */
 .split__drawer .hall-page__list,
@@ -6755,7 +6755,7 @@ button[data-testid$='-save']:disabled {
   white-space: nowrap;
 }
 
-/* ── S13-A 可读性批（2026-10-28 老板真机，RW-33）：夜间模式主题下拉「白字灰底」看不清 ──
+/* ── 可读性批（2026-10-28 老板真机）：夜间模式主题下拉「白字灰底」看不清 ──
  * 原生 <select> 的弹出列表由 UA/系统绘制：背景走系统浅灰，而选项文字继承应用白色。
  * 修法：给 option 显式配底色/字色（跟随主题令牌），并确保 color-scheme 声明在（:root 已有）。 */
 select option {
@@ -6806,7 +6806,7 @@ select option {
 }
 .theme-switch[data-dark='true'] .theme-switch__thumb { transform: translateX(22px); }
 
-/* P0/V4（S13-E 对抗审查）：推荐项 hover 曾继承实底规则（背景 accent-ink）而文字也是 accent-ink → 1:1。
+/* P0/V4（对抗审查）：推荐项 hover 曾继承实底规则（背景 accent-ink）而文字也是 accent-ink → 1:1。
    这里给选项主按钮独立 hover：保持浅色选中底，仅按下一档。 */
 .card__options .card__btn--primary:not(:disabled):hover {
   background: var(--pressed-layer);
@@ -6832,7 +6832,7 @@ select option {
 .project-archive-confirm__hint { margin: 0 0 10px; font-size: var(--text-note); color: var(--text-dim); }
 .project-archive-confirm__actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
-/* ── S13-E P1（2026-10-28）：深色可读性/阅读态 ───────────────────────────── */
+/* ── P1（2026-10-28）：深色可读性/阅读态 ───────────────────────────── */
 /* U-N05：阅读态不显示块把手与块菜单（否则制造“可编辑”假象）。 */
 [data-testid='milkdown-readonly'] .milkdown-block-handle,
 [data-testid='milkdown-readonly'] .milkdown-slash-menu {
@@ -6856,7 +6856,7 @@ select option {
   }
 }
 
-/* S13-E P1/D-N02：项目页「接入已有文件夹」与错误提示 */
+/*  P1/：项目页「接入已有文件夹」与错误提示 */
 .projects-page__attach { margin-top: 0; } /* 同行等高，旧堆叠布局的偏移已废 */
 .projects-page__error {
   margin: 4px 12px 8px;
@@ -6864,7 +6864,7 @@ select option {
   color: var(--danger);
 }
 
-/* S13-G/C3：项目变更历史（只读列表） */
+/* /C3：项目变更历史（只读列表） */
 .project-history__list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .project-history__row { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; padding: 6px 8px; border-radius: var(--radius-sm); background: var(--panel-2); font-size: var(--text-note); }
 .project-history__task { color: var(--accent-ink); font-weight: 600; }
@@ -6874,7 +6874,7 @@ select option {
 .project-history__meta { color: var(--text-dim); }
 .project-history__summary { color: var(--text); flex: 1 1 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* S13-G/D-N07：合并冲突结构化面板 */
+/* /：合并冲突结构化面板 */
 .merge-conflict__list { margin: 6px 0; padding-left: 18px; font-size: var(--text-note); color: var(--text); }
 .merge-conflict__file { font-family: var(--font-mono, monospace); }
 
@@ -6885,16 +6885,16 @@ select option {
 .bubble__action { border: 0; background: transparent; color: var(--text-dim); font-size: 12px; padding: 2px 4px; cursor: pointer; border-radius: var(--radius-sm); }
 .bubble__action:hover { color: var(--text); background: var(--hover-layer); }
 
-/* 2026-10-29 P2（D-N08）：归档页批量续办 */
+/* 2026-10-29 P2：归档页批量续办 */
 .tlist__batch { display: flex; align-items: center; gap: 12px; padding: 4px 0 8px; font-size: 12px; color: var(--text-dim); }
 .tlist__select { margin-right: 4px; }
 
-/* 2026-10-29 P2（D-N09）：diff 行内批注 */
+/* 2026-10-29 P2：diff 行内批注 */
 .td__diffnote { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .td__diffnote-input { width: 260px; font-size: 12px; font-family: inherit; }
 
 
-/* ═════════ UI-2 S1：项目头/页签/任务行（mockup v2）═════════ */
+/* ═════════：项目头/页签/任务行（mockup v2）═════════ */
 .project-head__identity{display:flex;align-items:flex-start;gap:8px;min-width:0}
 .project-avatar{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:var(--radius-md);font-weight:600;color:var(--on-accent);flex:none}
 .project-avatar[data-avatar-tone="0"]{background:#4f6bed}
@@ -6915,7 +6915,7 @@ select option {
 .project-tab:hover{color:var(--text)}
 .project-tab[aria-selected="true"]{background:var(--panel);color:var(--text);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.14),0 0 0 .5px rgba(0,0,0,.04)}
 .project-tab__count{color:var(--text-dim);font-weight:400;margin-left:4px}
-/* UI-2 S2：项目设置 7 组——导航只做**显示过滤**（卡片 DOM 不动，读写口径不变）。
+/*  项目设置 7 组——导航只做**显示过滤**（卡片 DOM 不动，读写口径不变）。
    未选中的组整体隐藏；首屏只剩「模型」组，避免 6 张卡一次铺满。 */
 .project-settings__groupnav{margin:0 0 8px}
 .project-settings__body[data-active-group="model"] [data-group]:not([data-group="model"]),

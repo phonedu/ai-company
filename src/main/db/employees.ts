@@ -1,5 +1,5 @@
 /**
- * `employees` 表 DAO（M1 公司大厅 B0；M2 尾补齐写入口）。
+ * `employees` 表 DAO（公司大厅 B0； 尾补齐写入口）。
  * 读：列表 / 单员工全字段；写：招募插入 / 改档更新（校验在这里，白名单拦点在 IPC 层）。
  */
 import type { SqliteDb } from './open.js';
@@ -11,7 +11,7 @@ export interface EmployeeRow {
   avatar: string | null;
   is_assistant: number;
   active: number;
-  /** GAP6：MCP 分配 refs（JSON 字符串；大厅/分配矩阵只读展示用）。 */
+  /** MCP 分配 refs（JSON 字符串；大厅/分配矩阵只读展示用）。 */
   mcps: string;
 }
 
@@ -51,7 +51,7 @@ export const ASSISTANT_EMPLOYEE_ID = 0;
 
 /**
  * 读取员工能力档（`employees.capability_tier`：`sandbox|standard|trusted`）。
- * 找不到员工时返回 `null`（**不自造**；调用方自行决定缺省）。OPT-M9-1 默认引擎路径接线用。
+ * 找不到员工时返回 `null`（**不自造**；调用方自行决定缺省）。OPT- 默认引擎路径接线用。
  */
 export function getCapabilityTier(db: SqliteDb, employeeId: number): string | null {
   const row = db.prepare('SELECT capability_tier FROM employees WHERE id = ?').get(employeeId) as

@@ -1,9 +1,9 @@
 /**
- * B0-1（ADV-1 G1）：repo map 只扫 `.rs/.toml/.md` 且 symbolOf 不认 TS 的回归测试。
+ * （ADV-1 G1）：repo map 只扫 `.rs/.toml/.md` 且 symbolOf 不认 TS 的回归测试。
  *
  * 审查结论：对本 TS/Electron 项目开了 repo map 也扫不出任何 .ts ⇒ 员工/规划者对代码库全靠盲探。
- * 用途已从「检索找路」改为「员工代码上下文」（RET-1 原裁决是检索不产品化，默认开关维持实验位，
- * A/B 重新评估归 B1）。
+ * 用途已从「检索找路」改为「员工代码上下文」（RET-1 原决定是检索不产品化，默认开关维持实验位，
+ * A/B 重新评估归）。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

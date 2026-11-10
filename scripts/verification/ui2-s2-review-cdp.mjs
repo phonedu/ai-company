@@ -352,8 +352,41 @@ try {
   })()`);
   await shot('ui2-s2-model-dpi125.png');
   findings.steps.push({ step: 'DPI1.25', value: dpi });
+
+  // 1.5 / 1.75 缩放档（老板令：非 2x DPI 全验；物理显示器 150% 无法在不动系统设置的前提下切，
+  // 用 CDP DSF 模拟作代理口径——它决定 CSS px 与设备 px 的映射，是布局溢出的根因）。
+  const scaleChecks = [];
+  for (const dsf of [1.5, 1.75]) {
+    await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 752, deviceScaleFactor: dsf, mobile: false });
+    await sleep(600);
+    const c = await evalIn(`(() => ({
+      dsf: window.devicePixelRatio,
+      overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+      saveVisible: (() => { const b = document.querySelector('[data-testid=project-model-save]'); return b ? b.getBoundingClientRect().bottom <= window.innerHeight : null; })(),
+    }))()`);
+    scaleChecks.push(c);
+    await shot('ui2-s2-model-dsf' + String(dsf).replace('.', '') + '.png');
+  }
+  findings.steps.push({ step: '缩放1.5/1.75', value: scaleChecks });
+
   await send('Emulation.clearDeviceMetricsOverride');
   await send('Emulation.setEmulatedMedia', { features: [] });
+  await sleep(300);
+
+  // ⑤ 删除空归档项目的**成功**路径（此前只验到按钮可用）：删完行消失、回执给出、真库无该行。
+  await evalIn("window.__click('[data-testid=leftrail-archive]')");
+  await waitFor("document.querySelectorAll('[data-testid=archive-project-row]').length === 1", '归档页(删除前)');
+  await evalIn("window.__click('[data-testid=archive-project-delete]')");
+  await waitFor("!!document.querySelector('[data-testid=archive-project-delete-confirm]')", '删除二次确认');
+  await evalIn("window.__click('[data-testid=archive-project-delete-confirm]')");
+  await waitFor("document.querySelectorAll('[data-testid=archive-project-row]').length === 0", '删除后无归档项目', 160);
+  findings.steps.push({
+    step: '删除空项目成功',
+    value: {
+      rowsAfter: await evalIn("document.querySelectorAll('[data-testid=archive-project-row]').length"),
+      message: await evalIn("document.querySelector('[data-testid=archive-project-action-message]')?.textContent ?? null"),
+    },
+  });
   await shot('ui2-s2-archive-coldstart.png');
 
   findings.ok = true;
@@ -372,8 +405,9 @@ try {
     const db = new Database(`${ud}\\aico.sqlite`, { readonly: true, fileMustExist: true });
     const p1 = db.prepare('SELECT default_budget_tokens, target_branch, model_policy, default_model FROM projects WHERE id=1').get();
     const p2 = db.prepare('SELECT archived FROM projects WHERE id=2').get();
+    const p3 = db.prepare('SELECT COUNT(*) n FROM projects WHERE id=3').get();
     const pendingTasks = db.prepare("SELECT COUNT(*) n FROM tasks WHERE state IN ('ready','executing')").get();
-    findings.db = { project1: p1, project2: p2, nonTerminalTasks: pendingTasks.n };
+    findings.db = { project1: p1, project2: p2, project3Gone: p3.n === 0, nonTerminalTasks: pendingTasks.n };
     db.close();
   } catch (error) {
     findings.db = { error: error instanceof Error ? error.message : String(error) };
@@ -385,6 +419,7 @@ try {
     findings.db?.project1?.model_policy === 'fixed' &&
     findings.db?.project1?.default_model === 'deepseek/deepseek-v4-pro' &&
     findings.db?.project2?.archived === 0 &&
+    findings.db?.project3Gone === true &&
     String(findings.steps.find((s) => s.step === '保存后摘要')?.value ?? '').includes('123456 tokens') &&
     String(findings.steps.find((s) => s.step === '保存后摘要')?.value ?? '').includes('release/x') &&
     String(findings.steps.find((s) => s.step === '保存后摘要')?.value ?? '').includes('deepseek/deepseek-v4-pro') &&
@@ -399,6 +434,10 @@ try {
     findings.steps.find((s) => s.step === '窄窗720')?.value?.overflow === false &&
     findings.steps.find((s) => s.step === '窄窗720')?.value?.saveVisible === true &&
     findings.steps.find((s) => s.step === 'DPI1.25')?.value?.saveVisible === true &&
+    (findings.steps.find((s) => s.step === '缩放1.5/1.75')?.value ?? []).length === 2 &&
+    (findings.steps.find((s) => s.step === '缩放1.5/1.75')?.value ?? []).every((c) => c.overflow === false && c.saveVisible === true) &&
+    findings.steps.find((s) => s.step === '删除空项目成功')?.value?.rowsAfter === 0 &&
+    String(findings.steps.find((s) => s.step === '删除空项目成功')?.value?.message ?? '').includes('已删除项目') &&
     findings.steps.find((s) => s.step === '归档项目名样式')?.value?.fontSize === '15px' &&
     findings.steps.find((s) => s.step === '归档项目名样式')?.value?.background === 'rgba(0, 0, 0, 0)' &&
     findings.steps.find((s) => s.step === '冷启动归档页')?.value?.restoreNoticeGone === true &&

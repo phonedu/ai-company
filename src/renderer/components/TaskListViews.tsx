@@ -234,17 +234,19 @@ export function ArchiveView({
               )}
             </div>
           ))}
-          {actionError != null && actionError.length > 0 ? (
-            <p className="tlist__action-error" data-testid="archive-project-action-error" role="alert">
-              {actionError}
-            </p>
-          ) : null}
-          {actionMessage != null && actionMessage.length > 0 ? (
-            <p className="tlist__muted" data-testid="archive-project-action-message">
-              {actionMessage}
-            </p>
-          ) : null}
         </section>
+      ) : null}
+      {/* 复核补（2026-11-10）：回执必须**独立于行**——删掉最后一个归档项目后区块整体卸载，
+          此前「已删除项目 #3」的确认也跟着消失（真机实抓 message=null）。放区块外，0 行也可见。 */}
+      {actionError != null && actionError.length > 0 ? (
+        <p className="tlist__action-error" data-testid="archive-project-action-error" role="alert">
+          {actionError}
+        </p>
+      ) : null}
+      {actionMessage != null && actionMessage.length > 0 ? (
+        <p className="tlist__muted" data-testid="archive-project-action-message">
+          {actionMessage}
+        </p>
       ) : null}
       {error != null && error.length > 0 ? (
         <div className="tlist__error" data-testid="archive-error" role="alert">
